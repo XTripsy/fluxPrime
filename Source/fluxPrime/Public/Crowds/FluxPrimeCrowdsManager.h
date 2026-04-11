@@ -6,6 +6,7 @@
 #include "FluxPrimeCrowdsManagerInterface.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "Systems/FluxPrimeBoidsSystems.h"
+#include "Systems/FluxPrimeGroundHeightSystems.h"
 #include "Systems/FluxPrimeMovementSystems.h"
 #include "Systems/FluxPrimeNavigationSystems.h"
 #include "Systems/FluxPrimeSpatialGridSystems.h"
@@ -57,6 +58,9 @@ private:
 	
 	UPROPERTY()
 	FFluxPrimeNavigationSystems NavigationSystems;
+	
+	UPROPERTY()
+	FFluxPrimeGroundHeightSystems GroundHeightSystems;
 	
 	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
 	AActor* targetLocation;

@@ -27,6 +27,14 @@ struct FFluxPrimeNavigationSystems
 	{
 		for (int i = 0; i < memberActive; ++i)
 		{
+			FVector location = FVector(members.CrowdsLocation[i].X, members.CrowdsLocation[i].Y, 0);
+			int8 indexNavigationPath = members.CrowdsIndexNavigationPath[i];
+			if (FVector::DistXY(location, members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath++]) < 50)
+				members.CrowdsIndexNavigationPath[i]++;
+			
+			float dist = FVector::DistSquaredXY(location, members.CrowdsNavigationPath[i].LocationPaths[members.CrowdsTotalNavigationPath[i]]);
+			if (dist < 2500.0f) continue;
+			
 			if (members.CrowdsIndexNavigationPath[i] == members.CrowdsTotalNavigationPath[i])
 			{
 				TArray<FVector> path = GetNavigationPath(World, members.CrowdsLocation[i], members.CrowdsTargetLocation[i]);
@@ -34,11 +42,14 @@ struct FFluxPrimeNavigationSystems
     
 				for (int8 j = 0; j < total; ++j)
 				{
+					path[j+1].Z = 0;
 					members.CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
+					
+					DrawDebugLine(World, path[j+1] + (FVector::UpVector * 1000), path[j+1], FColor::Red, true, 10.0f, 0, 2.0f);
 				}
 				
 				members.CrowdsIndexNavigationPath[i] = 0;
-				members.CrowdsTotalNavigationPath[i] = path.Num()-1;
+				members.CrowdsTotalNavigationPath[i] = total;
 			}
 		}
 	}

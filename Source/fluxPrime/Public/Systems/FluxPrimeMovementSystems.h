@@ -14,7 +14,9 @@ struct FFluxPrimeMovementSystems
 		for (int i = 0; i < memberActive; ++i)
 		{
 			int8 indexNavigationPath = members.CrowdsIndexNavigationPath[i];
-			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - members.CrowdsLocation[i];
+			FVector location = members.CrowdsLocation[i];
+			location.Z = 0;
+			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - location;
 			
 			FRotator rot = dir.Rotation();
 			members.CrowdsRotation[i] = FRotator::CompressAxisToByte(rot.Yaw);
@@ -28,9 +30,6 @@ struct FFluxPrimeMovementSystems
 			members.CrowdsLocation[i] += members.CrowdsVelocity[i] * DeltaTime;
 			members.CrowdsAcceleration[i] = FVector::ZeroVector;
 			members.CrowdsVelocity[i] = FVector::ZeroVector;
-			
-			if (FVector::Dist(members.CrowdsLocation[i], members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath++]) < 50)
-				members.CrowdsIndexNavigationPath[i]++;
 		}
 	}
 };

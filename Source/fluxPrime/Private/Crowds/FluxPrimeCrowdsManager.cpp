@@ -126,6 +126,8 @@ void AFluxPrimeCrowdsManager::BeginPlay()
 	
 	InitializeCrowds();
 	
+	GroundHeightSystems.InitializedGroundHeightSystems(100.0f, FVector(-6000.0f, -6000.0f, 0), 400, 400);
+	GroundHeightSystems.BakeGroundHeightSystems(GetWorld());
 	SpatialGridSystems.InitializeSpatialGridSystem(10.0f, 100);
 	BoidsSystems.InitializeBoidsSystems(150.0f);
 }
@@ -139,6 +141,7 @@ void AFluxPrimeCrowdsManager::Tick(float DeltaTime)
 	
 	SpatialGridSystems.UpdateSpatialGridSystem(CrowdsDatas, GridOffset, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
 	BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, 10.0f, 100, CrowdsActive);
+	GroundHeightSystems.UpdateGroundHeightSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	MovementSystems.UpdateMovementSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	NavigationSystems.UpdateNavigationSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	
@@ -177,20 +180,27 @@ void AFluxPrimeCrowdsManager::SpawnCrowd_Implementation(UCrowdsIdentity* identit
     
 	for (int8 i = 0; i < total; ++i)
 	{
+		path[i+1].Z = 0;
 		CrowdsDatas[CrowdsDataReadIndex].CrowdsNavigationPath[indexSelected].LocationPaths[i] = path[i+1];
+		DrawDebugLine(GetWorld(), path[i+1] + (FVector::UpVector * 1000), path[i+1], FColor::Blue, true, 10.0f, 2, 2.0f);
+	}
+
+	for (int i = 0; i < path.Num(); ++i)
+	{
+		DrawDebugLine(GetWorld(), path[i] + (FVector::UpVector * 1000), path[i], FColor::Yellow, true, 100.0f, 1, 2.0f);
 	}
 	
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[indexSelected] = location;
+	CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[indexSelected] = FRotator::CompressAxisToByte(rotation.Yaw);
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsID[indexSelected] = id;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsType[indexSelected] = type;
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsTargetLocation[indexSelected] = targetLocation->GetActorLocation();
+	CrowdsDatas[CrowdsDataReadIndex].CrowdsTargetLocation[indexSelected] = FVector(targetLocation->GetActorLocation().X, targetLocation->GetActorLocation().Y, 0);
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsDamage[indexSelected] = identity->Damage;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsSize[indexSelected] = identity->Size;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsHealth[indexSelected] = identity->Health;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsMaxSpeed[indexSelected] = identity->Speed;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsIndexNavigationPath[indexSelected] = 0;
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsTotalNavigationPath[indexSelected] = path.Num()-1;
+	CrowdsDatas[CrowdsDataReadIndex].CrowdsTotalNavigationPath[indexSelected] = total;
 	
 	++CrowdsActive;
 }
