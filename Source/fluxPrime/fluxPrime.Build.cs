@@ -25,7 +25,9 @@ public class fluxPrime : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+				"Core", 
+				"GameplayTags",
+				"NavigationSystem"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
