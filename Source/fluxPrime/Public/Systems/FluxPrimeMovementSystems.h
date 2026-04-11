@@ -19,7 +19,9 @@ struct FFluxPrimeMovementSystems
 			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - location;
 			
 			FRotator rot = dir.Rotation();
-			members.CrowdsRotation[i] = FRotator::CompressAxisToByte(rot.Yaw);
+			//members.CrowdsRotation[i] = FRotator::CompressAxisToByte(rot.Yaw);
+			// forwad static mesh perlu di rubah
+			members.CrowdsRotation[i] = FRotator::CompressAxisToByte(rot.Yaw) - 65;
 			
 			dir = dir.GetSafeNormal();
 			FVector velocity = dir * members.CrowdsMaxSpeed[i];
