@@ -10,6 +10,7 @@
 #include "Systems/FluxPrimeMovementSystems.h"
 #include "Systems/FluxPrimeNavigationSystems.h"
 #include "Systems/FluxPrimeSpatialGridSystems.h"
+#include "Systems/FluxPrimeAnimationSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -62,6 +63,9 @@ private:
 	UPROPERTY()
 	FFluxPrimeGroundHeightSystems GroundHeightSystems;
 	
+	UPROPERTY()
+	FFluxPrimeAnimationSystems AnimationSystems; 
+	
 	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
 	AActor* targetLocation;
 	
@@ -74,6 +78,15 @@ private:
 	
 	void UpdateRenderCrowds();
 	
+	UFUNCTION()
+	void OnAttackNotify(int32 memberID);
+	
+	UFUNCTION()
+	void OnSpawnSFXNotify(int32 memberID);
+	
+	UFUNCTION()
+	void OnSpawnVFXNotify(int32 memberID);
+	
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -81,4 +94,6 @@ protected:
 	
 public:
 	virtual void SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation) override;
+	virtual void SwitchAnimationCrowd_Implementation(UCrowdsIdentity* identity) override;
+	virtual void PlayMontageCrowd_Implementation(UCrowdsIdentity* identity) override;
 };

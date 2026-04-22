@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
+#include "FluxPrimeEnum.h"
 #include "FluxPrimeStruct.generated.h"
 
 class UCrowdsIdentity;
@@ -16,6 +16,32 @@ struct FFluxCrowdsPath
 	
 	UPROPERTY(EditAnywhere)
 	FVector LocationPaths[8];
+};
+
+USTRUCT(BlueprintType)
+struct FFluxCrowdsAnimationNotify
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	EFluxCrowdAnimationNotify AnimationNotifyType[8] = {EFluxCrowdAnimationNotify::NotifyNone};
+	
+	UPROPERTY(EditAnywhere)
+	int32 AnimationNotifyFrame[8] = {-1};
+};
+
+USTRUCT(BlueprintType)
+struct FFluxCrowdsAnimation
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	int32 AnimationOffset[8] = {-1};
+	
+	UPROPERTY(EditAnywhere)
+	FFluxCrowdsAnimationNotify AnimationNotify[8];
+	
+	bool AnimationLoop[8] = {true};
 };
 
 USTRUCT(BlueprintType)
@@ -41,35 +67,16 @@ struct FFluxPrimeCrowds
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsLocation;
+#pragma region IdentityData
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsVelocity;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsAcceleration;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<FFluxCrowdsPath> CrowdsNavigationPath;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsTargetLocation;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<int32> CrowdsCellID;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsRotation;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsMaxSpeed;
+	TArray<int8> CrowdsID;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsType;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsID;
+	TArray<float> CrowdsMaxSpeed;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsDamage;
@@ -81,28 +88,79 @@ struct FFluxPrimeCrowds
 	TArray<int8> CrowdsSize;
 	
 	UPROPERTY(EditAnywhere)
+	TArray<int32> CrowdsCellID;
+	
+#pragma endregion
+	
+#pragma region TransformData
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsLocation;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<int8> CrowdsRotation;
+	
+#pragma endregion
+	
+#pragma region MovementData
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsVelocity;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsAcceleration;
+	
+#pragma endregion
+	
+#pragma region AnimationData
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FFluxCrowdsAnimation> CrowdsAnimationData;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<int32> CrowdsAnimationIndex;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<float> CrowdsStartTimeAnimationFrame;
+	
+#pragma endregion 
+	
+#pragma region NavigationData
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsTargetLocation;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FFluxCrowdsPath> CrowdsNavigationPath;
+	
+	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsIndexNavigationPath;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsTotalNavigationPath;
 	
+#pragma endregion
+	
 	void Init(int32 totalMember)
 	{
 		CrowdsLocation.Reserve(totalMember);
+		CrowdsRotation.Reserve(totalMember);
 		CrowdsVelocity.Reserve(totalMember);
 		CrowdsAcceleration.Reserve(totalMember);
-		CrowdsNavigationPath.Reserve(totalMember);
-		CrowdsTargetLocation.Reserve(totalMember);
 		CrowdsCellID.Reserve(totalMember);
-		CrowdsRotation.Reserve(totalMember);
 		CrowdsMaxSpeed.Reserve(totalMember);
 		CrowdsType.Reserve(totalMember);
 		CrowdsID.Reserve(totalMember);
 		CrowdsHealth.Reserve(totalMember);
 		CrowdsDamage.Reserve(totalMember);
 		CrowdsSize.Reserve(totalMember);
+		CrowdsNavigationPath.Reserve(totalMember);
 		CrowdsIndexNavigationPath.Reserve(totalMember);
 		CrowdsTotalNavigationPath.Reserve(totalMember);
+		CrowdsTargetLocation.Reserve(totalMember);
+		CrowdsAnimationData.Reserve(totalMember);
+		CrowdsAnimationIndex.Reserve(totalMember);
+		CrowdsStartTimeAnimationFrame.Reserve(totalMember);
 	}
 };
 

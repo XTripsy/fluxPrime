@@ -6,6 +6,9 @@
 #include "Engine/DataAsset.h"
 #include "CrowdsIdentity.generated.h"
 
+class UFluxPrimeAnimationData;
+//class UAnimToTextureDataAsset;
+
 /**
  * 
  */
@@ -16,10 +19,13 @@ class FLUXPRIME_API UCrowdsIdentity : public UPrimaryDataAsset
 	
 public:
 	UPROPERTY(EditAnywhere)
-	FName Identity;
+	TSoftObjectPtr<UFluxPrimeAnimationData> AnimationData;
 	
 	UPROPERTY(EditAnywhere)
-	TObjectPtr<UStaticMesh> Mesh;
+	TSoftObjectPtr<UStaticMesh> Mesh;
+	
+	UPROPERTY(EditAnywhere)
+	FName Identity;
 	
 	UPROPERTY(EditAnywhere)
 	int32 Speed;

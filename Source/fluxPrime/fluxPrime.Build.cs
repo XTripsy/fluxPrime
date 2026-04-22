@@ -27,7 +27,8 @@ public class fluxPrime : ModuleRules
 			{
 				"Core", 
 				"GameplayTags",
-				"NavigationSystem"
+				"NavigationSystem",
+				"AnimToTexture"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

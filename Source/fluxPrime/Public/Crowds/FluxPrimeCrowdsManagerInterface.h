@@ -25,4 +25,10 @@ class FLUXPRIME_API IFluxPrimeCrowdsManagerInterface
 public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void SpawnCrowd(UCrowdsIdentity* identity, FVector location, FRotator rotation);
+	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void SwitchAnimationCrowd(UCrowdsIdentity* identity);
+	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void PlayMontageCrowd(UCrowdsIdentity* identity);
 };

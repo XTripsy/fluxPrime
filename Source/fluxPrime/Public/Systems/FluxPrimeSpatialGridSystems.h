@@ -57,18 +57,21 @@ struct FFluxPrimeSpatialGridSystems
             
             WriteBuffer.CrowdsLocation[i] = ReadBuffer.CrowdsLocation[tempShortedIndex];
             WriteBuffer.CrowdsRotation[i] = ReadBuffer.CrowdsRotation[tempShortedIndex];
+            WriteBuffer.CrowdsAcceleration[i] = ReadBuffer.CrowdsAcceleration[tempShortedIndex];
+            WriteBuffer.CrowdsVelocity[i] = ReadBuffer.CrowdsVelocity[tempShortedIndex];
             WriteBuffer.CrowdsID[i] = ReadBuffer.CrowdsID[tempShortedIndex];
             WriteBuffer.CrowdsCellID[i] = ReadBuffer.CrowdsCellID[tempShortedIndex];
             WriteBuffer.CrowdsMaxSpeed[i] = ReadBuffer.CrowdsMaxSpeed[tempShortedIndex];
             WriteBuffer.CrowdsType[i] = ReadBuffer.CrowdsType[tempShortedIndex];
-            WriteBuffer.CrowdsAcceleration[i] = ReadBuffer.CrowdsAcceleration[tempShortedIndex];
-            WriteBuffer.CrowdsVelocity[i] = ReadBuffer.CrowdsVelocity[tempShortedIndex];
             WriteBuffer.CrowdsHealth[i] = ReadBuffer.CrowdsHealth[tempShortedIndex];
             WriteBuffer.CrowdsSize[i] = ReadBuffer.CrowdsSize[tempShortedIndex];
             WriteBuffer.CrowdsDamage[i] = ReadBuffer.CrowdsDamage[tempShortedIndex];
             WriteBuffer.CrowdsIndexNavigationPath[i] = ReadBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
             WriteBuffer.CrowdsTotalNavigationPath[i] = ReadBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
             WriteBuffer.CrowdsNavigationPath[i] = ReadBuffer.CrowdsNavigationPath[tempShortedIndex];
+            WriteBuffer.CrowdsAnimationData[i] = ReadBuffer.CrowdsAnimationData[tempShortedIndex];
+            WriteBuffer.CrowdsAnimationIndex[i] = ReadBuffer.CrowdsAnimationIndex[tempShortedIndex];
+            WriteBuffer.CrowdsStartTimeAnimationFrame[i] = ReadBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
         }
         
         gridOffset.Init(-1, TotalCells);

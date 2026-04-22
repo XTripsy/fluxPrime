@@ -75,14 +75,18 @@ struct FFluxPrimeGroundHeightSystems
 	
 	void UpdateGroundHeightSystems(double deltaTime, FFluxPrimeCrowds& members, const int32 memberActive)
 	{
+		FVector2D inputRange(75.0f, 300.0f);
+		FVector2D outputRange(1.75f, 6.0f);
+		
 		for (int i = 0; i < memberActive; ++i)
 		{
-			float unpackedYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]);
+			float unpackedYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]) + 65;
 			FVector ForwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
 			FVector location = members.CrowdsLocation[i] + (ForwardVector * 75);
+			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, members.CrowdsMaxSpeed[i]);
 			float target = GetGroundHeight(location);
-			target += 15;
-			members.CrowdsLocation[i].Z = FMath::Lerp(members.CrowdsLocation[i].Z, target, deltaTime * 1.75f);
+			target += 10;
+			members.CrowdsLocation[i].Z = FMath::Lerp(members.CrowdsLocation[i].Z, target, deltaTime * value);
 		}
 	}
 };
