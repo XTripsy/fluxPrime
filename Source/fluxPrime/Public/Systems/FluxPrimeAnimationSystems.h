@@ -15,6 +15,10 @@ struct FFluxPrimeAnimationSystems
 {
 	GENERATED_BODY()
 	
+private:
+	UPROPERTY()
+	bool IsDebug = false;
+	
 public:
 	FOnAttackNotify OnAttackNotify;
 	FOnSpawnSFXNotify OnSpawnSFXNotify;
@@ -23,23 +27,8 @@ public:
 private:
 	void ShowDebug(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 indexMembers, int32 animationIndex, float currentFrame)
 	{
-		FVector location = members.CrowdsLocation[indexMembers];
-		FVector textLocation = location + FVector(100.0f, 100.0f, 500.0f);
-		FString debugData = FString::Printf(TEXT("INDEX: %d | ID: %d"), indexMembers, members.CrowdsID[indexMembers]);
-
-		DrawDebugString(
-			world,
-			textLocation,
-			debugData,
-			nullptr,
-			FColor::Red,
-			0.0f,
-			true,
-			1.2f
-		);
-		
-		textLocation -= FVector(0.0f, 0.0f, 50);
-		debugData = FString::Printf(TEXT("Animation Index: %d | Animation Frame: %f"), animationIndex, currentFrame);
+		FVector textLocation = members.CrowdsLocation[indexMembers] + (FVector::UpVector * FluxConfig::DebugLocationAnimation);
+		FString debugData = FString::Printf(TEXT("Animation Index: %d \n Animation Frame: %f"), animationIndex, currentFrame);
 		
 		DrawDebugString(
 			world,
@@ -48,8 +37,8 @@ private:
 			nullptr,
 			FColor::Yellow,
 			0.0f,
-			true,
-			1.0f
+			false,
+			FluxConfig::DebugScaleFont
 		);
 	}
 	
@@ -64,7 +53,7 @@ private:
 		float reminder = FMath::Fmod(realTimeFrames, (endIndex - startIndex) + 1.0f);
 		float current = startIndex + reminder;
 		
-		ShowDebug(world, members, indexMembers, indexAnimation, current);
+		if (IsDebug) ShowDebug(world, members, indexMembers, indexAnimation, current);
 		
 		if (!members.CrowdsAnimationData[indexMembers].AnimationLoop[FMath::Max(0, indexAnimation+1)] 
 			&& FMath::IsNearlyEqual(endIndex, current, 1.0f))
@@ -81,8 +70,7 @@ private:
 	{
 		FFluxCrowdsAnimationNotify& currentNotify = *members.CrowdsAnimationData[indexMembers].AnimationNotify;
 		
-		// 8  di sini harus di ubah
-		for (int i = 0; i < 8; ++i)
+		for (int i = 0; i < FluxConfig::AnimationArrayCount; ++i)
 		{
 			if (!FMath::IsNearlyEqual(currentNotify.AnimationNotifyFrame[i]+1, currentFrame, 0.5f)) continue;
 
@@ -108,8 +96,6 @@ private:
 	
 	void UpdateCustomDataValue(FFluxPrimeCrowds& members, int32 indexMembers, int32 startFrame, float currentFrame, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
 	{
-		//float frameAlpha = FMath::Fractional(currentFrame);
-		
 		memberComponets[members.CrowdsType[indexMembers]]->SetCustomDataValue(
 			members.CrowdsID[indexMembers],
 			0,
@@ -123,16 +109,14 @@ private:
 			currentFrame,
 			false
 			);
-		
-		/*memberComponets[members.CrowdsType[indexMembers]]->SetCustomDataValue(
-			members.CrowdsID[indexMembers],
-			2,
-			frameAlpha,
-			false
-			);*/
 	}
 	
 public:
+	void InitializedAnimationSystems(bool isDebug)
+	{
+		IsDebug = isDebug;
+	}
+	
 	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, FFluxPrimeCrowds members[2], TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
 	{
 		int8 WriteIndex = (dataReadIndex + 1) % 2;
@@ -166,6 +150,7 @@ public:
 			WriteBuffer.CrowdsHealth[i] = ReadBuffer.CrowdsHealth[tempShortedIndex];
 			WriteBuffer.CrowdsSize[i] = ReadBuffer.CrowdsSize[tempShortedIndex];
 			WriteBuffer.CrowdsDamage[i] = ReadBuffer.CrowdsDamage[tempShortedIndex];
+			WriteBuffer.CrowdsTargetLocation[i] = ReadBuffer.CrowdsTargetLocation[tempShortedIndex];
 			WriteBuffer.CrowdsIndexNavigationPath[i] = ReadBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
 			WriteBuffer.CrowdsTotalNavigationPath[i] = ReadBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
 			WriteBuffer.CrowdsNavigationPath[i] = ReadBuffer.CrowdsNavigationPath[tempShortedIndex];
@@ -187,38 +172,29 @@ public:
 	
 	void SwitchAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, const int32 indexMembers)
 	{
-		/*if (!members.CrowdsID.IsValidIndex(indexMembers)) return;
-		
-		members.CrowdsStartTimeAnimationFrame[indexMembers] = world->GetRealTimeSeconds();
-		members.CrowdsAnimationIndex[indexMembers] += 2;*/
-		
 		int32 id = 0;
 		int32 index = members.CrowdsID.IndexOfByKey(id);
-		if (!members.CrowdsID.IsValidIndex(index))
-		{
-			UE_LOG(LogTemp, Error, TEXT("index %d"), index);
-			return;
-		}
+		
+		if (!members.CrowdsID.IsValidIndex(index)) return;
+
 		members.CrowdsStartTimeAnimationFrame[index] = world->GetRealTimeSeconds();
 		members.CrowdsAnimationIndex[index] += 2;
-		UE_LOG(LogTemp, Error, TEXT("masuk index %d"), index);
 	}
 	
 	void MontageAnimation(FFluxPrimeCrowds& members, const int32 indexMembers, const int32 indexAnimation)
 	{
-		// 8  di sini harus di ubah 
-		/*if (!members.CrowdsID.IsValidIndex(indexMembers) || indexAnimation > 8) return;
-		
-		members.CrowdsAnimationIndex[indexMembers] = indexAnimation;*/
-		
 		int32 id = 0;
 		int32 index = members.CrowdsID.IndexOfByKey(id);
-		if (!members.CrowdsID.IsValidIndex(index) || indexAnimation > 8)
-		{
-			UE_LOG(LogTemp, Error, TEXT("index %d"), index);
-			return;
-		}
+		
+		if (!members.CrowdsID.IsValidIndex(index) || indexAnimation > 8) return;
+
 		members.CrowdsAnimationIndex[index] = indexAnimation;
 	}
 	
+	void EndPlayAnimationSystems()
+	{
+		OnAttackNotify.Unbind();
+		OnSpawnSFXNotify.Unbind();
+		OnSpawnVFXNotify.Unbind();
+	}
 };

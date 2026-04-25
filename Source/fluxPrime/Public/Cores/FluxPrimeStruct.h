@@ -7,7 +7,17 @@
 #include "FluxPrimeStruct.generated.h"
 
 class UCrowdsIdentity;
-class IFluxPrimeCrowdLeaderInterface;
+
+namespace FluxConfig
+{
+	constexpr int8 AnimationArrayCount = 8;
+	constexpr int8 NavigationArrayCount = 8;
+	constexpr float DebugLocationIdentity = 500.0f;
+	constexpr float DebugLocationAnimation = 420.0f;
+	constexpr float DebugLocationNavigation = 340.0f;
+	constexpr float DebugLocationMovement = 520.0f;
+	constexpr float DebugScaleFont = .8f;
+}
 
 USTRUCT(BlueprintType)
 struct FFluxCrowdsPath
@@ -15,7 +25,7 @@ struct FFluxCrowdsPath
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	FVector LocationPaths[8];
+	FVector LocationPaths[FluxConfig::NavigationArrayCount];
 };
 
 USTRUCT(BlueprintType)
@@ -24,10 +34,10 @@ struct FFluxCrowdsAnimationNotify
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	EFluxCrowdAnimationNotify AnimationNotifyType[8] = {EFluxCrowdAnimationNotify::NotifyNone};
+	EFluxCrowdAnimationNotify AnimationNotifyType[FluxConfig::AnimationArrayCount] = {EFluxCrowdAnimationNotify::NotifyNone};
 	
 	UPROPERTY(EditAnywhere)
-	int32 AnimationNotifyFrame[8] = {-1};
+	int32 AnimationNotifyFrame[FluxConfig::AnimationArrayCount] = {-1};
 };
 
 USTRUCT(BlueprintType)
@@ -36,12 +46,12 @@ struct FFluxCrowdsAnimation
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	int32 AnimationOffset[8] = {-1};
+	int32 AnimationOffset[FluxConfig::AnimationArrayCount] = {-1};
 	
 	UPROPERTY(EditAnywhere)
-	FFluxCrowdsAnimationNotify AnimationNotify[8];
+	FFluxCrowdsAnimationNotify AnimationNotify[FluxConfig::AnimationArrayCount];
 	
-	bool AnimationLoop[8] = {true};
+	bool AnimationLoop[FluxConfig::AnimationArrayCount] = {true};
 };
 
 USTRUCT(BlueprintType)

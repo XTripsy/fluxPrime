@@ -11,6 +11,7 @@ struct FFluxPrimeGroundHeightSystems
 {
 	GENERATED_BODY()
 	
+private:
 	UPROPERTY(EditAnywhere)
 	float CellSize = 100.0f;
 
@@ -25,6 +26,7 @@ struct FFluxPrimeGroundHeightSystems
 	UPROPERTY(EditAnywhere)
 	TArray<float> GroundHeightMap;
 	
+public:
 	void InitializedGroundHeightSystems(float cellSize, FVector origin, int32 cellWidth, int32 cellHeight)
 	{
 		CellSize = cellSize;

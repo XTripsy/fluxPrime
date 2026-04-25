@@ -9,9 +9,11 @@ struct FFluxPrimeBoidsSystems
 {
 	GENERATED_BODY()
 	
+private:
 	UPROPERTY(VisibleAnywhere)
 	float SeparationWeight = 0.0f;
 	
+public:
 	void InitializeBoidsSystems(float separationWeight)
 	{
 		SeparationWeight = separationWeight;

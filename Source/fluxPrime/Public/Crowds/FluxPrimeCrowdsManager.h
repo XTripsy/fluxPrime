@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/StreamableManager.h"
 #include "FluxPrimeCrowdsManagerInterface.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "Systems/FluxPrimeBoidsSystems.h"
@@ -11,6 +12,7 @@
 #include "Systems/FluxPrimeNavigationSystems.h"
 #include "Systems/FluxPrimeSpatialGridSystems.h"
 #include "Systems/FluxPrimeAnimationSystems.h"
+#include "Systems/FluxPrimeProxyTargetSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -24,11 +26,25 @@ private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>> CrowdsComponents;
 	
 private:
+	UPROPERTY(EditAnywhere, Category = "Crowds | Condition", meta = (AllowPrivateAccess = true))
+	bool IsReplicated;
+	
+	UPROPERTY(EditAnywhere, Category = "Crowds | Condition", meta = (AllowPrivateAccess = true))
+	bool IsShowDebug;
+	
 	UPROPERTY(EditAnywhere, Category = "Crowds | Catalogs", meta = (AllowPrivateAccess = true))
-	TArray<FFluxCatalogCrowds> CatalogCrowds;
+	TArray<FFluxCatalogCrowds> CrowdsCatalog;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Crowds | Data")
+	TMap<FName, TSoftObjectPtr<UStaticMesh>> CrowdsMeshSoftRef;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Crowds | Data")
+	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>> CrowdsAnimationSoftRef;
+	
+	TSharedPtr<FStreamableHandle> StreamingHandle;
 	
 	UPROPERTY()
-	TMap<TObjectPtr<UCrowdsIdentity>, int32> CrowdsTypes;
+	TMap<FName, int32> CrowdsTypes;
 	
 	UPROPERTY()
 	int8 CrowdsDataReadIndex = 0;
@@ -66,13 +82,20 @@ private:
 	UPROPERTY()
 	FFluxPrimeAnimationSystems AnimationSystems; 
 	
-	UPROPERTY(EditAnywhere, meta = (AllowPrivateAccess = true))
-	AActor* targetLocation;
+	UPROPERTY()
+	FFluxPrimeProxyTargetSystems ProxyTargetSystems;
 	
 public:
 	AFluxPrimeCrowdsManager();
 
 private:
+	void ShowDebug();
+	
+	void PreLoading();
+	
+	UFUNCTION()
+	void InitializeSystems();
+	
 	void InitializeComponentCrowds();
 	void InitializeCrowds();
 	
@@ -89,8 +112,10 @@ private:
 	
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
+	virtual void PostInitProperties() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
 	virtual void SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation) override;

@@ -9,12 +9,14 @@ struct FFluxPrimeSpatialGridSystems
 {
     GENERATED_BODY()
     
+private:
     UPROPERTY(VisibleAnywhere)
     float CellSize = 0;
     
     UPROPERTY(VisibleAnywhere)
     int32 TotalCells = 0;
     
+public:
     void InitializeSpatialGridSystem(float cellSize, int32 totalCells)
     {
         CellSize = cellSize;
@@ -66,6 +68,7 @@ struct FFluxPrimeSpatialGridSystems
             WriteBuffer.CrowdsHealth[i] = ReadBuffer.CrowdsHealth[tempShortedIndex];
             WriteBuffer.CrowdsSize[i] = ReadBuffer.CrowdsSize[tempShortedIndex];
             WriteBuffer.CrowdsDamage[i] = ReadBuffer.CrowdsDamage[tempShortedIndex];
+            WriteBuffer.CrowdsTargetLocation[i] = ReadBuffer.CrowdsTargetLocation[tempShortedIndex];
             WriteBuffer.CrowdsIndexNavigationPath[i] = ReadBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
             WriteBuffer.CrowdsTotalNavigationPath[i] = ReadBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
             WriteBuffer.CrowdsNavigationPath[i] = ReadBuffer.CrowdsNavigationPath[tempShortedIndex];
