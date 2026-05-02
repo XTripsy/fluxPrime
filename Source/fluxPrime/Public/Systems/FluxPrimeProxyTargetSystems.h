@@ -13,7 +13,7 @@ struct FFluxPrimeProxyTargetSystems
 private:
 	FTimerHandle TimerHandle = FTimerHandle();
 	FFluxPrimeCrowds* Crowds = nullptr;
-	FFluxPrimeNavigationSystems* NavigationSystems = nullptr;
+	TSharedPtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
 	int32* ActiveMember = nullptr;
 	
 	UPROPERTY()
@@ -43,7 +43,7 @@ private:
 	}
 	
 public:
-	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, FFluxPrimeCrowds* crowds, int32* activeMember, FFluxPrimeNavigationSystems* navigationSystems)
+	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, FFluxPrimeCrowds* crowds, int32* activeMember, TSharedPtr<FFluxPrimeNavigationSystems> navigationSystems)
 	{
 		World = world;
 		Crowds = crowds;

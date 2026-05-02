@@ -12,8 +12,11 @@
 #include "Systems/FluxPrimeNavigationSystems.h"
 #include "Systems/FluxPrimeSpatialGridSystems.h"
 #include "Systems/FluxPrimeAnimationSystems.h"
+#include "Systems/FluxPrimeDamageSystems.h"
 #include "Systems/FluxPrimeProxyTargetSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
+
+class UManagerConfiguration;
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
 		Actor, LOD, Cooking, Transform, Physics, Networking, LevelInstance, HLOD, WorldPartition, DataLayers))
@@ -31,6 +34,9 @@ private:
 	
 	UPROPERTY(EditAnywhere, Category = "Crowds | Condition", meta = (AllowPrivateAccess = true))
 	bool IsShowDebug;
+	
+	UPROPERTY(EditAnywhere, Category = "Crowds | Configuration", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
 	
 	UPROPERTY(EditAnywhere, Category = "Crowds | Catalogs", meta = (AllowPrivateAccess = true))
 	TArray<FFluxCatalogCrowds> CrowdsCatalog;
@@ -61,10 +67,18 @@ private:
 	UPROPERTY()
 	TArray<int32> GridOffset;
 	
-	UPROPERTY()
-	FFluxPrimeCrowds CrowdsDatas[2];
+	TStaticArray<FFluxPrimeCrowds, 2> CrowdsDatas;
 	
-	UPROPERTY()
+	TSharedPtr<FFluxPrimeSpatialGridSystems> SpatialGridSystems = nullptr;
+	TSharedPtr<FFluxPrimeBoidsSystems> BoidsSystems = nullptr;
+	TSharedPtr<FFluxPrimeMovementSystems> MovementSystems = nullptr;
+	TSharedPtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
+	TSharedPtr<FFluxPrimeGroundHeightSystems> GroundHeightSystems = nullptr;
+	TSharedPtr<FFluxPrimeAnimationSystems> AnimationSystems = nullptr;
+	TSharedPtr<FFluxPrimeProxyTargetSystems> ProxyTargetSystems = nullptr;
+	TSharedPtr<FFluxPrimeDamageSystems> DamageSystems = nullptr;
+	
+	/*UPROPERTY()
 	FFluxPrimeSpatialGridSystems SpatialGridSystems;
 	
 	UPROPERTY()
@@ -84,6 +98,9 @@ private:
 	
 	UPROPERTY()
 	FFluxPrimeProxyTargetSystems ProxyTargetSystems;
+	
+	UPROPERTY()
+	FFluxPrimeDamageSystems DamageSystems;*/
 	
 public:
 	AFluxPrimeCrowdsManager();
@@ -121,4 +138,5 @@ public:
 	virtual void SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation) override;
 	virtual void SwitchAnimationCrowd_Implementation(UCrowdsIdentity* identity) override;
 	virtual void PlayMontageCrowd_Implementation(UCrowdsIdentity* identity) override;
+	virtual void TakeDamage_Implementation(UCrowdsIdentity* Identity) override;
 };

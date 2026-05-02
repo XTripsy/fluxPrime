@@ -31,4 +31,7 @@ public:
 	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void PlayMontageCrowd(UCrowdsIdentity* identity);
+	
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void TakeDamage(UCrowdsIdentity* Identity);
 };

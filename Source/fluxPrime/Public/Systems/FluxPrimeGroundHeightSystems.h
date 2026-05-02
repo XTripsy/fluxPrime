@@ -19,7 +19,8 @@ private:
 	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f); 
 
 	UPROPERTY(EditAnywhere)
-	int32 CellWidth = 200; 
+	int32 CellWidth = 200;
+	
 	UPROPERTY(EditAnywhere)
 	int32 CellHeight = 200;
 
@@ -55,9 +56,9 @@ public:
 
 				FHitResult HitResult;
 				bool bHit = world->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_GroundHeight, TraceParams);
-				int32 Index1D = (y * CellWidth) + x;
+				int32 IndexID = (y * CellWidth) + x;
 
-				GroundHeightMap[Index1D] = (bHit) ? HitResult.ImpactPoint.Z : 0.0f;
+				GroundHeightMap[IndexID] = (bHit) ? HitResult.ImpactPoint.Z : 0.0f;
 			}
 		}
 	}
@@ -70,9 +71,9 @@ public:
 		CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
 		CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
 
-		int32 Index1D = (CellY * CellWidth) + CellX;
+		int32 IndexID = (CellY * CellWidth) + CellX;
 
-		return GroundHeightMap[Index1D];
+		return GroundHeightMap[IndexID];
 	}
 	
 	void UpdateGroundHeightSystems(double deltaTime, FFluxPrimeCrowds& members, const int32 memberActive)
@@ -83,8 +84,8 @@ public:
 		for (int i = 0; i < memberActive; ++i)
 		{
 			float unpackedYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]) + 65;
-			FVector ForwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
-			FVector location = members.CrowdsLocation[i] + (ForwardVector * 75);
+			FVector forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
+			FVector location = members.CrowdsLocation[i] + (forwardVector * 75);
 			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, members.CrowdsMaxSpeed[i]);
 			float target = GetGroundHeight(location);
 			target += 10;

@@ -22,9 +22,13 @@
 		}
 	],
 	"Plugins": [
-	{
-		"Name": "AnimToTexture",
-		"Enabled": true
-	}
-]
+		{
+			"Name": "AnimToTexture",
+			"Enabled": true
+		},
+        {
+          "Name": "StructUtils",
+          "Enabled": true
+        }
+	]
 }

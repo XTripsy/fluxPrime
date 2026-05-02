@@ -20,6 +20,9 @@ class FLUXPRIME_API AFluxPrimeCrowdsSpawner final : public AActor
 
 private:
 	UPROPERTY()
+	int32 uuindex = 0;
+	
+	UPROPERTY()
 	TScriptInterface<IFluxPrimeCrowdsManagerInterface> CrowdsManagerInterface;
 	
 	UPROPERTY(EditAnywhere, Category = "Catalogs", meta = (AllowPrivateAccess = true))

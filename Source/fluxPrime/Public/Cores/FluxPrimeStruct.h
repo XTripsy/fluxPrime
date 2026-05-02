@@ -12,10 +12,11 @@ namespace FluxConfig
 {
 	constexpr int8 AnimationArrayCount = 8;
 	constexpr int8 NavigationArrayCount = 8;
-	constexpr float DebugLocationIdentity = 500.0f;
-	constexpr float DebugLocationAnimation = 420.0f;
-	constexpr float DebugLocationNavigation = 340.0f;
-	constexpr float DebugLocationMovement = 520.0f;
+	constexpr float DebugLocationMovement = 620.0f;
+	constexpr float DebugLocationIdentity = 600.0f;
+	constexpr float DebugLocationAnimation = 520.0f;
+	constexpr float DebugLocationNavigation = 440.0f;
+	constexpr float DebugLocationSpatialGrid = 360.0f;
 	constexpr float DebugScaleFont = .8f;
 }
 

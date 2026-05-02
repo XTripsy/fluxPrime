@@ -7,12 +7,8 @@
 #include "CrowdsIdentity.generated.h"
 
 class UFluxPrimeAnimationData;
-//class UAnimToTextureDataAsset;
 
-/**
- * 
- */
-UCLASS()
+UCLASS(BlueprintType)
 class FLUXPRIME_API UCrowdsIdentity : public UPrimaryDataAsset
 {
 	GENERATED_BODY()

@@ -50,7 +50,11 @@ void AFluxPrimeCrowdsSpawner::Spawning()
 		if (!CrowdsCatalog.IsValidIndex(index)) continue;
 		
 		IFluxPrimeCrowdsManagerInterface::Execute_SpawnCrowd(interfaceObject, CrowdsCatalog[i], targetLocation, FRotator::ZeroRotator);
+		
+		uuindex++;
 	}
+	
+	if (uuindex >= 500) GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
 }
 
 AFluxPrimeCrowdsSpawner::AFluxPrimeCrowdsSpawner()

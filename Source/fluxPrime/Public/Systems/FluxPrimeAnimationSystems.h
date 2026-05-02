@@ -117,11 +117,11 @@ public:
 		IsDebug = isDebug;
 	}
 	
-	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, FFluxPrimeCrowds members[2], TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
+	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>& members, TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
 	{
-		int8 WriteIndex = (dataReadIndex + 1) % 2;
-		FFluxPrimeCrowds& ReadBuffer = members[dataReadIndex];
-		FFluxPrimeCrowds& WriteBuffer = members[WriteIndex];
+		int8 writeIndex = (dataReadIndex + 1) % 2;
+		FFluxPrimeCrowds& readBuffer = members[dataReadIndex];
+		FFluxPrimeCrowds& writeBuffer = members[writeIndex];
 		
 		shortedIndex.SetNumUninitialized(activeMembers, EAllowShrinking::No);
 		for (int i = 0; i < activeMembers; ++i)
@@ -129,9 +129,9 @@ public:
 			shortedIndex[i] = i;
 		}
         
-		Algo::StableSort(shortedIndex, [&ReadBuffer](int32 a, int32 b)
+		Algo::StableSort(shortedIndex, [&readBuffer](int32 a, int32 b)
 			{
-				return ReadBuffer.CrowdsType[a] < ReadBuffer.CrowdsType[b];
+				return readBuffer.CrowdsType[a] < readBuffer.CrowdsType[b];
 			}
 		);
 		
@@ -139,35 +139,35 @@ public:
 		{
 			int32 tempShortedIndex = shortedIndex[i];
             
-			WriteBuffer.CrowdsLocation[i] = ReadBuffer.CrowdsLocation[tempShortedIndex];
-			WriteBuffer.CrowdsRotation[i] = ReadBuffer.CrowdsRotation[tempShortedIndex];
-			WriteBuffer.CrowdsAcceleration[i] = ReadBuffer.CrowdsAcceleration[tempShortedIndex];
-			WriteBuffer.CrowdsVelocity[i] = ReadBuffer.CrowdsVelocity[tempShortedIndex];
-			WriteBuffer.CrowdsID[i] = ReadBuffer.CrowdsID[tempShortedIndex];
-			WriteBuffer.CrowdsCellID[i] = ReadBuffer.CrowdsCellID[tempShortedIndex];
-			WriteBuffer.CrowdsMaxSpeed[i] = ReadBuffer.CrowdsMaxSpeed[tempShortedIndex];
-			WriteBuffer.CrowdsType[i] = ReadBuffer.CrowdsType[tempShortedIndex];
-			WriteBuffer.CrowdsHealth[i] = ReadBuffer.CrowdsHealth[tempShortedIndex];
-			WriteBuffer.CrowdsSize[i] = ReadBuffer.CrowdsSize[tempShortedIndex];
-			WriteBuffer.CrowdsDamage[i] = ReadBuffer.CrowdsDamage[tempShortedIndex];
-			WriteBuffer.CrowdsTargetLocation[i] = ReadBuffer.CrowdsTargetLocation[tempShortedIndex];
-			WriteBuffer.CrowdsIndexNavigationPath[i] = ReadBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
-			WriteBuffer.CrowdsTotalNavigationPath[i] = ReadBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
-			WriteBuffer.CrowdsNavigationPath[i] = ReadBuffer.CrowdsNavigationPath[tempShortedIndex];
-			WriteBuffer.CrowdsAnimationData[i] = ReadBuffer.CrowdsAnimationData[tempShortedIndex];
-			WriteBuffer.CrowdsAnimationIndex[i] = ReadBuffer.CrowdsAnimationIndex[tempShortedIndex];
-			WriteBuffer.CrowdsStartTimeAnimationFrame[i] = ReadBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
+			writeBuffer.CrowdsLocation[i] = readBuffer.CrowdsLocation[tempShortedIndex];
+			writeBuffer.CrowdsRotation[i] = readBuffer.CrowdsRotation[tempShortedIndex];
+			writeBuffer.CrowdsAcceleration[i] = readBuffer.CrowdsAcceleration[tempShortedIndex];
+			writeBuffer.CrowdsVelocity[i] = readBuffer.CrowdsVelocity[tempShortedIndex];
+			writeBuffer.CrowdsID[i] = readBuffer.CrowdsID[tempShortedIndex];
+			writeBuffer.CrowdsCellID[i] = readBuffer.CrowdsCellID[tempShortedIndex];
+			writeBuffer.CrowdsMaxSpeed[i] = readBuffer.CrowdsMaxSpeed[tempShortedIndex];
+			writeBuffer.CrowdsType[i] = readBuffer.CrowdsType[tempShortedIndex];
+			writeBuffer.CrowdsHealth[i] = readBuffer.CrowdsHealth[tempShortedIndex];
+			writeBuffer.CrowdsSize[i] = readBuffer.CrowdsSize[tempShortedIndex];
+			writeBuffer.CrowdsDamage[i] = readBuffer.CrowdsDamage[tempShortedIndex];
+			writeBuffer.CrowdsTargetLocation[i] = readBuffer.CrowdsTargetLocation[tempShortedIndex];
+			writeBuffer.CrowdsIndexNavigationPath[i] = readBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
+			writeBuffer.CrowdsTotalNavigationPath[i] = readBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
+			writeBuffer.CrowdsNavigationPath[i] = readBuffer.CrowdsNavigationPath[tempShortedIndex];
+			writeBuffer.CrowdsAnimationData[i] = readBuffer.CrowdsAnimationData[tempShortedIndex];
+			writeBuffer.CrowdsAnimationIndex[i] = readBuffer.CrowdsAnimationIndex[tempShortedIndex];
+			writeBuffer.CrowdsStartTimeAnimationFrame[i] = readBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
 		}
 		
 		for (int i = 0; i < activeMembers; ++i)
 		{
-			int32 indexAnimation = WriteBuffer.CrowdsAnimationIndex[i];
+			int32 indexAnimation = writeBuffer.CrowdsAnimationIndex[i];
 			if (indexAnimation < 0) continue;
 			
-			PlayAnimation(world, WriteBuffer, i, indexAnimation, memberComponets);
+			PlayAnimation(world, writeBuffer, i, indexAnimation, memberComponets);
 		}
 		
-		dataReadIndex = WriteIndex;
+		dataReadIndex = writeIndex;
 	}
 	
 	void SwitchAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, const int32 indexMembers)
