@@ -69,16 +69,16 @@ private:
 	
 	TStaticArray<FFluxPrimeCrowds, 2> CrowdsDatas;
 	
-	TSharedPtr<FFluxPrimeSpatialGridSystems> SpatialGridSystems = nullptr;
-	TSharedPtr<FFluxPrimeBoidsSystems> BoidsSystems = nullptr;
-	TSharedPtr<FFluxPrimeMovementSystems> MovementSystems = nullptr;
-	TSharedPtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
-	TSharedPtr<FFluxPrimeGroundHeightSystems> GroundHeightSystems = nullptr;
-	TSharedPtr<FFluxPrimeAnimationSystems> AnimationSystems = nullptr;
-	TSharedPtr<FFluxPrimeProxyTargetSystems> ProxyTargetSystems = nullptr;
-	TSharedPtr<FFluxPrimeDamageSystems> DamageSystems = nullptr;
+	/*TUniquePtr<FFluxPrimeSpatialGridSystems> SpatialGridSystems = nullptr;
+	TUniquePtr<FFluxPrimeBoidsSystems> BoidsSystems = nullptr;
+	TUniquePtr<FFluxPrimeMovementSystems> MovementSystems = nullptr;
+	TUniquePtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
+	TUniquePtr<FFluxPrimeGroundHeightSystems> GroundHeightSystems = nullptr;
+	TUniquePtr<FFluxPrimeAnimationSystems> AnimationSystems = nullptr;
+	TUniquePtr<FFluxPrimeProxyTargetSystems> ProxyTargetSystems = nullptr;
+	TUniquePtr<FFluxPrimeDamageSystems> DamageSystems = nullptr;*/
 	
-	/*UPROPERTY()
+	UPROPERTY()
 	FFluxPrimeSpatialGridSystems SpatialGridSystems;
 	
 	UPROPERTY()
@@ -100,7 +100,7 @@ private:
 	FFluxPrimeProxyTargetSystems ProxyTargetSystems;
 	
 	UPROPERTY()
-	FFluxPrimeDamageSystems DamageSystems;*/
+	FFluxPrimeDamageSystems DamageSystems;
 	
 public:
 	AFluxPrimeCrowdsManager();

@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Cores/FluxPrimeStruct.h"
+#include "FluxPrimeBaseSystems.h"
 #include "FluxPrimeMovementSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeMovementSystems
+struct FFluxPrimeMovementSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 
@@ -33,7 +34,7 @@ private:
 		);
 		
 		
-		float currentYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[indexMember]) + 85;
+		float currentYaw = members.CrowdsRotation[indexMember] + 85;//FRotator::DecompressAxisFromByte(members.CrowdsRotation[indexMember]) + 85;
 		direction = FRotator(0, currentYaw, 0).Vector();
 		arrowLength = 75.0f;
 		startPos = members.CrowdsLocation[indexMember] + (FVector::UpVector * (FluxConfig::DebugLocationMovement + 20.0f));
@@ -71,11 +72,11 @@ public:
 			
 			// forwad static mesh perlu di rubah agar tidak perlu manipulasi forwardnya
 			float targetYaw = rot.Yaw - 85;
-			float currentYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]);
+			float currentYaw = members.CrowdsRotation[i];//FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]);
 			FRotator currentRot(0.f, currentYaw, 0.f);
 			FRotator targetRot(0.f, targetYaw, 0.f);
 			float yaw = FMath::RInterpConstantTo(currentRot, targetRot, DeltaTime, 45.0f).Yaw;
-			members.CrowdsRotation[i] = FRotator::CompressAxisToByte(yaw);
+			members.CrowdsRotation[i] = yaw;//FRotator::CompressAxisToByte(yaw);
 			
 			dir = dir.GetSafeNormal();
 			FVector velocity = dir * members.CrowdsMaxSpeed[i];

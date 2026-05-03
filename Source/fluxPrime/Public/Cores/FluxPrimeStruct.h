@@ -109,7 +109,7 @@ struct FFluxPrimeCrowds
 	TArray<FVector> CrowdsLocation;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsRotation;
+	TArray<float> CrowdsRotation;
 	
 #pragma endregion
 	
@@ -133,6 +133,9 @@ struct FFluxPrimeCrowds
 	
 	UPROPERTY(EditAnywhere)
 	TArray<float> CrowdsStartTimeAnimationFrame;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<float> CrowdsCurrentAnimationFrame;
 	
 #pragma endregion 
 	
@@ -172,6 +175,7 @@ struct FFluxPrimeCrowds
 		CrowdsAnimationData.Reserve(totalMember);
 		CrowdsAnimationIndex.Reserve(totalMember);
 		CrowdsStartTimeAnimationFrame.Reserve(totalMember);
+		CrowdsCurrentAnimationFrame.Reserve(totalMember);
 	}
 };
 

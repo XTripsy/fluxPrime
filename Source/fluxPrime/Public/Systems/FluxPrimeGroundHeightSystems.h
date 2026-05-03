@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Cores/FluxPrimeStruct.h"
+#include "FluxPrimeBaseSystems.h"
 #include "FluxPrimeGroundHeightSystems.generated.h"
 
 #define ECC_GroundHeight ECC_GameTraceChannel1
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeGroundHeightSystems
+struct FFluxPrimeGroundHeightSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
@@ -83,7 +84,7 @@ public:
 		
 		for (int i = 0; i < memberActive; ++i)
 		{
-			float unpackedYaw = FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]) + 65;
+			float unpackedYaw = members.CrowdsRotation[i] + 65;//FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]) + 65;
 			FVector forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
 			FVector location = members.CrowdsLocation[i] + (forwardVector * 75);
 			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, members.CrowdsMaxSpeed[i]);

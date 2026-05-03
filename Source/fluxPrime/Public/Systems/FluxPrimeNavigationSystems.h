@@ -1,13 +1,15 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FluxPrimeBaseSystems.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "NavigationSystem.h"
+#include "NavMesh/RecastNavMesh.h"
 #include "NavigationPath.h"
 #include "FluxPrimeNavigationSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeNavigationSystems
+struct FFluxPrimeNavigationSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
@@ -19,7 +21,7 @@ private:
 	bool IsDebug = false;
 	
 private:
-	void ShowDebug(TObjectPtr<UWorld> world, TArray<FVector> path)
+	void ShowDebug(TArray<FVector> path)
 	{
 		for (int i = 0; i < path.Num(); ++i)
 		{
@@ -55,20 +57,49 @@ private:
 	}
 	
 public:
-	void InitializedNavigationSystems(bool isDebug)
+	void InitializedNavigationSystems(bool isDebug, TObjectPtr<UWorld> world)
 	{
+		World = world;
 		IsDebug = isDebug;
 	}
 	
-	TArray<FVector> GetNavigationPath(TObjectPtr<UWorld> world, FVector start, FVector end)
+	bool CalculatePath(const FVector& start, const FVector& end, TArray<FVector>& outPathPoints)
+	{
+		UNavigationSystemV1* navSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (!navSys) return false;
+
+		ANavigationData* navData = navSys->GetDefaultNavDataInstance();
+		if (!navData) return false;
+
+		FPathFindingQuery query(World, *navData, start, end);
+		FPathFindingResult result = navData->FindPath(navSys->GetDefaultSupportedAgent(), query);
+
+		if (result.IsSuccessful() && result.Path.IsValid())
+		{
+			const TArray<FNavPathPoint>& pathPoints = result.Path->GetPathPoints();
+			outPathPoints.Reset(pathPoints.Num()); 
+        
+			for (const FNavPathPoint& point : pathPoints)
+			{
+				outPathPoints.Add(point.Location);
+			}
+			
+			if (IsDebug) ShowDebug(outPathPoints); 
+			return true;
+		}
+
+		return false;
+	}
+	
+	/*TArray<FVector> GetNavigationPath(TObjectPtr<UWorld> world, FVector start, FVector end)
 	{
 		World = world;
 		UNavigationSystemV1* navigation = UNavigationSystemV1::GetCurrent(world);
 
 		UNavigationPath* path = navigation->FindPathToLocationSynchronously(world, start, end);
-		if (IsDebug) ShowDebug(world, path->PathPoints); 
+		if (IsDebug) ShowDebug(path->PathPoints); 
 		return path->PathPoints;
-	}
+	}*/
 	
 	void UpdateNavigationSystems(FFluxPrimeCrowds& members, int32 memberActive)
 	{
@@ -86,7 +117,10 @@ public:
 			
 			if (members.CrowdsIndexNavigationPath[i] == members.CrowdsTotalNavigationPath[i])
 			{
-				TArray<FVector> path = GetNavigationPath(World, members.CrowdsLocation[i], members.CrowdsTargetLocation[i]);
+				//TArray<FVector> path = GetNavigationPath(World, members.CrowdsLocation[i], members.CrowdsTargetLocation[i]);
+				TArray<FVector> path;
+				if (!CalculatePath( members.CrowdsLocation[i], members.CrowdsTargetLocation[i], path)) continue;
+				
 				int8 total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
     
 				for (int8 j = 0; j < total; ++j)

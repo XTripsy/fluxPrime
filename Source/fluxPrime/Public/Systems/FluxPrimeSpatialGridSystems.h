@@ -1,11 +1,12 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FluxPrimeBaseSystems.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeSpatialGridSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeSpatialGridSystems
+struct FFluxPrimeSpatialGridSystems : public FFluxPrimeBaseSystems
 {
     GENERATED_BODY()
     
@@ -58,7 +59,7 @@ private:
             FVector StartLocation = Origin + FVector(x * CellSize, 0, 1000);
             FVector EndLocation = StartLocation + FVector(0, CellHeight * CellSize, 1000);
         
-            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, -1, 0, 2.0f);
+            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, 5, 0, 2.0f);
         }
 
         for (int32 y = 0; y <= CellHeight; y++)
@@ -66,7 +67,7 @@ private:
             FVector StartLocation = Origin + FVector(0, y * CellSize, 1000);
             FVector EndLocation = StartLocation + FVector(CellWidth * CellSize, 0, 1000);
         
-            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, -1, 0, 2.0f);
+            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, 5, 0, 2.0f);
         }
     }
 	
@@ -160,6 +161,7 @@ public:
             writeBuffer.CrowdsAnimationData[i] = readBuffer.CrowdsAnimationData[tempShortedIndex];
             writeBuffer.CrowdsAnimationIndex[i] = readBuffer.CrowdsAnimationIndex[tempShortedIndex];
             writeBuffer.CrowdsStartTimeAnimationFrame[i] = readBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
+            writeBuffer.CrowdsCurrentAnimationFrame[i] = readBuffer.CrowdsCurrentAnimationFrame[tempShortedIndex];
         }
         
         gridOffset.Init(-1, TotalCells);

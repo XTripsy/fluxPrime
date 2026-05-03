@@ -1,9 +1,9 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "DrawDebugHelpers.h"
+#include "FluxPrimeBaseSystems.h"
 #include "FluxPrimeAnimationSystems.generated.h"
 
 DECLARE_DELEGATE_OneParam(FOnAttackNotify, int32 crowdID);
@@ -11,7 +11,7 @@ DECLARE_DELEGATE_OneParam(FOnSpawnVFXNotify, int32 crowdID);
 DECLARE_DELEGATE_OneParam(FOnSpawnSFXNotify, int32 crowdID);
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeAnimationSystems
+struct FFluxPrimeAnimationSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
@@ -42,7 +42,7 @@ private:
 		);
 	}
 	
-	void PlayAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 indexMembers, int32 indexAnimation, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
+	void PlayAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 indexMembers, int32 indexAnimation)
 	{
 		float startIndex = members.CrowdsAnimationData[indexMembers].AnimationOffset[FMath::Max(0, indexAnimation)];
 		float endIndex = members.CrowdsAnimationData[indexMembers].AnimationOffset[FMath::Max(1, indexAnimation+1)];
@@ -63,7 +63,7 @@ private:
 		}
 		
 		PlayAnimationNotify(members, indexMembers, current);
-		UpdateCustomDataValue(members, indexMembers, startIndex, current, memberComponets);
+		members.CrowdsCurrentAnimationFrame[indexMembers] = current;
 	}
 	
 	void PlayAnimationNotify(FFluxPrimeCrowds& members, int32 indexMembers, float currentFrame)
@@ -94,30 +94,13 @@ private:
 		}
 	}
 	
-	void UpdateCustomDataValue(FFluxPrimeCrowds& members, int32 indexMembers, int32 startFrame, float currentFrame, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
-	{
-		memberComponets[members.CrowdsType[indexMembers]]->SetCustomDataValue(
-			members.CrowdsID[indexMembers],
-			0,
-			startFrame,
-			false
-			);
-				
-		memberComponets[members.CrowdsType[indexMembers]]->SetCustomDataValue(
-			members.CrowdsID[indexMembers],
-			1,
-			currentFrame,
-			false
-			);
-	}
-	
 public:
 	void InitializedAnimationSystems(bool isDebug)
 	{
 		IsDebug = isDebug;
 	}
 	
-	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>& members, TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers, const TArray<TObjectPtr<UInstancedStaticMeshComponent>>& memberComponets)
+	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>& members, TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers)
 	{
 		int8 writeIndex = (dataReadIndex + 1) % 2;
 		FFluxPrimeCrowds& readBuffer = members[dataReadIndex];
@@ -157,6 +140,7 @@ public:
 			writeBuffer.CrowdsAnimationData[i] = readBuffer.CrowdsAnimationData[tempShortedIndex];
 			writeBuffer.CrowdsAnimationIndex[i] = readBuffer.CrowdsAnimationIndex[tempShortedIndex];
 			writeBuffer.CrowdsStartTimeAnimationFrame[i] = readBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
+			writeBuffer.CrowdsCurrentAnimationFrame[i] = readBuffer.CrowdsCurrentAnimationFrame[tempShortedIndex];
 		}
 		
 		for (int i = 0; i < activeMembers; ++i)
@@ -164,7 +148,7 @@ public:
 			int32 indexAnimation = writeBuffer.CrowdsAnimationIndex[i];
 			if (indexAnimation < 0) continue;
 			
-			PlayAnimation(world, writeBuffer, i, indexAnimation, memberComponets);
+			PlayAnimation(world, writeBuffer, i, indexAnimation);
 		}
 		
 		dataReadIndex = writeIndex;

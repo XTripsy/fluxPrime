@@ -1,11 +1,12 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FluxPrimeBaseSystems.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeBoidsSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeBoidsSystems
+struct FFluxPrimeBoidsSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	

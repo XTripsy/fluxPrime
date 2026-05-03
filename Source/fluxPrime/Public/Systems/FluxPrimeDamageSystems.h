@@ -2,15 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeSpatialGridSystems.h"
+#include "FluxPrimeBaseSystems.h"
 #include "FluxPrimeDamageSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeDamageSystems
+struct FFluxPrimeDamageSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
 public:
-	void TakeDamage(TObjectPtr<UWorld> world, TSharedPtr<FFluxPrimeSpatialGridSystems> spatialGridSystems, FFluxPrimeCrowds& members, int32 id, int32 memberActive)
+	void TakeDamage(TObjectPtr<UWorld> world, FFluxPrimeSpatialGridSystems* spatialGridSystems, FFluxPrimeCrowds& members, int32 id, int32 memberActive)
 	{
 		for (int i = 0; i < memberActive; ++i)
 		{

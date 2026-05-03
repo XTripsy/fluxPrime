@@ -3,17 +3,18 @@
 #include "CoreMinimal.h"
 #include "FluxPrimeNavigationSystems.h"
 #include "Kismet/GameplayStatics.h"
+#include "FluxPrimeBaseSystems.h"
 #include "FluxPrimeProxyTargetSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeProxyTargetSystems
+struct FFluxPrimeProxyTargetSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
 private:
 	FTimerHandle TimerHandle = FTimerHandle();
 	FFluxPrimeCrowds* Crowds = nullptr;
-	TSharedPtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
+	FFluxPrimeNavigationSystems* NavigationSystems = nullptr;
 	int32* ActiveMember = nullptr;
 	
 	UPROPERTY()
@@ -28,7 +29,9 @@ private:
 		{
 			Crowds->CrowdsTargetLocation[i] = targetLocation;
 			
-			TArray<FVector> path = NavigationSystems->GetNavigationPath(World, Crowds->CrowdsLocation[i], targetLocation);
+			TArray<FVector> path;// = NavigationSystems->GetNavigationPath(World, Crowds->CrowdsLocation[i], targetLocation);
+			if (!NavigationSystems->CalculatePath(Crowds->CrowdsLocation[i], targetLocation, path)) continue;
+			
 			int8 total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
 		
 			Crowds->CrowdsIndexNavigationPath[i] = 0;
@@ -43,7 +46,7 @@ private:
 	}
 	
 public:
-	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, FFluxPrimeCrowds* crowds, int32* activeMember, TSharedPtr<FFluxPrimeNavigationSystems> navigationSystems)
+	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, FFluxPrimeCrowds* crowds, int32* activeMember, FFluxPrimeNavigationSystems* navigationSystems)
 	{
 		World = world;
 		Crowds = crowds;

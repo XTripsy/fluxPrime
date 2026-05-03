@@ -28,6 +28,7 @@ public class fluxPrime : ModuleRules
 				"Core", 
 				"GameplayTags",
 				"NavigationSystem",
+				"Navmesh",
 				"AnimToTexture",
 				"StructUtils"
 				// ... add other public dependencies that you statically link with here ...

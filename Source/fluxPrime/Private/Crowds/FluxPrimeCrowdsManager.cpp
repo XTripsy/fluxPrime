@@ -111,70 +111,96 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationGroundHeightSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationGroundHeightSystems>())
 		{
-			GroundHeightSystems = MakeShared<FFluxPrimeGroundHeightSystems>();
+			//GroundHeightSystems = MakeUnique<FFluxPrimeGroundHeightSystems>();
+			GroundHeightSystems.IsActive = true;
 			configurationGroundHeight = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationSpatialGridSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationSpatialGridSystems>())
 		{
-			SpatialGridSystems = MakeShared<FFluxPrimeSpatialGridSystems>();
+			//SpatialGridSystems = MakeUnique<FFluxPrimeSpatialGridSystems>();
+			SpatialGridSystems.IsActive = true;
 			configurationSpatialGrid = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationNavigationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationNavigationSystems>())
 		{
-			NavigationSystems = MakeShared<FFluxPrimeNavigationSystems>();
+			//NavigationSystems = MakeUnique<FFluxPrimeNavigationSystems>();
+			NavigationSystems.IsActive = true;
 			configurationNavigation = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationBoidsSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationBoidsSystems>())
 		{
-			BoidsSystems = MakeShared<FFluxPrimeBoidsSystems>();
+			//BoidsSystems = MakeUnique<FFluxPrimeBoidsSystems>();
+			BoidsSystems.IsActive = true;
 			configurationBoids = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationMovementSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationMovementSystems>())
 		{
-			MovementSystems = MakeShared<FFluxPrimeMovementSystems>();
+			//MovementSystems = MakeUnique<FFluxPrimeMovementSystems>();
+			MovementSystems.IsActive = true;
 			configurationMovement = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationAnimationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationAnimationSystems>())
 		{
-			AnimationSystems = MakeShared<FFluxPrimeAnimationSystems>();
+			//AnimationSystems = MakeUnique<FFluxPrimeAnimationSystems>();
+			AnimationSystems.IsActive = true;
 			configurationAnimation = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationProxyTargetSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationProxyTargetSystems>())
 		{
-			ProxyTargetSystems = MakeShared<FFluxPrimeProxyTargetSystems>();
+			//ProxyTargetSystems = MakeUnique<FFluxPrimeProxyTargetSystems>();
+			ProxyTargetSystems.IsActive = true;
 			configurationProxyTarget = configuration;
 			continue;
 		}
 		
 		if (const FFluxPrimeConfigurationDamageSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationDamageSystems>())
 		{
-			DamageSystems = MakeShared<FFluxPrimeDamageSystems>();
+			//DamageSystems = MakeUnique<FFluxPrimeDamageSystems>();
+			DamageSystems.IsActive = true;
 			configurationDamage = configuration;
 			continue;
 		}
 	}
 	
-	SpatialGridSystems->InitializedSpatialGridSystems(configurationSpatialGrid->IsDebug, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
+#if !WITH_EDITOR
+	IsShowDebug = false;
+	if (configurationSpatialGrid) configurationSpatialGrid->IsDebug = false;
+	if (configurationNavigation) configurationNavigation->IsDebug = false;
+	if (configurationAnimation) configurationAnimation->IsDebug = false;
+	if (configurationMovement) configurationMovement->IsDebug = false;
+#endif
+	
+	/*SpatialGridSystems->InitializedSpatialGridSystems(configurationSpatialGrid->IsDebug, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
 	SpatialGridSystems->BakeSpatialGridSystems(GetWorld());
 	GroundHeightSystems->InitializedGroundHeightSystems(configurationGroundHeight->CellSize, configurationGroundHeight->Origin, configurationGroundHeight->CellWidth, configurationGroundHeight->CellHeight);
 	GroundHeightSystems->BakeGroundHeightSystems(GetWorld());
-	NavigationSystems->InitializedNavigationSystems(configurationNavigation->IsDebug);
+	NavigationSystems->InitializedNavigationSystems(configurationNavigation->IsDebug, GetWorld());
 	BoidsSystems->InitializeBoidsSystems(configurationBoids->SeparationWeight);
-	ProxyTargetSystems->InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas[CrowdsDataReadIndex], &CrowdsActive, NavigationSystems);
+	ProxyTargetSystems->InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas[CrowdsDataReadIndex], &CrowdsActive, NavigationSystems.Get());
 	AnimationSystems->InitializedAnimationSystems(configurationAnimation->IsDebug);
-	MovementSystems->InitializedMovementSystems(configurationMovement->IsDebug);
+	MovementSystems->InitializedMovementSystems(configurationMovement->IsDebug);*/
+	
+	if (SpatialGridSystems.IsActive) SpatialGridSystems.InitializedSpatialGridSystems(configurationSpatialGrid->IsDebug, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
+	if (SpatialGridSystems.IsActive) SpatialGridSystems.BakeSpatialGridSystems(GetWorld());
+	if (GroundHeightSystems.IsActive) GroundHeightSystems.InitializedGroundHeightSystems(configurationGroundHeight->CellSize, configurationGroundHeight->Origin, configurationGroundHeight->CellWidth, configurationGroundHeight->CellHeight);
+	if (GroundHeightSystems.IsActive) GroundHeightSystems.BakeGroundHeightSystems(GetWorld());
+	if (NavigationSystems.IsActive) NavigationSystems.InitializedNavigationSystems(configurationNavigation->IsDebug, GetWorld());
+	if (BoidsSystems.IsActive) BoidsSystems.InitializeBoidsSystems(configurationBoids->SeparationWeight);
+	if (ProxyTargetSystems.IsActive) ProxyTargetSystems.InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas[CrowdsDataReadIndex], &CrowdsActive, &NavigationSystems);
+	if (AnimationSystems.IsActive) AnimationSystems.InitializedAnimationSystems(configurationAnimation->IsDebug);
+	if (MovementSystems.IsActive) MovementSystems.InitializedMovementSystems(configurationMovement->IsDebug);
 }
 
 void AFluxPrimeCrowdsManager::InitializeComponentCrowds()
@@ -200,9 +226,9 @@ void AFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->RecreatePhysicsState();
 		tempISMC->NumCustomDataFloats = 2;
 		tempISMC->bReceivesDecals = false;
-    			        
+		
 		CrowdsComponents.Add(tempISMC);
-    					
+		
 		CrowdsTypes.Add(CrowdsCatalog[i].CrowdsIdentity->Identity, i);
 	}
 }
@@ -238,7 +264,7 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 					animationData.AnimationNotify[n].AnimationNotifyFrame[m] = loadedData->AnimationNotifies[n].AnimationNotifyFrame[m];
 				}
 			}
-					
+			
 			int32 index = 0;
 			for (int k = 0; k < loadedData->Animations.Num(); ++k)
 			{
@@ -267,6 +293,7 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationData.Add(animationData);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationIndex.Add(0);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsStartTimeAnimationFrame.Add(0);
+			CrowdsDatas[CrowdsDataReadIndex].CrowdsCurrentAnimationFrame.Add(0);
 		}
 	}
 	
@@ -285,12 +312,31 @@ void AFluxPrimeCrowdsManager::UpdateRenderCrowds()
 		FTransform transform;
 		transform.SetLocation(CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[i]);
 
-		float unpackedYaw = FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]);
+		float unpackedYaw = CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i];//FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]);
 		FRotator Rot(0.0f, unpackedYaw, 0.0f);
 		transform.SetRotation(Rot.Quaternion());
 		
+		int32 id = CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i];
+		
+		int32 indexAnimation = CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationIndex[i]; 
+		float startFrame = CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationData[i].AnimationOffset[FMath::Max(0, indexAnimation)];
+		CrowdsComponents[typeIndex]->SetCustomDataValue(
+			id,
+			0,
+			startFrame,
+			false
+			);
+				
+		float currentFrame = CrowdsDatas[CrowdsDataReadIndex].CrowdsCurrentAnimationFrame[i];
+		CrowdsComponents[typeIndex]->SetCustomDataValue(
+			id,
+			1,
+			currentFrame,
+			false
+			);
+		
 		CrowdsComponents[typeIndex]->UpdateInstanceTransform(
-			CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i],
+			id,
 			transform,
 			true,
 			false,
@@ -316,7 +362,7 @@ void AFluxPrimeCrowdsManager::OnAttackNotify(int32 memberID)
 		if (CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i] != memberID) continue;
 		
 		location = CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[i] + (FVector::UpVector * 150) + (FVector::RightVector * -100);
-		float unpackedYaw = FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]) + 65;
+		float unpackedYaw = CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i];//FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]) + 65;
 		forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
 	}
 	
@@ -368,19 +414,15 @@ void AFluxPrimeCrowdsManager::BeginPlay()
 {
 	Super::BeginPlay();
 	
-#if !WITH_EDITOR
-	IsShowDebug = false;
-#endif
-	
 	PreLoading();
 	
 	if (!HasAuthority() && IsReplicated) return;
 	
-	if (AnimationSystems)
+	if (AnimationSystems.IsActive)
 	{
-		AnimationSystems->OnAttackNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnAttackNotify);
-		AnimationSystems->OnSpawnSFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnSFXNotify);
-		AnimationSystems->OnSpawnVFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnVFXNotify);
+		AnimationSystems.OnAttackNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnAttackNotify);
+		AnimationSystems.OnSpawnSFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnSFXNotify);
+		AnimationSystems.OnSpawnVFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnVFXNotify);
 	}
 }
 
@@ -391,12 +433,12 @@ void AFluxPrimeCrowdsManager::Tick(float DeltaTime)
 	if (!HasAuthority() && IsReplicated) return;
 	if (CrowdsComponents.IsEmpty() || CrowdsActive <= 0) return;
 	
-	if (SpatialGridSystems) SpatialGridSystems->UpdateSpatialGridSystem(GetWorld(), CrowdsDatas, GridOffset, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
-	//BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, 10.0f, 100, CrowdsActive);
-	if (GroundHeightSystems) GroundHeightSystems->UpdateGroundHeightSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	if (NavigationSystems) NavigationSystems->UpdateNavigationSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	if (MovementSystems) MovementSystems->UpdateMovementSystems(GetWorld(), DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	if (AnimationSystems) AnimationSystems->UpdateAnimationSystemsFrame(GetWorld(), CrowdsDatas, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive, CrowdsComponents);
+	if (SpatialGridSystems.IsActive) SpatialGridSystems.UpdateSpatialGridSystem(GetWorld(), CrowdsDatas, GridOffset, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
+	if (BoidsSystems.IsActive) BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, 10.0f, 100, CrowdsActive);
+	if (GroundHeightSystems.IsActive) GroundHeightSystems.UpdateGroundHeightSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
+	if (NavigationSystems.IsActive) NavigationSystems.UpdateNavigationSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
+	if (MovementSystems.IsActive) MovementSystems.UpdateMovementSystems(GetWorld(), DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
+	if (AnimationSystems.IsActive) AnimationSystems.UpdateAnimationSystemsFrame(GetWorld(), CrowdsDatas, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
 	
 	if (IsShowDebug) ShowDebug();
 	
@@ -420,9 +462,18 @@ void AFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CrowdsMeshSoftRef.Empty();
 	CrowdsAnimationSoftRef.Empty();
 	
-	if (ProxyTargetSystems) ProxyTargetSystems->EndPlayProxyTargetSystems();
-	if (NavigationSystems) NavigationSystems->EndPlayNavigationSystems();
-	if (AnimationSystems) AnimationSystems->EndPlayAnimationSystems();
+	if (ProxyTargetSystems.IsActive) ProxyTargetSystems.EndPlayProxyTargetSystems();
+	if (NavigationSystems.IsActive) NavigationSystems.EndPlayNavigationSystems();
+	if (AnimationSystems.IsActive) AnimationSystems.EndPlayAnimationSystems();
+	
+	/*SpatialGridSystems.Reset();
+	BoidsSystems.Reset();
+	MovementSystems.Reset();
+	NavigationSystems.Reset();
+	GroundHeightSystems.Reset();
+	AnimationSystems.Reset();
+	ProxyTargetSystems.Reset();
+	DamageSystems.Reset();*/
 	
 	Super::EndPlay(EndPlayReason);
 }
@@ -449,9 +500,11 @@ void AFluxPrimeCrowdsManager::SpawnCrowd_Implementation(UCrowdsIdentity* identit
 	}
 
 	int8 total = 0;
-	if (NavigationSystems)
+	if (NavigationSystems.IsActive)
 	{
-		TArray<FVector> path = NavigationSystems->GetNavigationPath(GetWorld(), location, FVector::ZeroVector);
+		TArray<FVector> path;
+		if (!NavigationSystems.CalculatePath(location, FVector::ZeroVector, path)) return;
+		
 		total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
 	    
 		for (int8 i = 0; i < total; ++i)
@@ -462,7 +515,7 @@ void AFluxPrimeCrowdsManager::SpawnCrowd_Implementation(UCrowdsIdentity* identit
 	}
 	
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[indexSelected] = FRotator::CompressAxisToByte(rotation.Yaw);
+	CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[indexSelected] = rotation.Yaw;//FRotator::CompressAxisToByte(rotation.Yaw);
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsID[indexSelected] = id;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsIndexNavigationPath[indexSelected] = 0;
 	CrowdsDatas[CrowdsDataReadIndex].CrowdsTotalNavigationPath[indexSelected] = total;
@@ -475,16 +528,16 @@ void AFluxPrimeCrowdsManager::SpawnCrowd_Implementation(UCrowdsIdentity* identit
 void AFluxPrimeCrowdsManager::SwitchAnimationCrowd_Implementation(UCrowdsIdentity* identity)
 {
 	int32 indexCrowds = 0;
-	if (AnimationSystems) AnimationSystems->SwitchAnimation(GetWorld(), CrowdsDatas[CrowdsDataReadIndex], indexCrowds);
+	if (AnimationSystems.IsActive) AnimationSystems.SwitchAnimation(GetWorld(), CrowdsDatas[CrowdsDataReadIndex], indexCrowds);
 }
 
 void AFluxPrimeCrowdsManager::PlayMontageCrowd_Implementation(UCrowdsIdentity* identity)
 {
 	int32 indexCrowds = 0;
-	if (AnimationSystems) AnimationSystems->MontageAnimation(CrowdsDatas[CrowdsDataReadIndex], indexCrowds, 4);
+	if (AnimationSystems.IsActive) AnimationSystems.MontageAnimation(CrowdsDatas[CrowdsDataReadIndex], indexCrowds, 4);
 }
 
 void AFluxPrimeCrowdsManager::TakeDamage_Implementation(UCrowdsIdentity* Identity)
 {
-	if (DamageSystems) DamageSystems->TakeDamage(GetWorld(), SpatialGridSystems,CrowdsDatas[CrowdsDataReadIndex], 0, CrowdsActive);
+	if (DamageSystems.IsActive) DamageSystems.TakeDamage(GetWorld(), &SpatialGridSystems,CrowdsDatas[CrowdsDataReadIndex], 0, CrowdsActive);
 }
