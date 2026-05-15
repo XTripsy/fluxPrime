@@ -49,7 +49,7 @@ void AFluxPrimeCrowdsSpawner::Spawning()
 		int32 index = FMath::RandRange(0, CrowdsCatalog.Num() - 1);
 		if (!CrowdsCatalog.IsValidIndex(index)) continue;
 		
-		IFluxPrimeCrowdsManagerInterface::Execute_SpawnCrowd(interfaceObject, CrowdsCatalog[i], targetLocation, FRotator::ZeroRotator);
+		//IFluxPrimeCrowdsManagerInterface::Execute_SpawnCrowd(interfaceObject, CrowdsCatalog[i], targetLocation, FRotator::ZeroRotator);
 		
 		uuindex++;
 	}

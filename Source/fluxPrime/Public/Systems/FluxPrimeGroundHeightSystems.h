@@ -93,4 +93,21 @@ public:
 			members.CrowdsLocation[i].Z = FMath::Lerp(members.CrowdsLocation[i].Z, target, deltaTime * value);
 		}
 	}
+	
+	void UpdateNetGroundHeightSystems(double deltaTime, TArray<FFluxPrimeCrowdsNet>& members, const int32 memberActive)
+	{
+		FVector2D inputRange(75.0f, 300.0f);
+		FVector2D outputRange(1.75f, 6.0f);
+		
+		for (int i = 0; i < memberActive; ++i)
+		{
+			float unpackedYaw = FRotator::DecompressAxisFromByte(members[i].NetRotation) + 65;
+			FVector forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
+			FVector location = members[i].NetLocation + (forwardVector * 75);
+			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, members[i].NetMaxSpeed);
+			float target = GetGroundHeight(location);
+			target += 10;
+			members[i].NetLocation.Z = FMath::Lerp(members[i].NetLocation.Z, target, deltaTime * value);
+		}
+	}
 };

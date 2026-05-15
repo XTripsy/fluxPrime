@@ -12,10 +12,14 @@
 #include "Systems/FluxPrimeNavigationSystems.h"
 #include "Systems/FluxPrimeSpatialGridSystems.h"
 #include "Systems/FluxPrimeAnimationSystems.h"
+#include "Systems/FluxPrimeCrowdsRenderSystems.h"
 #include "Systems/FluxPrimeDamageSystems.h"
 #include "Systems/FluxPrimeProxyTargetSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
+class UFluxPrimeCrowdsAnimationComponent;
+class UFluxPrimeCrowdsNetComponent;
+class UFluxPrimeCrowdsSpawnerComponent;
 class UManagerConfiguration;
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -27,6 +31,15 @@ class FLUXPRIME_API AFluxPrimeCrowdsManager final : public AActor, public IFluxP
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>> CrowdsComponents;
+	
+	UPROPERTY()
+	TObjectPtr<UFluxPrimeCrowdsSpawnerComponent> SpawnerComponent;
+	
+	UPROPERTY()
+	TObjectPtr<UFluxPrimeCrowdsAnimationComponent> AnimationComponent;
+	
+	UPROPERTY()
+	TObjectPtr<UFluxPrimeCrowdsNetComponent> CrowdsNetComponent;
 	
 private:
 	UPROPERTY(EditAnywhere, Category = "Crowds | Condition", meta = (AllowPrivateAccess = true))
@@ -50,7 +63,7 @@ private:
 	TSharedPtr<FStreamableHandle> StreamingHandle;
 	
 	UPROPERTY()
-	TMap<FName, int32> CrowdsTypes;
+	TMap<FName, int8> CrowdsTypes;
 	
 	UPROPERTY()
 	int8 CrowdsDataReadIndex = 0;
@@ -59,24 +72,26 @@ private:
 	TArray<int32> CrowdsDataShortedIndex;
 	
 	UPROPERTY()
-	int32 CrowdsTotal = 0;
+	uint16 CrowdsTotal = 0;
 	
-	UPROPERTY()
-	int32 CrowdsActive = 0;
+	UPROPERTY(ReplicatedUsing = OnRep_CrowdActive)
+	uint16 CrowdsActive = 0;
+	
+	// variable ini sering di kirim ke clinet 
+	UPROPERTY(Replicated)
+	TArray<FVector_NetQuantize100> NetAcceleration;
+	
+	// variable ini sering di kirim ke clinet 
+	UPROPERTY(Replicated)
+	TArray<FVector_NetQuantize100> NetTarget;
 	
 	UPROPERTY()
 	TArray<int32> GridOffset;
 	
 	TStaticArray<FFluxPrimeCrowds, 2> CrowdsDatas;
 	
-	/*TUniquePtr<FFluxPrimeSpatialGridSystems> SpatialGridSystems = nullptr;
-	TUniquePtr<FFluxPrimeBoidsSystems> BoidsSystems = nullptr;
-	TUniquePtr<FFluxPrimeMovementSystems> MovementSystems = nullptr;
-	TUniquePtr<FFluxPrimeNavigationSystems> NavigationSystems = nullptr;
-	TUniquePtr<FFluxPrimeGroundHeightSystems> GroundHeightSystems = nullptr;
-	TUniquePtr<FFluxPrimeAnimationSystems> AnimationSystems = nullptr;
-	TUniquePtr<FFluxPrimeProxyTargetSystems> ProxyTargetSystems = nullptr;
-	TUniquePtr<FFluxPrimeDamageSystems> DamageSystems = nullptr;*/
+	UPROPERTY()
+	FFluxPrimeCrowdsRenderSystems CrowdsRenderSystems;
 	
 	UPROPERTY()
 	FFluxPrimeSpatialGridSystems SpatialGridSystems;
@@ -108,35 +123,35 @@ public:
 private:
 	void ShowDebug();
 	
+	void ShortCrowdsByID();
+	
 	void PreLoading();
 	
 	UFUNCTION()
-	void InitializeSystems();
+	void Initialize();
 	
+	void InitializeSystems();
 	void InitializeComponentCrowds();
+	void InitializedComponentSystems();
 	void InitializeCrowds();
 	
-	void UpdateRenderCrowds();
-	
 	UFUNCTION()
-	void OnAttackNotify(int32 memberID);
-	
-	UFUNCTION()
-	void OnSpawnSFXNotify(int32 memberID);
-	
-	UFUNCTION()
-	void OnSpawnVFXNotify(int32 memberID);
+	void OnRep_CrowdActive();
 	
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
-	virtual void PostInitProperties() override;
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 public:
-	virtual void SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation) override;
-	virtual void SwitchAnimationCrowd_Implementation(UCrowdsIdentity* identity) override;
-	virtual void PlayMontageCrowd_Implementation(UCrowdsIdentity* identity) override;
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	FORCEINLINE TScriptInterface<IFluxPrimeCrowdsSpawnerComponentInterface> GetSpawnerComponent() const
+	{
+		return SpawnerComponent;
+	}
+	
+public:
 	virtual void TakeDamage_Implementation(UCrowdsIdentity* Identity) override;
 };

@@ -13,40 +13,48 @@ struct FFluxPrimeProxyTargetSystems : public FFluxPrimeBaseSystems
 	
 private:
 	FTimerHandle TimerHandle = FTimerHandle();
-	FFluxPrimeCrowds* Crowds = nullptr;
+	TStaticArray<FFluxPrimeCrowds, 2>* Crowds = nullptr;
 	FFluxPrimeNavigationSystems* NavigationSystems = nullptr;
-	int32* ActiveMember = nullptr;
+	uint16* ActiveMember = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
 	
 private:
+	// perlu di ubah
 	void UpdateProxyTargetLocation()
 	{
 		FVector targetLocation = UGameplayStatics::GetPlayerPawn(World, 0)->GetActorLocation();
 		
 		for (int i = 0; i < *ActiveMember; ++i)
 		{
-			Crowds->CrowdsTargetLocation[i] = targetLocation;
+			(*Crowds)[0].CrowdsTargetLocation[i] = targetLocation;
+			(*Crowds)[1].CrowdsTargetLocation[i] = targetLocation;
 			
-			TArray<FVector> path;// = NavigationSystems->GetNavigationPath(World, Crowds->CrowdsLocation[i], targetLocation);
-			if (!NavigationSystems->CalculatePath(Crowds->CrowdsLocation[i], targetLocation, path)) continue;
+			//TArray<FVector> path = NavigationSystems->GetNavigationPath(World, Crowds->CrowdsLocation[i], targetLocation);
+			TArray<FVector> path;
+			if (!NavigationSystems->CalculatePath((*Crowds)[0].CrowdsLocation[i], targetLocation, path)) continue;
 			
 			int8 total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
-		
-			Crowds->CrowdsIndexNavigationPath[i] = 0;
-			Crowds->CrowdsTotalNavigationPath[i] = total;
 			
 			for (int8 j = 0; j < total; ++j)
 			{
 				path[j+1].Z = 0;
-				Crowds->CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
+				(*Crowds)[0].CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
+				(*Crowds)[1].CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
 			}
+			
+			(*Crowds)[0].CrowdsIndexNavigationPath[i] = 0;
+			(*Crowds)[1].CrowdsIndexNavigationPath[i] = 0;
+			(*Crowds)[0].CrowdsTotalNavigationPath[i] = total;
+			(*Crowds)[1].CrowdsTotalNavigationPath[i] = total;
+			
+			UE_LOG(LogTemp, Error, TEXT("GENERATE"));
 		}
 	}
 	
 public:
-	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, FFluxPrimeCrowds* crowds, int32* activeMember, FFluxPrimeNavigationSystems* navigationSystems)
+	void InitializedProxyTargetSystems(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>* crowds, uint16* activeMember, FFluxPrimeNavigationSystems* navigationSystems)
 	{
 		World = world;
 		Crowds = crowds;

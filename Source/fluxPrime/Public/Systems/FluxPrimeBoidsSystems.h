@@ -14,13 +14,77 @@ private:
 	UPROPERTY(VisibleAnywhere)
 	float SeparationWeight = 0.0f;
 	
+	UPROPERTY(EditAnywhere)
+	float CellSize = 100.0f;
+
+	UPROPERTY(EditAnywhere)
+	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f); 
+
+	UPROPERTY(EditAnywhere)
+	int32 CellWidth = 200;
+	
+	UPROPERTY(EditAnywhere)
+	int32 CellHeight = 200;
+    
+	UPROPERTY(EditAnywhere)
+	int32 TotalCells = 100;
+	
 public:
-	void InitializeBoidsSystems(float separationWeight)
+	void InitializeBoidsSystems(float separationWeight, float cellSize, FVector origin, int32 cellWidth, int32 cellHeight)
 	{
 		SeparationWeight = separationWeight;
+		CellSize = cellSize;
+		Origin = origin;
+		CellWidth = cellWidth;
+		CellHeight = cellHeight;
 	}
 	
-	void UpdateBoidsSystems(FFluxPrimeCrowds& members, const TArray<int32>& gridOffset, float cellSize, int32 totalCells, int32 activeMember)
+	void UpdateBoidsSystems(FFluxPrimeCrowds& members, const TArray<int32>& gridOffset, int32 activeMember)
+	{
+	    for (int32 i = 0; i < activeMember; ++i)
+	    {
+	       float separationRadius = FMath::Square(members.CrowdsSize[i]);
+	       FVector location = members.CrowdsLocation[i];
+	       FVector force = FVector::Zero();
+	       
+	       int32 agentCellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
+	       int32 agentCellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
+
+	       for (int x = -1; x <= 1; ++x)
+	       {
+	          for (int y = -1; y <= 1; ++y)
+	          {
+	             int32 neighborX = agentCellX + x;
+	             int32 neighborY = agentCellY + y;
+	             
+	             if (neighborX < 0 || neighborX >= CellWidth || neighborY < 0 || neighborY >= CellHeight) continue;
+	             
+	             int32 neighborCellId = (neighborY * CellWidth) + neighborX;
+	             
+	             int32 startIndex = gridOffset[neighborCellId];
+	             if (startIndex == -1) continue;
+
+	             for (int j = startIndex; j < activeMember; ++j)
+	             {
+	                if (members.CrowdsCellID[j] != neighborCellId) break;
+	                if (i == j) continue;
+	                
+	                FVector diff = location - members.CrowdsLocation[j];
+	                float distSq = diff.SizeSquared();
+	            
+	                float actualDist = FMath::Sqrt(distSq);
+	                float pushIntensity = (separationRadius - actualDist) / separationRadius;
+	                force += (diff.GetSafeNormal() * (pushIntensity * 1000.0f)) * (distSq < separationRadius && distSq > 0.01f);
+	             }
+	          }
+	       }
+	       
+	    	UE_LOG(LogTemp, Error, TEXT("Acc: %s"), *(force * SeparationWeight).ToString());
+	       members.CrowdsAcceleration[i] += force * SeparationWeight;
+	    }
+	}
+	
+	/*void UpdateBoidsSystems(FFluxPrimeCrowds& members, const TArray<int32>& gridOffset, float cellSize, int32 totalCells, int32 activeMember)
 	{
 		for (int32 i = 0; i < activeMember; ++i)
 		{
@@ -61,5 +125,5 @@ public:
 			
 			members.CrowdsAcceleration[i] += force * SeparationWeight;
 		}
-	}
+	}*/
 };

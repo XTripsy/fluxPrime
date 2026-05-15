@@ -23,14 +23,14 @@ class FLUXPRIME_API IFluxPrimeCrowdsManagerInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void SpawnCrowd(UCrowdsIdentity* identity, FVector location, FRotator rotation);
+	/*UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	void SpawnCrowd(UCrowdsIdentity* identity, FVector location, FRotator rotation);*/
 	
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	/*UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void SwitchAnimationCrowd(UCrowdsIdentity* identity);
 	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
-	void PlayMontageCrowd(UCrowdsIdentity* identity);
+	void PlayMontageCrowd(UCrowdsIdentity* identity);*/
 	
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void TakeDamage(UCrowdsIdentity* Identity);

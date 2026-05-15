@@ -34,10 +34,48 @@ private:
 		);
 		
 		
-		float currentYaw = members.CrowdsRotation[indexMember] + 85;//FRotator::DecompressAxisFromByte(members.CrowdsRotation[indexMember]) + 85;
+		float currentYaw = members.CrowdsRotation[indexMember] + 85;
 		direction = FRotator(0, currentYaw, 0).Vector();
 		arrowLength = 75.0f;
 		startPos = members.CrowdsLocation[indexMember] + (FVector::UpVector * (FluxConfig::DebugLocationMovement + 20.0f));
+		endPos = startPos + (direction * arrowLength);
+		
+		DrawDebugDirectionalArrow(
+			world,
+			startPos,
+			endPos,
+			300.0f,
+			FColor::Cyan,
+			false,
+			-1.0f,
+			0,
+			5.0f
+		);
+	}
+	
+	void ShowDebugNet(TObjectPtr<UWorld> world, TArray<FFluxPrimeCrowdsNet>& members, const int32 indexMember, FVector direction)
+	{
+		float arrowLength = 50.0f;
+		FVector startPos = members[indexMember].NetLocation + (FVector::UpVector * FluxConfig::DebugLocationMovement);
+		FVector endPos = startPos + (direction * arrowLength);
+
+		DrawDebugDirectionalArrow(
+			world,
+			startPos,
+			endPos,
+			250.0f,
+			FColor::Blue,
+			false,
+			-1.0f,
+			0,
+			5.0f
+		);
+		
+		
+		float currentYaw = FRotator::DecompressAxisFromByte(members[indexMember].NetRotation) + 85;
+		direction = FRotator(0, currentYaw, 0).Vector();
+		arrowLength = 75.0f;
+		startPos = members[indexMember].NetLocation + (FVector::UpVector * (FluxConfig::DebugLocationMovement + 20.0f));
 		endPos = startPos + (direction * arrowLength);
 		
 		DrawDebugDirectionalArrow(
@@ -67,16 +105,17 @@ public:
 			FVector location = members.CrowdsLocation[i];
 			location.Z = 0;
 			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - location;
+			members.CrowdsCurrentTargetLocationPath[i] = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath];
 			
 			FRotator rot = dir.Rotation();
 			
 			// forwad static mesh perlu di rubah agar tidak perlu manipulasi forwardnya
 			float targetYaw = rot.Yaw - 85;
-			float currentYaw = members.CrowdsRotation[i];//FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]);
+			float currentYaw = members.CrowdsRotation[i];
 			FRotator currentRot(0.f, currentYaw, 0.f);
 			FRotator targetRot(0.f, targetYaw, 0.f);
 			float yaw = FMath::RInterpConstantTo(currentRot, targetRot, DeltaTime, 45.0f).Yaw;
-			members.CrowdsRotation[i] = yaw;//FRotator::CompressAxisToByte(yaw);
+			members.CrowdsRotation[i] = yaw;
 			
 			dir = dir.GetSafeNormal();
 			FVector velocity = dir * members.CrowdsMaxSpeed[i];
@@ -89,6 +128,37 @@ public:
 			members.CrowdsLocation[i] += members.CrowdsVelocity[i] * DeltaTime;
 			members.CrowdsAcceleration[i] = FVector::ZeroVector;
 			members.CrowdsVelocity[i] = FVector::ZeroVector;
+		}
+	}
+	
+	void UpdateNetMovementSystems(TObjectPtr<UWorld> world, double DeltaTime, TArray<FFluxPrimeCrowdsNet>& members, TArray<FFluxPrimeCrowdsTargetNet>& targets, TArray<FFluxPrimeCrowdsAccelerationNet>& accelerations, const int32 memberActive)
+	{
+		for (int i = 0; i < memberActive; ++i)
+		{
+			FVector location = members[i].NetLocation;
+			location.Z = 0;
+			FVector dir = targets[i].NetTargetLocation - location;
+			
+			FRotator rot = dir.Rotation();
+			
+			// forwad static mesh perlu di rubah agar tidak perlu manipulasi forwardnya
+			float targetYaw = rot.Yaw - 85;
+			float currentYaw = FRotator::DecompressAxisFromByte(members[i].NetRotation);
+			FRotator currentRot(0.f, currentYaw, 0.f);
+			FRotator targetRot(0.f, targetYaw, 0.f);
+			float yaw = FMath::RInterpConstantTo(currentRot, targetRot, DeltaTime, 45.0f).Yaw;
+			members[i].NetRotation = FRotator::CompressAxisToByte(yaw);
+			
+			dir = dir.GetSafeNormal();
+			FVector velocity = dir * members[i].NetMaxSpeed;
+			members[i].NetVelocity += velocity + accelerations[i].NetAcceleration;
+			
+			if (IsDebug) ShowDebugNet(world, members, i, dir);
+			
+			members[i].NetVelocity = members[i].NetVelocity.GetClampedToMaxSize(members[i].NetMaxSpeed);
+			
+			members[i].NetLocation += members[i].NetVelocity * DeltaTime;
+			members[i].NetVelocity = FVector::ZeroVector;
 		}
 	}
 };

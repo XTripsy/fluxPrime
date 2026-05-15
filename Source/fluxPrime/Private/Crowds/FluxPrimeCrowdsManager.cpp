@@ -5,6 +5,9 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Cores/FluxPrimeAnimationData.h"
+#include "Crowds/Components/FluxPrimeCrowdsAnimationComponent.h"
+#include "Crowds/Components/FluxPrimeCrowdsNetComponent.h"
+#include "Crowds/Components/FluxPrimeCrowdsSpawnerComponent.h"
 #include "Crowds/Identity/CrowdsIdentity.h"
 #include "Crowds/ManagerConfiguration/ManagerConfiguration.h"
 #include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationAnimationSystems.h"
@@ -16,11 +19,19 @@
 #include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationProxyTargetSystems.h"
 #include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationSpatialGridSystems.h"
 #include "Engine/AssetManager.h"
+#include "Net/UnrealNetwork.h"
 
 AFluxPrimeCrowdsManager::AFluxPrimeCrowdsManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	bReplicates = true;
+	SetMinNetUpdateFrequency(20);
+	
+	USceneComponent* sceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+	RootComponent = sceneRoot;
+	
+	SpawnerComponent = CreateDefaultSubobject<UFluxPrimeCrowdsSpawnerComponent>(TEXT("SpawnerSystem"));
+	AnimationComponent = CreateDefaultSubobject<UFluxPrimeCrowdsAnimationComponent>(TEXT("AnimationSystem"));
+	CrowdsNetComponent = CreateDefaultSubobject<UFluxPrimeCrowdsNetComponent>(TEXT("CrowdsNet"));
 }
 
 void AFluxPrimeCrowdsManager::ShowDebug()
@@ -46,6 +57,36 @@ void AFluxPrimeCrowdsManager::ShowDebug()
 	}
 }
 
+void AFluxPrimeCrowdsManager::ShortCrowdsByID()
+{
+	FFluxPrimeCrowds& readBuffer = CrowdsDatas[CrowdsDataReadIndex];
+	
+	CrowdsDataShortedIndex.SetNumUninitialized(CrowdsActive, EAllowShrinking::No);
+	for (int i = 0; i < CrowdsActive; ++i)
+	{
+		CrowdsDataShortedIndex[i] = i;
+	}
+        
+	Algo::Sort(CrowdsDataShortedIndex, [&readBuffer](int32 a, int32 b)
+		{
+			if (readBuffer.CrowdsType[a] != readBuffer.CrowdsType[b])
+			{
+				return readBuffer.CrowdsType[a] < readBuffer.CrowdsType[b];
+			}
+	        
+			return readBuffer.CrowdsID[a] < readBuffer.CrowdsID[b];
+		}
+	);
+	
+	for (int i = 0; i < CrowdsActive; ++i)
+	{
+		int32 tempShortedIndex = CrowdsDataShortedIndex[i];
+		
+		NetAcceleration[i] = readBuffer.CrowdsAcceleration[tempShortedIndex];
+		NetTarget[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
+	}
+}
+
 void AFluxPrimeCrowdsManager::PreLoading()
 {
 	TArray<FSoftObjectPath> pathsToLoad;
@@ -64,13 +105,13 @@ void AFluxPrimeCrowdsManager::PreLoading()
 		FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 		StreamingHandle = StreamableManager.RequestAsyncLoad(
 			pathsToLoad, 
-			FStreamableDelegate::CreateUObject(this, &AFluxPrimeCrowdsManager::InitializeSystems)
+			FStreamableDelegate::CreateUObject(this, &AFluxPrimeCrowdsManager::Initialize)
 		);
 	}
-	else InitializeSystems();
+	else Initialize();
 }
 
-void AFluxPrimeCrowdsManager::InitializeSystems()
+void AFluxPrimeCrowdsManager::Initialize()
 {
 	for (auto& temp : CrowdsCatalog)
 	{
@@ -91,11 +132,14 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 	
 	InitializeComponentCrowds();
 	StreamingHandle.Reset();
-	
-	if (!HasAuthority() && IsReplicated) return;
-	
 	InitializeCrowds();
+	
+	InitializeSystems();
+	InitializedComponentSystems();
+}
 
+void AFluxPrimeCrowdsManager::InitializeSystems()
+{
 	const FFluxPrimeConfigurationGroundHeightSystems* configurationGroundHeight = nullptr;
 	const FFluxPrimeConfigurationSpatialGridSystems* configurationSpatialGrid = nullptr;
 	const FFluxPrimeConfigurationNavigationSystems* configurationNavigation = nullptr;
@@ -111,7 +155,6 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationGroundHeightSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationGroundHeightSystems>())
 		{
-			//GroundHeightSystems = MakeUnique<FFluxPrimeGroundHeightSystems>();
 			GroundHeightSystems.IsActive = true;
 			configurationGroundHeight = configuration;
 			continue;
@@ -119,7 +162,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationSpatialGridSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationSpatialGridSystems>())
 		{
-			//SpatialGridSystems = MakeUnique<FFluxPrimeSpatialGridSystems>();
+			if (!HasAuthority()) continue;
 			SpatialGridSystems.IsActive = true;
 			configurationSpatialGrid = configuration;
 			continue;
@@ -127,7 +170,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationNavigationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationNavigationSystems>())
 		{
-			//NavigationSystems = MakeUnique<FFluxPrimeNavigationSystems>();
+			if (!HasAuthority()) continue;
 			NavigationSystems.IsActive = true;
 			configurationNavigation = configuration;
 			continue;
@@ -135,7 +178,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationBoidsSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationBoidsSystems>())
 		{
-			//BoidsSystems = MakeUnique<FFluxPrimeBoidsSystems>();
+			if (!HasAuthority()) continue;
 			BoidsSystems.IsActive = true;
 			configurationBoids = configuration;
 			continue;
@@ -143,7 +186,6 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationMovementSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationMovementSystems>())
 		{
-			//MovementSystems = MakeUnique<FFluxPrimeMovementSystems>();
 			MovementSystems.IsActive = true;
 			configurationMovement = configuration;
 			continue;
@@ -151,7 +193,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationAnimationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationAnimationSystems>())
 		{
-			//AnimationSystems = MakeUnique<FFluxPrimeAnimationSystems>();
+			if (!HasAuthority()) continue;
 			AnimationSystems.IsActive = true;
 			configurationAnimation = configuration;
 			continue;
@@ -159,7 +201,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationProxyTargetSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationProxyTargetSystems>())
 		{
-			//ProxyTargetSystems = MakeUnique<FFluxPrimeProxyTargetSystems>();
+			if (!HasAuthority()) continue;
 			ProxyTargetSystems.IsActive = true;
 			configurationProxyTarget = configuration;
 			continue;
@@ -167,7 +209,7 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 		
 		if (const FFluxPrimeConfigurationDamageSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationDamageSystems>())
 		{
-			//DamageSystems = MakeUnique<FFluxPrimeDamageSystems>();
+			if (!HasAuthority()) continue;
 			DamageSystems.IsActive = true;
 			configurationDamage = configuration;
 			continue;
@@ -182,24 +224,14 @@ void AFluxPrimeCrowdsManager::InitializeSystems()
 	if (configurationMovement) configurationMovement->IsDebug = false;
 #endif
 	
-	/*SpatialGridSystems->InitializedSpatialGridSystems(configurationSpatialGrid->IsDebug, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
-	SpatialGridSystems->BakeSpatialGridSystems(GetWorld());
-	GroundHeightSystems->InitializedGroundHeightSystems(configurationGroundHeight->CellSize, configurationGroundHeight->Origin, configurationGroundHeight->CellWidth, configurationGroundHeight->CellHeight);
-	GroundHeightSystems->BakeGroundHeightSystems(GetWorld());
-	NavigationSystems->InitializedNavigationSystems(configurationNavigation->IsDebug, GetWorld());
-	BoidsSystems->InitializeBoidsSystems(configurationBoids->SeparationWeight);
-	ProxyTargetSystems->InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas[CrowdsDataReadIndex], &CrowdsActive, NavigationSystems.Get());
-	AnimationSystems->InitializedAnimationSystems(configurationAnimation->IsDebug);
-	MovementSystems->InitializedMovementSystems(configurationMovement->IsDebug);*/
-	
 	if (SpatialGridSystems.IsActive) SpatialGridSystems.InitializedSpatialGridSystems(configurationSpatialGrid->IsDebug, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
 	if (SpatialGridSystems.IsActive) SpatialGridSystems.BakeSpatialGridSystems(GetWorld());
 	if (GroundHeightSystems.IsActive) GroundHeightSystems.InitializedGroundHeightSystems(configurationGroundHeight->CellSize, configurationGroundHeight->Origin, configurationGroundHeight->CellWidth, configurationGroundHeight->CellHeight);
 	if (GroundHeightSystems.IsActive) GroundHeightSystems.BakeGroundHeightSystems(GetWorld());
 	if (NavigationSystems.IsActive) NavigationSystems.InitializedNavigationSystems(configurationNavigation->IsDebug, GetWorld());
-	if (BoidsSystems.IsActive) BoidsSystems.InitializeBoidsSystems(configurationBoids->SeparationWeight);
-	if (ProxyTargetSystems.IsActive) ProxyTargetSystems.InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas[CrowdsDataReadIndex], &CrowdsActive, &NavigationSystems);
-	if (AnimationSystems.IsActive) AnimationSystems.InitializedAnimationSystems(configurationAnimation->IsDebug);
+	if (BoidsSystems.IsActive && SpatialGridSystems.IsActive) BoidsSystems.InitializeBoidsSystems(configurationBoids->SeparationWeight, configurationSpatialGrid->CellSize, configurationSpatialGrid->Origin, configurationSpatialGrid->CellWidth, configurationSpatialGrid->CellHeight);
+	if (ProxyTargetSystems.IsActive) ProxyTargetSystems.InitializedProxyTargetSystems(GetWorld(), &CrowdsDatas, &CrowdsActive, &NavigationSystems);
+	if (AnimationSystems.IsActive) AnimationSystems.InitializedAnimationSystems(configurationAnimation->IsDebug, CrowdsComponents);
 	if (MovementSystems.IsActive) MovementSystems.InitializedMovementSystems(configurationMovement->IsDebug);
 }
 
@@ -216,7 +248,7 @@ void AFluxPrimeCrowdsManager::InitializeComponentCrowds()
 			false
 		);
 		UInstancedStaticMeshComponent* tempISMC = NewObject<UInstancedStaticMeshComponent>(this, FName(name));
-		tempISMC->SetIsReplicated(true);
+		tempISMC->SetIsReplicated(false);
 		tempISMC->SetStaticMesh(CrowdsMeshSoftRef[CrowdsCatalog[i].CrowdsIdentity->Identity].Get());
 		tempISMC->AttachToComponent(RootComponent, AttachRules);
 		tempISMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -224,13 +256,21 @@ void AFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->ClearInstances();
 		tempISMC->UpdateBounds();
 		tempISMC->RecreatePhysicsState();
-		tempISMC->NumCustomDataFloats = 2;
+		tempISMC->NumCustomDataFloats = 3;
 		tempISMC->bReceivesDecals = false;
 		
 		CrowdsComponents.Add(tempISMC);
 		
 		CrowdsTypes.Add(CrowdsCatalog[i].CrowdsIdentity->Identity, i);
 	}
+}
+
+void AFluxPrimeCrowdsManager::InitializedComponentSystems()
+{
+	if (AnimationSystems.IsActive) AnimationComponent->Initialize(AnimationSystems);
+	SpawnerComponent->Initialize(&CrowdsActive, &CrowdsTotal, CrowdsComponents, CrowdsTypes, &CrowdsDatas[CrowdsDataReadIndex], &NavigationSystems);
+	if (IsReplicated) CrowdsNetComponent->Initialize(CrowdsTotal, CrowdsComponents);
+	SpawnerComponent->OnSpawnCrowdsNet.BindUObject(CrowdsNetComponent, &UFluxPrimeCrowdsNetComponent::OnSpawnCrowdsData);
 }
 
 void AFluxPrimeCrowdsManager::InitializeCrowds()
@@ -243,6 +283,8 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 	CrowdsDatas[CrowdsDataReadIndex].Init(CrowdsTotal);
 	CrowdsDatas[CrowdsDataReadIndex+1].Init(CrowdsTotal);
 	CrowdsDataShortedIndex.SetNumUninitialized(CrowdsTotal);
+	NetAcceleration.Init(FVector(), CrowdsTotal);
+	NetTarget.Init(FVector(), CrowdsTotal);
 	
 	for (int i = 0; i < CrowdsCatalog.Num(); ++i)
 	{
@@ -251,6 +293,8 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 			FTransform tempTransform;
 			tempTransform.SetLocation(FVector::DownVector * 1000.0f);
 			int32 id = CrowdsComponents[i]->AddInstance(tempTransform, false);
+			
+			if (!HasAuthority() && IsReplicated) continue;
 			
 			FFluxCrowdsAnimation animationData = FFluxCrowdsAnimation();
 
@@ -288,6 +332,7 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsSize.Add(CrowdsCatalog[i].CrowdsIdentity->Size);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsNavigationPath.Add(FFluxCrowdsPath());
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsTargetLocation.Add(FVector::ZeroVector);
+			CrowdsDatas[CrowdsDataReadIndex].CrowdsCurrentTargetLocationPath.Add(FVector::ZeroVector);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsIndexNavigationPath.Add(0);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsTotalNavigationPath.Add(0);
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationData.Add(animationData);
@@ -300,101 +345,9 @@ void AFluxPrimeCrowdsManager::InitializeCrowds()
 	CrowdsDatas[CrowdsDataReadIndex+1] = CrowdsDatas[CrowdsDataReadIndex];
 }
 
-void AFluxPrimeCrowdsManager::UpdateRenderCrowds()
+void AFluxPrimeCrowdsManager::OnRep_CrowdActive()
 {
-	int32 totalComponents = CrowdsComponents.Num();
-	
-	for (int32 i = 0; i < CrowdsActive; ++i)
-	{
-		int8 typeIndex = CrowdsDatas[CrowdsDataReadIndex].CrowdsType[i];
-		if (typeIndex < 0 || typeIndex >= totalComponents) continue;
-
-		FTransform transform;
-		transform.SetLocation(CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[i]);
-
-		float unpackedYaw = CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i];//FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]);
-		FRotator Rot(0.0f, unpackedYaw, 0.0f);
-		transform.SetRotation(Rot.Quaternion());
-		
-		int32 id = CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i];
-		
-		int32 indexAnimation = CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationIndex[i]; 
-		float startFrame = CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationData[i].AnimationOffset[FMath::Max(0, indexAnimation)];
-		CrowdsComponents[typeIndex]->SetCustomDataValue(
-			id,
-			0,
-			startFrame,
-			false
-			);
-				
-		float currentFrame = CrowdsDatas[CrowdsDataReadIndex].CrowdsCurrentAnimationFrame[i];
-		CrowdsComponents[typeIndex]->SetCustomDataValue(
-			id,
-			1,
-			currentFrame,
-			false
-			);
-		
-		CrowdsComponents[typeIndex]->UpdateInstanceTransform(
-			id,
-			transform,
-			true,
-			false,
-			true
-		);
-	}
-
-	for (int32 i = 0; i < totalComponents; ++i)
-	{
-		CrowdsComponents[i]->MarkRenderStateDirty();
-	}
-}
-
-void AFluxPrimeCrowdsManager::OnAttackNotify(int32 memberID)
-{
-	UE_LOG(LogTemp, Error, TEXT("[ACTION] :: ATTACK : %d"), memberID);
-	
-	FVector location = FVector::ZeroVector;
-	FVector forwardVector = FVector::ZeroVector;
-
-	for (int i = 0; i < CrowdsActive; ++i)
-	{
-		if (CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i] != memberID) continue;
-		
-		location = CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[i] + (FVector::UpVector * 150) + (FVector::RightVector * -100);
-		float unpackedYaw = CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i];//FRotator::DecompressAxisFromByte(CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[i]) + 65;
-		forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
-	}
-	
-	FVector endLocation = location + (forwardVector * 135);
-	
-	FHitResult hit;
-	float sphereRadius = 50.0f;
-	FCollisionShape sphereShape = FCollisionShape::MakeSphere(sphereRadius);
-	FCollisionQueryParams TraceParams;
-	TraceParams.bTraceComplex = false;
-	
-	bool bHit = GetWorld()->SweepSingleByChannel(
-		hit,
-		location,
-		endLocation,
-		FQuat::Identity,
-		ECC_Visibility,
-		sphereShape,
-		TraceParams
-	);
-	
-	DrawDebugSphere(GetWorld(), endLocation, sphereRadius, 12, FColor::Red, false, 2.0f);
-}
-
-void AFluxPrimeCrowdsManager::OnSpawnSFXNotify(int32 memberID)
-{
-	UE_LOG(LogTemp, Error, TEXT("[ACTION] :: SPAWN SFX : %d"), memberID);
-}
-
-void AFluxPrimeCrowdsManager::OnSpawnVFXNotify(int32 memberID)
-{
-	UE_LOG(LogTemp, Error, TEXT("[ACTION] :: SPAWN VFX : %d"), memberID);
+	CrowdsNetComponent->OnCrowdsActiveChange(CrowdsActive);
 }
 
 void AFluxPrimeCrowdsManager::OnConstruction(const FTransform& Transform)
@@ -403,46 +356,40 @@ void AFluxPrimeCrowdsManager::OnConstruction(const FTransform& Transform)
 	SetActorLocation(FVector::ZeroVector);
 }
 
-void AFluxPrimeCrowdsManager::PostInitProperties()
-{
-	Super::PostInitProperties();
-	
-	bReplicates = IsReplicated;
-}
-
 void AFluxPrimeCrowdsManager::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	SetReplicates(IsReplicated);
+	
 	PreLoading();
-	
-	if (!HasAuthority() && IsReplicated) return;
-	
-	if (AnimationSystems.IsActive)
-	{
-		AnimationSystems.OnAttackNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnAttackNotify);
-		AnimationSystems.OnSpawnSFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnSFXNotify);
-		AnimationSystems.OnSpawnVFXNotify.BindUObject(this, &AFluxPrimeCrowdsManager::OnSpawnVFXNotify);
-	}
 }
 
 void AFluxPrimeCrowdsManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	
-	if (!HasAuthority() && IsReplicated) return;
 	if (CrowdsComponents.IsEmpty() || CrowdsActive <= 0) return;
 	
+	if (!HasAuthority() && IsReplicated)
+	{
+		CrowdsNetComponent->UpdateCrowdsData(NetAcceleration, NetTarget);
+		CrowdsNetComponent->UpdateNetData(DeltaTime, GroundHeightSystems, MovementSystems, CrowdsRenderSystems);
+		return;
+	}
+	
 	if (SpatialGridSystems.IsActive) SpatialGridSystems.UpdateSpatialGridSystem(GetWorld(), CrowdsDatas, GridOffset, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
-	if (BoidsSystems.IsActive) BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, 10.0f, 100, CrowdsActive);
+	if (BoidsSystems.IsActive && SpatialGridSystems.IsActive) BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, CrowdsActive);
+	if (HasAuthority() && IsReplicated) ShortCrowdsByID();
 	if (GroundHeightSystems.IsActive) GroundHeightSystems.UpdateGroundHeightSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	if (NavigationSystems.IsActive) NavigationSystems.UpdateNavigationSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	if (MovementSystems.IsActive) MovementSystems.UpdateMovementSystems(GetWorld(), DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	if (AnimationSystems.IsActive) AnimationSystems.UpdateAnimationSystemsFrame(GetWorld(), CrowdsDatas, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
+	if (AnimationSystems.IsActive) AnimationSystems.UpdateAnimationSystemsFrame(GetWorld(), CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	
 	if (IsShowDebug) ShowDebug();
 	
-	UpdateRenderCrowds();
+	ForceNetUpdate();
+	CrowdsRenderSystems.UpdateRenderCrowdsSystems(CrowdsComponents, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 }
 
 void AFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -466,78 +413,19 @@ void AFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (NavigationSystems.IsActive) NavigationSystems.EndPlayNavigationSystems();
 	if (AnimationSystems.IsActive) AnimationSystems.EndPlayAnimationSystems();
 	
-	/*SpatialGridSystems.Reset();
-	BoidsSystems.Reset();
-	MovementSystems.Reset();
-	NavigationSystems.Reset();
-	GroundHeightSystems.Reset();
-	AnimationSystems.Reset();
-	ProxyTargetSystems.Reset();
-	DamageSystems.Reset();*/
-	
 	Super::EndPlay(EndPlayReason);
 }
 
-void AFluxPrimeCrowdsManager::SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation)
+void AFluxPrimeCrowdsManager::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
-	if (!HasAuthority() && IsReplicated) return;
-	if (CrowdsActive == CrowdsTotal) return;
-	
-	int32 indexSelected = CrowdsActive;
-	int32 typeCrowds = CrowdsTypes[identity->Identity];
-	
-	int32 id = -1;
-
-	for (int i = indexSelected; i < CrowdsTotal; ++i)
-	{
-		if (CrowdsDatas[CrowdsDataReadIndex].CrowdsType[i] == typeCrowds)
-		{
-			int32 tempID = CrowdsDatas[CrowdsDataReadIndex].CrowdsID[indexSelected];
-			id = CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i];
-			CrowdsDatas[CrowdsDataReadIndex].CrowdsID[i] = tempID;
-			break;
-		}
-	}
-
-	int8 total = 0;
-	if (NavigationSystems.IsActive)
-	{
-		TArray<FVector> path;
-		if (!NavigationSystems.CalculatePath(location, FVector::ZeroVector, path)) return;
-		
-		total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
-	    
-		for (int8 i = 0; i < total; ++i)
-		{
-			path[i+1].Z = 0;
-			CrowdsDatas[CrowdsDataReadIndex].CrowdsNavigationPath[indexSelected].LocationPaths[i] = path[i+1];
-		}
-	}
-	
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsRotation[indexSelected] = rotation.Yaw;//FRotator::CompressAxisToByte(rotation.Yaw);
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsID[indexSelected] = id;
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsIndexNavigationPath[indexSelected] = 0;
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsTotalNavigationPath[indexSelected] = total;
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsStartTimeAnimationFrame[indexSelected] = GetWorld()->GetRealTimeSeconds();
-	CrowdsDatas[CrowdsDataReadIndex].CrowdsAnimationIndex[indexSelected] = 0;
-	
-	++CrowdsActive;
-}
-
-void AFluxPrimeCrowdsManager::SwitchAnimationCrowd_Implementation(UCrowdsIdentity* identity)
-{
-	int32 indexCrowds = 0;
-	if (AnimationSystems.IsActive) AnimationSystems.SwitchAnimation(GetWorld(), CrowdsDatas[CrowdsDataReadIndex], indexCrowds);
-}
-
-void AFluxPrimeCrowdsManager::PlayMontageCrowd_Implementation(UCrowdsIdentity* identity)
-{
-	int32 indexCrowds = 0;
-	if (AnimationSystems.IsActive) AnimationSystems.MontageAnimation(CrowdsDatas[CrowdsDataReadIndex], indexCrowds, 4);
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AFluxPrimeCrowdsManager, CrowdsActive);
+	DOREPLIFETIME(AFluxPrimeCrowdsManager, NetAcceleration);
+	DOREPLIFETIME(AFluxPrimeCrowdsManager, NetTarget);
 }
 
 void AFluxPrimeCrowdsManager::TakeDamage_Implementation(UCrowdsIdentity* Identity)
 {
+	// sementara
 	if (DamageSystems.IsActive) DamageSystems.TakeDamage(GetWorld(), &SpatialGridSystems,CrowdsDatas[CrowdsDataReadIndex], 0, CrowdsActive);
 }

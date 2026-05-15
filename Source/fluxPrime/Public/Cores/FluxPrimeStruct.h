@@ -30,6 +30,42 @@ struct FFluxCrowdsPath
 };
 
 USTRUCT(BlueprintType)
+struct FFluxPrimeOnSpawnCrowdsNetPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	FVector LocationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	FVector TargetLocationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	FVector AccelerationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 IdPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 IndexSelectedPayload;
+	
+	UPROPERTY(EditAnywhere)
+	int16 MaxSpeedPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 StartFramePayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 EndFramePayload;
+	
+	UPROPERTY(EditAnywhere)
+	int8 RotationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	int8 TypePayload;
+};
+
+USTRUCT(BlueprintType)
 struct FFluxCrowdsAnimationNotify
 {
 	GENERATED_BODY()
@@ -56,7 +92,7 @@ struct FFluxCrowdsAnimation
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeMemberNet
+struct FFluxPrimeCrowdsNet
 {
 	GENERATED_BODY()
 	
@@ -64,13 +100,58 @@ struct FFluxPrimeMemberNet
 	FVector_NetQuantize100 NetLocation;
 	
 	UPROPERTY(EditAnywhere)
+	FVector_NetQuantize100 NetVelocity;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetMaxSpeed;
+	
+	UPROPERTY(EditAnywhere)
 	int8 NetRotation;
 	
 	UPROPERTY(EditAnywhere)
-	int8 NetType;
+	uint8 NetType;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsTargetNet
+{
+	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	bool isActive;
+	FVector_NetQuantize100 NetTargetLocation;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetID;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsAccelerationNet
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	FVector_NetQuantize100 NetAcceleration;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetID;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsAnimationNet
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetID;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetStart;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetEnd;
+	
+	UPROPERTY(EditAnywhere)
+	uint8 NetType;
 };
 
 USTRUCT(BlueprintType)
@@ -81,7 +162,7 @@ struct FFluxPrimeCrowds
 #pragma region IdentityData
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsID;
+	TArray<int16> CrowdsID;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsType;
@@ -96,7 +177,7 @@ struct FFluxPrimeCrowds
 	TArray<int8> CrowdsHealth;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsSize;
+	TArray<int16> CrowdsSize;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int32> CrowdsCellID;
@@ -142,6 +223,9 @@ struct FFluxPrimeCrowds
 #pragma region NavigationData
 	
 	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsCurrentTargetLocationPath;
+	
+	UPROPERTY(EditAnywhere)
 	TArray<FVector> CrowdsTargetLocation;
 	
 	UPROPERTY(EditAnywhere)
@@ -172,6 +256,7 @@ struct FFluxPrimeCrowds
 		CrowdsIndexNavigationPath.Reserve(totalMember);
 		CrowdsTotalNavigationPath.Reserve(totalMember);
 		CrowdsTargetLocation.Reserve(totalMember);
+		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
 		CrowdsAnimationData.Reserve(totalMember);
 		CrowdsAnimationIndex.Reserve(totalMember);
 		CrowdsStartTimeAnimationFrame.Reserve(totalMember);

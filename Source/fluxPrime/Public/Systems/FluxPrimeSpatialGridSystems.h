@@ -26,8 +26,8 @@ private:
     UPROPERTY(EditAnywhere)
     int32 TotalCells = 100;
 
-    UPROPERTY(EditAnywhere)
-    TArray<int32> CellID;
+    /*UPROPERTY(EditAnywhere)
+    TArray<int32> CellID;*/
     
     UPROPERTY()
     bool IsDebug = false;
@@ -84,7 +84,7 @@ public:
     void BakeSpatialGridSystems(TObjectPtr<UWorld> world)
     {
         TotalCells = CellWidth * CellHeight;
-        CellID.Init(0, TotalCells);
+        /*CellID.Init(0, TotalCells);
 
         for (int32 y = 0; y < CellHeight; y++)
         {
@@ -94,12 +94,12 @@ public:
 
                 CellID[IndexID] = IndexID;
             }
-        }
+        }*/
         
         if (IsDebug) DrawSpatialGridDebug(world);
     }
     
-    int32 GetSpatialGridSystemsCellID(FVector location)
+    /*int32 GetSpatialGridSystemsCellID(FVector location)
     {
         int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
         int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
@@ -110,6 +110,17 @@ public:
         int32 IndexID = (CellY * CellWidth) + CellX;
 
         return CellID[IndexID];
+    }*/
+    
+    int32 GetSpatialGridSystemsCellID(FVector location)
+    {
+        int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
+        int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
+
+        CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
+        CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
+
+        return (CellY * CellWidth) + CellX;
     }
     
     void UpdateSpatialGridSystem(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>& members, TArray<int32>& gridOffset, TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers)
@@ -158,6 +169,7 @@ public:
             writeBuffer.CrowdsIndexNavigationPath[i] = readBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsTotalNavigationPath[i] = readBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsNavigationPath[i] = readBuffer.CrowdsNavigationPath[tempShortedIndex];
+            writeBuffer.CrowdsCurrentTargetLocationPath[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
             writeBuffer.CrowdsAnimationData[i] = readBuffer.CrowdsAnimationData[tempShortedIndex];
             writeBuffer.CrowdsAnimationIndex[i] = readBuffer.CrowdsAnimationIndex[tempShortedIndex];
             writeBuffer.CrowdsStartTimeAnimationFrame[i] = readBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
