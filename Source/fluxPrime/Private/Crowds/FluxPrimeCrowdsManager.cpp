@@ -5,10 +5,7 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Cores/FluxPrimeAnimationData.h"
-#include "Crowds/Components/FluxPrimeCrowdsAnimationComponent.h"
 #include "Crowds/Components/FluxPrimeCrowdsNetComponent.h"
-#include "Crowds/Components/FluxPrimeCrowdsSpawnerComponent.h"
-#include "Crowds/Components/FluxPrimeCrowdsSystemsComponent.h"
 #include "Crowds/Identity/CrowdsIdentity.h"
 #include "Engine/AssetManager.h"
 #include "Net/UnrealNetwork.h"
@@ -174,13 +171,8 @@ void AFluxPrimeCrowdsManager::Initialize()
 		
 		CrowdsSystemsModule.Initialize(context);
 		CrowdsSystemsModule.InitializeSystems();
-		
-		/*IdleSystems.World = GetWorld();
-		AbilitySystems.World = GetWorld();
-		WalkSystems.World = GetWorld();*/
 	}
 	
-	//StateMachineSystems.InitializeStateMachineSystems();
 	InitializedComponentSystems();
 }
 
@@ -227,11 +219,6 @@ void AFluxPrimeCrowdsManager::InitializedComponentSystems()
 		
 		CrowdsAnimationModule.Initialize(context);
 		
-		//StateMachineSystems.OnCrowdsStateChange.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
-		//MovementSystems.SwitchAnimation.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
-		//AbilitySystems.OnCrowdsStateChange.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
-		//IdleSystems.OnCrowdsStateChange.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
-		//WalkSystems.OnCrowdsStateChange.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
 		AnimationSystems.OnCrowdsStateChange.BindRaw(&CrowdsAnimationModule, &FFluxPrimeCrowdsAnimationModule::SwitchAnimation);
 	}
 	
@@ -296,24 +283,11 @@ void AFluxPrimeCrowdsManager::Tick(float DeltaTime)
 		return;
 	}
 	
-	//if (SpatialGridSystems.IsActive) SpatialGridSystems.UpdateSpatialGridSystem(GetWorld(), CrowdsDatas, GridOffset, CrowdsDataShortedIndex, CrowdsDataReadIndex, CrowdsActive);
-	//if (BoidsSystems.IsActive && SpatialGridSystems.IsActive) BoidsSystems.UpdateBoidsSystems(CrowdsDatas[CrowdsDataReadIndex], GridOffset, CrowdsActive);
-	//if (HasAuthority() && IsReplicated) ShortCrowdsByID(); 
-	//if (GroundHeightSystems.IsActive) GroundHeightSystems.UpdateGroundHeightSystems(DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	//if (NavigationSystems.IsActive) NavigationSystems.UpdateNavigationSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	//if (MovementSystems.IsActive) MovementSystems.UpdateMovementSystems(GetWorld(), DeltaTime, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	//if (AnimationSystems.IsActive) AnimationSystems.UpdateAnimationSystemsFrame(GetWorld(), CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	
-	//StateMachineSystems.UpdateStateMachineSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 	CrowdsSystemsModule.TickSystems(DeltaTime);
-	/*AbilitySystems.UpdateAbilitySystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	IdleSystems.UpdateIdleSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
-	WalkSystems.UpdateWalkSystems(CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);*/
 	
 	if (IsShowDebug) ShowDebug();
 	
 	ForceNetUpdate();
-	//CrowdsRenderSystems.UpdateRenderCrowdsSystems(CrowdsComponents, CrowdsDatas[CrowdsDataReadIndex], CrowdsActive);
 }
 
 void AFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)

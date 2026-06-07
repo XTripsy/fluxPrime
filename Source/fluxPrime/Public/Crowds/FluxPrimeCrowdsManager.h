@@ -25,10 +25,7 @@
 #include "Systems/States/FluxPrimeWalkSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
-class UFluxPrimeCrowdsAnimationComponent;
 class UFluxPrimeCrowdsNetComponent;
-class UFluxPrimeCrowdsSpawnerComponent;
-class UFluxPrimeCrowdsSystemsComponent;
 class UManagerConfiguration;
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -153,19 +150,7 @@ private:
 	FFluxPrimeStateMachineSystems StateMachineSystems;
 	
 #pragma endregion
-	
-#pragma region States
-	
-	UPROPERTY()
-	FFluxPrimeAbilitySystems AbilitySystems;
-	
-	UPROPERTY()
-	FFluxPrimeIdleSystems IdleSystems;
-	
-	UPROPERTY()
-	FFluxPrimeWalkSystems WalkSystems;
-	
-#pragma endregion 
+
 	
 public:
 	AFluxPrimeCrowdsManager();
@@ -200,6 +185,7 @@ public:
 		CrowdsSpawnerModule.SpawnCrowd(identity, location, rotation);
 	};
 	
+	// temp
 	UFUNCTION(BlueprintCallable)
 	FORCEINLINE void ChangeState()
 	{
@@ -208,12 +194,6 @@ public:
 			CrowdsDatas[CrowdsDataReadIndex].CrowdsState[i] = EFluxPrimeCrowdState::StateWalk;
 		}
 	};
-	
-	/*UFUNCTION(BlueprintCallable, BlueprintPure)
-	FORCEINLINE TScriptInterface<IFluxPrimeCrowdsSpawnerComponentInterface> GetSpawnerComponent() const
-	{
-		return SpawnerComponent;
-	}*/
 	
 public:
 	virtual void TakeDamage_Implementation(UCrowdsIdentity* Identity) override;
