@@ -1,7 +1,3 @@
-Berikut versi README yang menurutku cukup cocok untuk GitHub project yang masih aktif dikembangkan. Gaya bahasanya lebih profesional dan menarik buat recruiter, programmer Unreal, atau developer lain yang mampir ke repository.
-
----
-
 # Flux Prime
 
 > High-performance crowd simulation framework for Unreal Engine built with ECS, Data-Oriented Design (DOD), VAT, and Instanced Static Mesh Components.
