@@ -178,5 +178,3 @@ By separating simulation from visualization, the framework can scale to signific
 Flux Prime aims to become a lightweight and extensible crowd simulation framework that combines the flexibility of ECS with the rendering power of Unreal Engine, making large-scale crowd scenarios accessible without requiring a full custom engine.
 
 ---
-
-Karena project ECS/DOD itu biasanya langsung dinilai dari screenshot dan benchmark. Bahkan benchmark sering lebih menarik daripada penjelasan teknis panjang.
