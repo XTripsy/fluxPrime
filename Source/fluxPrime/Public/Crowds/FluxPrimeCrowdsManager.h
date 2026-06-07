@@ -6,6 +6,11 @@
 #include "Engine/StreamableManager.h"
 #include "FluxPrimeCrowdsManagerInterface.h"
 #include "Cores/FluxPrimeStruct.h"
+#include "Modules/FluxPrimeCrowdsAnimationModule.h"
+#include "Modules/FluxPrimeCrowdsDataModule.h"
+#include "Modules/FluxPrimeCrowdsSpawnerModule.h"
+#include "Modules/FluxPrimeCrowdsSystemsModule.h"
+#include "Systems/States/FluxPrimeAbilitySystems.h"
 #include "Systems/FluxPrimeBoidsSystems.h"
 #include "Systems/FluxPrimeGroundHeightSystems.h"
 #include "Systems/FluxPrimeMovementSystems.h"
@@ -14,12 +19,16 @@
 #include "Systems/FluxPrimeAnimationSystems.h"
 #include "Systems/FluxPrimeCrowdsRenderSystems.h"
 #include "Systems/FluxPrimeDamageSystems.h"
+#include "Systems/States/FluxPrimeIdleSystems.h"
 #include "Systems/FluxPrimeProxyTargetSystems.h"
+#include "Systems/FluxPrimeStateMachineSystems.h"
+#include "Systems/States/FluxPrimeWalkSystems.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 class UFluxPrimeCrowdsAnimationComponent;
 class UFluxPrimeCrowdsNetComponent;
 class UFluxPrimeCrowdsSpawnerComponent;
+class UFluxPrimeCrowdsSystemsComponent;
 class UManagerConfiguration;
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -33,15 +42,14 @@ private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>> CrowdsComponents;
 	
 	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsSpawnerComponent> SpawnerComponent;
-	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsAnimationComponent> AnimationComponent;
-	
-	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNetComponent> CrowdsNetComponent;
 	
 private:
+#pragma region Configuration
+	
+	UPROPERTY(EditAnywhere, Category = "Crowds | CollisionProfile", meta = (AllowPrivateAccess = true))
+	FName ProfileNameCollisionCrowds = "Pawn";
+	
 	UPROPERTY(EditAnywhere, Category = "Crowds | Condition", meta = (AllowPrivateAccess = true))
 	bool IsReplicated;
 	
@@ -52,7 +60,11 @@ private:
 	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
 	
 	UPROPERTY(EditAnywhere, Category = "Crowds | Catalogs", meta = (AllowPrivateAccess = true))
-	TArray<FFluxCatalogCrowds> CrowdsCatalog;
+	TArray<FFluxPrimeCrowdsCatalog> CrowdsCatalog;
+	
+#pragma endregion 
+	
+#pragma region SoftRefrence
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Crowds | Data")
 	TMap<FName, TSoftObjectPtr<UStaticMesh>> CrowdsMeshSoftRef;
@@ -61,6 +73,8 @@ private:
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>> CrowdsAnimationSoftRef;
 	
 	TSharedPtr<FStreamableHandle> StreamingHandle;
+	
+#pragma endregion 
 	
 	UPROPERTY()
 	TMap<FName, int8> CrowdsTypes;
@@ -90,6 +104,24 @@ private:
 	
 	TStaticArray<FFluxPrimeCrowds, 2> CrowdsDatas;
 	
+#pragma region Module
+	
+	UPROPERTY()
+	FFluxPrimeCrowdsDataModule CrowdsDataModule;
+	
+	UPROPERTY()
+	FFluxPrimeCrowdsSpawnerModule CrowdsSpawnerModule;
+	
+	UPROPERTY()
+	FFluxPrimeCrowdsAnimationModule CrowdsAnimationModule;
+	
+	UPROPERTY()
+	FFluxPrimeCrowdsSystemsModule CrowdsSystemsModule; 
+	
+#pragma endregion
+
+#pragma region Systems
+	
 	UPROPERTY()
 	FFluxPrimeCrowdsRenderSystems CrowdsRenderSystems;
 	
@@ -117,6 +149,24 @@ private:
 	UPROPERTY()
 	FFluxPrimeDamageSystems DamageSystems;
 	
+	UPROPERTY()
+	FFluxPrimeStateMachineSystems StateMachineSystems;
+	
+#pragma endregion
+	
+#pragma region States
+	
+	UPROPERTY()
+	FFluxPrimeAbilitySystems AbilitySystems;
+	
+	UPROPERTY()
+	FFluxPrimeIdleSystems IdleSystems;
+	
+	UPROPERTY()
+	FFluxPrimeWalkSystems WalkSystems;
+	
+#pragma endregion 
+	
 public:
 	AFluxPrimeCrowdsManager();
 
@@ -130,10 +180,8 @@ private:
 	UFUNCTION()
 	void Initialize();
 	
-	void InitializeSystems();
 	void InitializeComponentCrowds();
 	void InitializedComponentSystems();
-	void InitializeCrowds();
 	
 	UFUNCTION()
 	void OnRep_CrowdActive();
@@ -146,11 +194,26 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 public:
-	UFUNCTION(BlueprintCallable, BlueprintPure)
+	UFUNCTION(BlueprintCallable)
+	FORCEINLINE void SpawnCrowd(UCrowdsIdentity* identity, FVector location, FRotator rotation)
+	{
+		CrowdsSpawnerModule.SpawnCrowd(identity, location, rotation);
+	};
+	
+	UFUNCTION(BlueprintCallable)
+	FORCEINLINE void ChangeState()
+	{
+		for (int i = 0; i < CrowdsActive; ++i)
+		{
+			CrowdsDatas[CrowdsDataReadIndex].CrowdsState[i] = EFluxPrimeCrowdState::StateWalk;
+		}
+	};
+	
+	/*UFUNCTION(BlueprintCallable, BlueprintPure)
 	FORCEINLINE TScriptInterface<IFluxPrimeCrowdsSpawnerComponentInterface> GetSpawnerComponent() const
 	{
 		return SpawnerComponent;
-	}
+	}*/
 	
 public:
 	virtual void TakeDamage_Implementation(UCrowdsIdentity* Identity) override;

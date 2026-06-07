@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeBaseSystems.h"
+#include "Cores/FluxPrimeEnum.h"
+#include "StructUtils/InstancedStruct.h"
 #include "FluxPrimeMovementSystems.generated.h"
 
 USTRUCT(BlueprintType)
@@ -32,7 +34,6 @@ private:
 			0,
 			5.0f
 		);
-		
 		
 		float currentYaw = members.CrowdsRotation[indexMember] + 85;
 		direction = FRotator(0, currentYaw, 0).Vector();
@@ -70,8 +71,7 @@ private:
 			0,
 			5.0f
 		);
-		
-		
+	
 		float currentYaw = FRotator::DecompressAxisFromByte(members[indexMember].NetRotation) + 85;
 		direction = FRotator(0, currentYaw, 0).Vector();
 		arrowLength = 75.0f;
@@ -99,35 +99,45 @@ public:
 	
 	void UpdateMovementSystems(TObjectPtr<UWorld> world, double DeltaTime, FFluxPrimeCrowds& members, const int32 memberActive)
 	{
+		TArray<int32> queueCrowdsAnimation;
+		queueCrowdsAnimation.Reserve(memberActive);
+		
 		for (int i = 0; i < memberActive; ++i)
 		{
+			if (members.CrowdsState[i] != EFluxPrimeCrowdState::StateWalk) continue;
+			
 			int8 indexNavigationPath = members.CrowdsIndexNavigationPath[i];
 			FVector location = members.CrowdsLocation[i];
 			location.Z = 0;
 			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - location;
 			members.CrowdsCurrentTargetLocationPath[i] = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath];
 			
-			FRotator rot = dir.Rotation();
-			
-			// forwad static mesh perlu di rubah agar tidak perlu manipulasi forwardnya
-			float targetYaw = rot.Yaw - 85;
-			float currentYaw = members.CrowdsRotation[i];
-			FRotator currentRot(0.f, currentYaw, 0.f);
-			FRotator targetRot(0.f, targetYaw, 0.f);
-			float yaw = FMath::RInterpConstantTo(currentRot, targetRot, DeltaTime, 45.0f).Yaw;
-			members.CrowdsRotation[i] = yaw;
-			
 			dir = dir.GetSafeNormal();
-			FVector velocity = dir * members.CrowdsMaxSpeed[i];
-			members.CrowdsVelocity[i] += velocity + members.CrowdsAcceleration[i];
+			FVector desiredVelocity = dir * members.CrowdsMaxSpeed[i];
+			FVector targetForce = (desiredVelocity - members.CrowdsVelocity[i]) * .4f;
+			FVector totalForce = targetForce + members.CrowdsAcceleration[i];
+			totalForce = totalForce.GetClampedToMaxSize(1500);
+			members.CrowdsVelocity[i] += totalForce * DeltaTime;
 			
 			if (IsDebug) ShowDebug(world, members, i, dir);
 			
-			members.CrowdsVelocity[i] = members.CrowdsVelocity[i].GetClampedToMaxSize(members.CrowdsMaxSpeed[i]);
-			
+			members.CrowdsVelocity[i] = members.CrowdsVelocity[i].GetClampedToMaxSize(members.CrowdsMaxSpeed[i] * 1.2f);
 			members.CrowdsLocation[i] += members.CrowdsVelocity[i] * DeltaTime;
+			
+			UE_LOG(LogTemp, Log, TEXT("MOVEMENT SYSTEM:: ID %d, INDEX %d"), members.CrowdsID[i], i);
+			
+			// cek velocity is fast enough
+			if (members.CrowdsVelocity[i].SizeSquared() > 10.0f) 
+			{
+				// rotation handle
+				float targetYaw = members.CrowdsVelocity[i].Rotation().Yaw - 85;
+				float currentYaw = members.CrowdsRotation[i];
+				float deltaYaw = targetYaw - currentYaw;
+				deltaYaw = FMath::UnwindDegrees(deltaYaw);
+				float interpDelta = FMath::FInterpTo(0.0f, deltaYaw, DeltaTime, 55.0f);
+				members.CrowdsRotation[i] = FMath::UnwindDegrees(currentYaw + interpDelta); 
+			}
 			members.CrowdsAcceleration[i] = FVector::ZeroVector;
-			members.CrowdsVelocity[i] = FVector::ZeroVector;
 		}
 	}
 	
@@ -138,6 +148,14 @@ public:
 			FVector location = members[i].NetLocation;
 			location.Z = 0;
 			FVector dir = targets[i].NetTargetLocation - location;
+			
+			/*float distToTargetSq = dir.SizeSquared();
+			if (distToTargetSq <= StoppingDistanceSq)
+			{
+				members[i].NetVelocity = FVector::ZeroVector;
+				UE_LOG(LogTemp, Error, TEXT("-----------STOP"));
+				continue;
+			}*/
 			
 			FRotator rot = dir.Rotation();
 			

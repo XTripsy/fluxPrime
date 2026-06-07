@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeEnum.h"
+#include "GameplayTagContainer.h"
 #include "FluxPrimeStruct.generated.h"
 
 class UCrowdsIdentity;
+enum class EFluxPrimeCrowdState : uint8;
 
 namespace FluxConfig
 {
@@ -20,8 +22,9 @@ namespace FluxConfig
 	constexpr float DebugScaleFont = .8f;
 }
 
+
 USTRUCT(BlueprintType)
-struct FFluxCrowdsPath
+struct FFluxPrimeCrowdsPath
 {
 	GENERATED_BODY()
 	
@@ -66,29 +69,81 @@ struct FFluxPrimeOnSpawnCrowdsNetPayload
 };
 
 USTRUCT(BlueprintType)
+struct FFluxPrimeOnSwictAnimationPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	uint16 IdPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 PreviousStartFrameAnimationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 PreviousEndFrameAnimationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 PreviousStartTimeAnimationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 CurrentStartFrameAnimationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 CurrentEndFrameAnimationPayload;
+	
+	UPROPERTY(EditAnywhere)
+	int8 TypePayload;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeAnimationNotify
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	uint32 CrowdIDNotify;
+	
+	UPROPERTY()
+	EFluxPrimeCrowdAnimationNotify CrowdTypeNotify;
+	
+};
+
+USTRUCT(BlueprintType)
 struct FFluxCrowdsAnimationNotify
 {
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	EFluxCrowdAnimationNotify AnimationNotifyType[FluxConfig::AnimationArrayCount] = {EFluxCrowdAnimationNotify::NotifyNone};
+	EFluxPrimeCrowdAnimationNotify AnimationNotifyType = EFluxPrimeCrowdAnimationNotify::NotifyNone;
 	
 	UPROPERTY(EditAnywhere)
-	int32 AnimationNotifyFrame[FluxConfig::AnimationArrayCount] = {-1};
+	int32 AnimationNotifyFrame = 0;
 };
 
 USTRUCT(BlueprintType)
-struct FFluxCrowdsAnimation
+struct FFluxPrimeCrowdsAnimationMapping
 {
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	int32 AnimationOffset[FluxConfig::AnimationArrayCount] = {-1};
+	uint32 AnimationStart;
+	
+	UPROPERTY(EditAnywhere)
+	uint32 AnimationEnd;
+	
+	UPROPERTY(EditAnywhere)
+	bool AnimationLoop;
 	
 	UPROPERTY(EditAnywhere)
 	FFluxCrowdsAnimationNotify AnimationNotify[FluxConfig::AnimationArrayCount];
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsAnimation
+{
+	GENERATED_BODY()
 	
-	bool AnimationLoop[FluxConfig::AnimationArrayCount] = {true};
+	TStaticArray<FFluxPrimeCrowdsAnimationMapping, static_cast<int32>(EFluxPrimeCrowdState::Count)> AnimationData;
 };
 
 USTRUCT(BlueprintType)
@@ -104,6 +159,9 @@ struct FFluxPrimeCrowdsNet
 	
 	UPROPERTY(EditAnywhere)
 	uint16 NetMaxSpeed;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 NetID;
 	
 	UPROPERTY(EditAnywhere)
 	int8 NetRotation;
@@ -184,6 +242,9 @@ struct FFluxPrimeCrowds
 	
 #pragma endregion
 	
+	UPROPERTY(EditAnywhere)
+	TArray<EFluxPrimeCrowdState> CrowdsState;
+	
 #pragma region TransformData
 	
 	UPROPERTY(EditAnywhere)
@@ -207,16 +268,16 @@ struct FFluxPrimeCrowds
 #pragma region AnimationData
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FFluxCrowdsAnimation> CrowdsAnimationData;
+	TArray<FFluxPrimeCrowdsAnimation> CrowdsAnimationMapping;
+
+	UPROPERTY(EditAnywhere)
+	TArray<EFluxPrimeCrowdState> CrowdsAnimationState;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int32> CrowdsAnimationIndex;
+	TArray<float> CrowdsStartTimeAnimation;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<float> CrowdsStartTimeAnimationFrame;
-	
-	UPROPERTY(EditAnywhere)
-	TArray<float> CrowdsCurrentAnimationFrame;
+	TArray<float> CrowdsPreviousAnimationFrame;
 	
 #pragma endregion 
 	
@@ -229,7 +290,7 @@ struct FFluxPrimeCrowds
 	TArray<FVector> CrowdsTargetLocation;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FFluxCrowdsPath> CrowdsNavigationPath;
+	TArray<FFluxPrimeCrowdsPath> CrowdsNavigationPath;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsIndexNavigationPath;
@@ -252,20 +313,21 @@ struct FFluxPrimeCrowds
 		CrowdsHealth.Reserve(totalMember);
 		CrowdsDamage.Reserve(totalMember);
 		CrowdsSize.Reserve(totalMember);
+		CrowdsState.Reserve(totalMember);
 		CrowdsNavigationPath.Reserve(totalMember);
 		CrowdsIndexNavigationPath.Reserve(totalMember);
 		CrowdsTotalNavigationPath.Reserve(totalMember);
 		CrowdsTargetLocation.Reserve(totalMember);
 		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
-		CrowdsAnimationData.Reserve(totalMember);
-		CrowdsAnimationIndex.Reserve(totalMember);
-		CrowdsStartTimeAnimationFrame.Reserve(totalMember);
-		CrowdsCurrentAnimationFrame.Reserve(totalMember);
+		CrowdsAnimationMapping.Reserve(totalMember);
+		CrowdsAnimationState.Reserve(totalMember);
+		CrowdsStartTimeAnimation.Reserve(totalMember);
+		CrowdsPreviousAnimationFrame.Reserve(totalMember);
 	}
 };
 
 USTRUCT(BlueprintType)
-struct FFluxCatalogCrowds
+struct FFluxPrimeCrowdsCatalog
 {
 	GENERATED_BODY()
 	

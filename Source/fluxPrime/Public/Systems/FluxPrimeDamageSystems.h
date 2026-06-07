@@ -22,8 +22,9 @@ public:
 			
 			if (members.CrowdsCellID[i] != cellID) continue;
 			
-			members.CrowdsStartTimeAnimationFrame[i] = world->GetRealTimeSeconds();
-			members.CrowdsAnimationIndex[i] += 2;
+			members.CrowdsHealth[i] -= 1;
+			/*members.CrowdsStartTimeAnimationFrame[i] = world->GetRealTimeSeconds();
+			members.CrowdsAnimationIndex[i] += 2;*/
 		}
 	}
 };

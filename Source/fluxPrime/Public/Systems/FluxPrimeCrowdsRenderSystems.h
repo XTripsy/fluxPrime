@@ -21,7 +21,7 @@ public:
 		for (int32 i = 0; i < memberActive; ++i)
 		{
 			int8 typeIndex = members.CrowdsType[i];
-			if (typeIndex < 0 || typeIndex >= totalComponents) continue;
+			if (typeIndex < 0 || typeIndex > totalComponents) continue;
 
 			FTransform transform;
 			transform.SetLocation(members.CrowdsLocation[i]);
@@ -29,6 +29,8 @@ public:
 			float unpackedYaw = members.CrowdsRotation[i];
 			FRotator Rot(0.0f, unpackedYaw, 0.0f);
 			transform.SetRotation(Rot.Quaternion());
+			
+			UE_LOG(LogTemp, Log, TEXT("RENDER SYSTEMS:: typeIndex %d"), typeIndex);
 		
 			transformsPerComponent[typeIndex].Add(transform);
 		}

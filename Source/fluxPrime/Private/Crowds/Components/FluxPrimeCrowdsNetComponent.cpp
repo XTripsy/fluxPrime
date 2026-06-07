@@ -8,36 +8,6 @@
 #include "Systems/FluxPrimeGroundHeightSystems.h"
 #include "Systems/FluxPrimeMovementSystems.h"
 
-/*void UFluxPrimeCrowdsNetComponent::OnRep_CrowdData()
-{
-	int32 totalComponents = CrowdsComponents.Num();
-	TArray<TArray<FTransform>> transformsPerComponent;
-	transformsPerComponent.SetNum(totalComponents);
-	
-	for (int i = 0; i < CrowdsActive; ++i)
-	{
-		int8 typeIndex = CrowdsNets[i].NetType;
-		if (typeIndex < 0 || typeIndex >= totalComponents) continue;
-
-		FTransform transform;
-		transform.SetLocation(CrowdsNets[i].NetLocation);
-
-		float unpackedYaw = FRotator::DecompressAxisFromByte(CrowdsNets[i].NetRotation);
-		FRotator Rot(0.0f, unpackedYaw, 0.0f);
-		transform.SetRotation(Rot.Quaternion());
-		
-		transformsPerComponent[typeIndex].Add(transform);
-	}
-	
-	for (int32 i = 0; i < totalComponents; ++i)
-	{
-		int32 NeededInstances = transformsPerComponent[i].Num();
-		if (NeededInstances <= 0) continue;
-
-		CrowdsComponents[i]->BatchUpdateInstancesTransforms(0, transformsPerComponent[i], true, true, true);
-	}
-}*/
-
 UFluxPrimeCrowdsNetComponent::UFluxPrimeCrowdsNetComponent()
 {
 	SetIsReplicated(true);
@@ -58,18 +28,18 @@ void UFluxPrimeCrowdsNetComponent::OnRep_CrowdDataAnimation()
 			);
 	
 		CrowdsComponents[type]->SetCustomDataValue(
-				id,
-				1,
-				CrowdsAnimationNets[i].NetStart,
-				false
-				);
+			id,
+			1,
+			CrowdsAnimationNets[i].NetStart,
+			false
+			);
 	
 		CrowdsComponents[type]->SetCustomDataValue(
-				id,
-				2,
-				CrowdsAnimationNets[i].NetEnd,
-				false
-				);
+			id,
+			2,
+			CrowdsAnimationNets[i].NetEnd,
+			false
+			);
 	}
 }
 
@@ -78,11 +48,9 @@ void UFluxPrimeCrowdsNetComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UFluxPrimeCrowdsNetComponent, CrowdsNets);
 	DOREPLIFETIME(UFluxPrimeCrowdsNetComponent, CrowdsAnimationNets);
-	//DOREPLIFETIME(UFluxPrimeCrowdsNetComponent, CrowdsAccelerationsNets);
-	//DOREPLIFETIME(UFluxPrimeCrowdsNetComponent, CrowdsTargetNets);
 }
 
-void UFluxPrimeCrowdsNetComponent::Initialize(uint16 crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents)
+/*void UFluxPrimeCrowdsNetComponent::Initialize(uint16 crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents)
 {
 	CrowdsTotal = crowdsTotal;
 	CrowdsComponents = crowdsComponents;
@@ -91,10 +59,21 @@ void UFluxPrimeCrowdsNetComponent::Initialize(uint16 crowdsTotal, TArray<TObject
 	CrowdsTargetNets.Init(FFluxPrimeCrowdsTargetNet(), crowdsTotal);
 	CrowdsAnimationNets.Init(FFluxPrimeCrowdsAnimationNet(), CrowdsTotal);
 	CrowdsAccelerationsNets.Init(FFluxPrimeCrowdsAccelerationNet(), crowdsTotal);
+}*/
+
+void UFluxPrimeCrowdsNetComponent::Initialize(FFluxPrimeCrowdsNetComponentContext context)
+{
+	CrowdsTotal = context.crowdsTotal;
+	CrowdsComponents = context.crowdsComponents;
+	
+	CrowdsNets.Init(FFluxPrimeCrowdsNet(), CrowdsTotal);
+	CrowdsTargetNets.Init(FFluxPrimeCrowdsTargetNet(), context.crowdsTotal);
+	CrowdsAnimationNets.Init(FFluxPrimeCrowdsAnimationNet(), CrowdsTotal);
+	CrowdsAccelerationsNets.Init(FFluxPrimeCrowdsAccelerationNet(), context.crowdsTotal);
 }
 
 void UFluxPrimeCrowdsNetComponent::UpdateNetData(float DeltaTime, FFluxPrimeGroundHeightSystems& GroundHeightSystems,
-	FFluxPrimeMovementSystems& MovementSystems, FFluxPrimeCrowdsRenderSystems& RenderSystems)
+                                                 FFluxPrimeMovementSystems& MovementSystems, FFluxPrimeCrowdsRenderSystems& RenderSystems)
 {
 	GroundHeightSystems.UpdateNetGroundHeightSystems(DeltaTime, CrowdsNets, CrowdsActive);
 	MovementSystems.UpdateNetMovementSystems(GetWorld(), DeltaTime, CrowdsNets, CrowdsTargetNets, CrowdsAccelerationsNets, CrowdsActive);
@@ -114,23 +93,6 @@ void UFluxPrimeCrowdsNetComponent::UpdateCrowdsData(const TArray<FVector_NetQuan
 	}
 }
 
-/*void UFluxPrimeCrowdsNetComponent::UpdateCrowdsData(const TArray<int16>& id, const TArray<FVector>& accelerations,
-                                                    const TArray<FVector>& target)
-{
-	if (id.IsEmpty() || accelerations.IsEmpty() || target.IsEmpty()) return;
-	
-	for (int i = 0; i < CrowdsActive; ++i)
-	{
-		uint16 indexSelected = id.IndexOfByKey(i);
-		
-		if (indexSelected != INDEX_NONE && accelerations.IsValidIndex(indexSelected) && target.IsValidIndex(indexSelected))
-		{
-			CrowdsAccelerationsNets[i].NetAcceleration = accelerations[indexSelected];
-			CrowdsTargetNets[i].NetTargetLocation = target[indexSelected];
-		}
-	}
-}*/
-
 void UFluxPrimeCrowdsNetComponent::OnCrowdsActiveChange(uint16 count)
 {
 	CrowdsActive = count;
@@ -147,7 +109,7 @@ void UFluxPrimeCrowdsNetComponent::OnSpawnCrowdsData(const FInstancedStruct& pay
 	CrowdsNets[indexSelected].NetRotation = FRotator::CompressAxisToByte(data->RotationPayload);
 	CrowdsNets[indexSelected].NetType = data->TypePayload;
 	CrowdsNets[indexSelected].NetMaxSpeed = data->MaxSpeedPayload;
-	//CrowdsNets[indexSelected].NetTargetLocation = data->TargetLocationPayload;
+	CrowdsNets[indexSelected].NetID = data->IdPayload;
 	
 	CrowdsTargetNets[indexSelected].NetID = data->IdPayload;
 	CrowdsTargetNets[indexSelected].NetTargetLocation = data->TargetLocationPayload;

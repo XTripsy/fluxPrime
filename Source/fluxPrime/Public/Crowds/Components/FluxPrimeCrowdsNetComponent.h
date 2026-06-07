@@ -14,6 +14,18 @@ struct FFluxPrimeGroundHeightSystems;
 struct FFluxPrimeCrowdsAnimationNet;
 struct FInstancedStruct;
 
+USTRUCT()
+struct FFluxPrimeCrowdsNetComponentContext
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	uint16 crowdsTotal;
+	
+	UPROPERTY()
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents;
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FLUXPRIME_API UFluxPrimeCrowdsNetComponent : public UActorComponent
 {
@@ -29,7 +41,6 @@ private:
 	UPROPERTY()
 	uint16 CrowdsTotal;
 	
-	//UPROPERTY(ReplicatedUsing = OnRep_CrowdData)
 	UPROPERTY(Replicated)
 	TArray<FFluxPrimeCrowdsNet> CrowdsNets;
 	
@@ -38,7 +49,6 @@ private:
 	
 	UPROPERTY()
 	TArray<FFluxPrimeCrowdsTargetNet> CrowdsTargetNets;
-	//TArray<FVector> CrowdsAccelerationsNets;
 	
 	UPROPERTY(ReplicatedUsing = OnRep_CrowdDataAnimation)
 	TArray<FFluxPrimeCrowdsAnimationNet> CrowdsAnimationNets;
@@ -47,9 +57,6 @@ public:
 	UFluxPrimeCrowdsNetComponent();
 	
 private:
-	/*UFUNCTION()
-	void OnRep_CrowdData();*/
-	
 	UFUNCTION()
 	void OnRep_CrowdDataAnimation();
 	
@@ -57,7 +64,8 @@ protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 public:
-	void Initialize(uint16 crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents);
+	//void Initialize(uint16 crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents);
+	void Initialize(FFluxPrimeCrowdsNetComponentContext context);
 	void UpdateNetData(float DeltaTime, FFluxPrimeGroundHeightSystems& GroundHeightSystems, FFluxPrimeMovementSystems& MovementSystems, FFluxPrimeCrowdsRenderSystems& RenderSystems);
 	void UpdateCrowdsData(const TArray<FVector_NetQuantize100>& accelerations, const TArray<FVector_NetQuantize100>& target);
 	void OnCrowdsActiveChange(uint16 count);

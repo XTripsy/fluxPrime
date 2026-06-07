@@ -26,9 +26,6 @@ private:
     UPROPERTY(EditAnywhere)
     int32 TotalCells = 100;
 
-    /*UPROPERTY(EditAnywhere)
-    TArray<int32> CellID;*/
-    
     UPROPERTY()
     bool IsDebug = false;
     
@@ -84,33 +81,8 @@ public:
     void BakeSpatialGridSystems(TObjectPtr<UWorld> world)
     {
         TotalCells = CellWidth * CellHeight;
-        /*CellID.Init(0, TotalCells);
-
-        for (int32 y = 0; y < CellHeight; y++)
-        {
-            for (int32 x = 0; x < CellWidth; x++)
-            {
-                int32 IndexID = (y * CellWidth) + x;
-
-                CellID[IndexID] = IndexID;
-            }
-        }*/
-        
         if (IsDebug) DrawSpatialGridDebug(world);
     }
-    
-    /*int32 GetSpatialGridSystemsCellID(FVector location)
-    {
-        int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
-        int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
-
-        CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
-        CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
-
-        int32 IndexID = (CellY * CellWidth) + CellX;
-
-        return CellID[IndexID];
-    }*/
     
     int32 GetSpatialGridSystemsCellID(FVector location)
     {
@@ -164,16 +136,18 @@ public:
             writeBuffer.CrowdsType[i] = readBuffer.CrowdsType[tempShortedIndex];
             writeBuffer.CrowdsHealth[i] = readBuffer.CrowdsHealth[tempShortedIndex];
             writeBuffer.CrowdsSize[i] = readBuffer.CrowdsSize[tempShortedIndex];
+            writeBuffer.CrowdsState[i] = readBuffer.CrowdsState[tempShortedIndex];
             writeBuffer.CrowdsDamage[i] = readBuffer.CrowdsDamage[tempShortedIndex];
+            writeBuffer.CrowdsState[i] = readBuffer.CrowdsState[tempShortedIndex];
             writeBuffer.CrowdsTargetLocation[i] = readBuffer.CrowdsTargetLocation[tempShortedIndex];
             writeBuffer.CrowdsIndexNavigationPath[i] = readBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsTotalNavigationPath[i] = readBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsNavigationPath[i] = readBuffer.CrowdsNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsCurrentTargetLocationPath[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
-            writeBuffer.CrowdsAnimationData[i] = readBuffer.CrowdsAnimationData[tempShortedIndex];
-            writeBuffer.CrowdsAnimationIndex[i] = readBuffer.CrowdsAnimationIndex[tempShortedIndex];
-            writeBuffer.CrowdsStartTimeAnimationFrame[i] = readBuffer.CrowdsStartTimeAnimationFrame[tempShortedIndex];
-            writeBuffer.CrowdsCurrentAnimationFrame[i] = readBuffer.CrowdsCurrentAnimationFrame[tempShortedIndex];
+            writeBuffer.CrowdsAnimationMapping[i] = readBuffer.CrowdsAnimationMapping[tempShortedIndex];
+            writeBuffer.CrowdsAnimationState[i] = readBuffer.CrowdsAnimationState[tempShortedIndex];
+            writeBuffer.CrowdsStartTimeAnimation[i] = readBuffer.CrowdsStartTimeAnimation[tempShortedIndex];
+            writeBuffer.CrowdsPreviousAnimationFrame[i] = readBuffer.CrowdsPreviousAnimationFrame[tempShortedIndex];
         }
         
         gridOffset.Init(-1, TotalCells);

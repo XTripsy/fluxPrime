@@ -6,10 +6,22 @@
 #include "FluxPrimeEnum.generated.h"
 
 UENUM(BlueprintType)
-enum class EFluxCrowdAnimationNotify : uint8
+enum class EFluxPrimeCrowdAnimationNotify : uint8
 {
 	NotifyNone				UMETA(DisplayName = "NotifyNone"),
 	NotifyAttack			UMETA(DisplayName = "NotifyAttack"),
 	NotifySpawnVFX			UMETA(DisplayName = "NotifySpawnVFX"),
-	NotifySpawnSFX			UMETA(DisplayName = "NotifySpawnSFX")
+	NotifySpawnSFX			UMETA(DisplayName = "NotifySpawnSFX"),
+	NotifyDead				UMETA(DisplayName = "NotifyDead"),
+	Count UMETA(Hidden)
+};
+
+UENUM(BlueprintType)
+enum class EFluxPrimeCrowdState : uint8
+{
+	StateIdle				UMETA(DisplayName = "StateIdle"),
+	StateWalk				UMETA(DisplayName = "StateWalk"),
+	StateAbility			UMETA(DisplayName = "StateAbility"),
+	StateDead				UMETA(DisplayName = "StateDead"),
+	Count UMETA(Hidden)
 };

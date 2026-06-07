@@ -7,6 +7,7 @@
 #include "CrowdsIdentity.generated.h"
 
 class UFluxPrimeAnimationData;
+enum class EFluxPrimeCrowdState : uint8;
 
 UCLASS(BlueprintType)
 class FLUXPRIME_API UCrowdsIdentity : public UPrimaryDataAsset

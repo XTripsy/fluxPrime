@@ -7,9 +7,28 @@
 #include "Cores/FluxPrimeStruct.h"
 #include "Components/ActorComponent.h"
 #include "Systems/FluxPrimeNavigationSystems.h"
+#include "Crowds/Modules/FluxPrimeCrowdsSpawnerModule.h"
 #include "FluxPrimeCrowdsSpawnerComponent.generated.h"
 
 struct FInstancedStruct;
+
+/*USTRUCT()
+struct FFluxPrimeCrowdsSpawnerComponentContext
+{
+	GENERATED_BODY()
+	
+	uint16* crowdsActive;
+	uint16* crowdsTotal;
+	
+	UPROPERTY()
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents;
+	
+	UPROPERTY()
+	TMap<FName, int8> crowdsTypes;
+	
+	FFluxPrimeCrowds* crowdsData;
+	FFluxPrimeNavigationSystems* navigationSystems;
+};*/
 
 DECLARE_DELEGATE_OneParam(FOnSpawnCrowdsNet, const FInstancedStruct& payload);
 
@@ -34,12 +53,14 @@ public:
 	FOnSpawnCrowdsNet OnSpawnCrowdsNet;
 	
 private:
+	uint32 GetIndexSelected(uint32 typeCrowds);
 	uint32 GetID(uint32 typeCrowds, uint32 indexSelected);
 	uint32 GetPath(FVector location, uint32 indexSelected);
 	void SetAnimationData(uint32 id, uint32 typeCrowds, uint32 indexSelected);
 	void SendCrowdsNetData(UCrowdsIdentity* identity, uint32 indexSelected, uint32 typeCrowds, int16 total);
 	
 public:
-	void Initialize(uint16* crowdsActive, uint16* crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents, TMap<FName, int8> crowdsTypes, FFluxPrimeCrowds* crowdsData, FFluxPrimeNavigationSystems* navigationSystems);
+	//void Initialize(uint16* crowdsActive, uint16* crowdsTotal, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents, TMap<FName, int8> crowdsTypes, FFluxPrimeCrowds* crowdsData, FFluxPrimeNavigationSystems* navigationSystems);
+	//void Initialize(FFluxPrimeCrowdsSpawnerComponentContext context);
 	virtual void SpawnCrowd_Implementation(UCrowdsIdentity* identity, FVector location, FRotator rotation) override;
 };
