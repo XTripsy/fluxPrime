@@ -11,4 +11,7 @@ struct FFluxPrimeConfigurationNavigationSystems : public FFluxPrimeBaseConfigura
 	
 	UPROPERTY(EditAnywhere, meta = (ToolTip = "Show Debug System"))
 	bool IsDebug = false;
+	
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "SpatialGrid"))
+	FFluxPrimeConfigurationSpatialGridSystems ConfigurationSpatialGrid;
 };

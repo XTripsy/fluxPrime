@@ -2,9 +2,21 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeBaseSystems.h"
+#include "FluxPrimeSpatialGridSystems.h"
 #include "Cores/FluxPrimeStruct.h"
-#include "Kismet/GameplayStatics.h"
 #include "FluxPrimeBoidsSystems.generated.h"
+
+USTRUCT()
+struct FFluxPrimeBoidsSystemsContext
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(VisibleAnywhere)
+	float separationWeight = 0.0f;
+	
+	UPROPERTY(EditAnywhere)
+	FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeBoidsSystems : public FFluxPrimeBaseSystems
@@ -30,28 +42,57 @@ private:
 	UPROPERTY(EditAnywhere)
 	int32 TotalCells = 100;
 	
+	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+	FFluxPrimeCrowds* Members = nullptr;
+	/*int8* DataReadIndex = nullptr;
+	TArray<int32>* GridOffset = nullptr;*/
+	uint16* MemberActive = nullptr;
+	
+	FFluxPrimeSpatialGridSystems SpatialGridSystems;
+	
 	//FVector playerLocation;
 	
 public:
-	void InitializeBoidsSystems(float separationWeight, float cellSize, FVector origin, int32 cellWidth, int32 cellHeight)
+	void InitializeBoidsSystems(FFluxPrimeBoidsSystemsContext context)
 	{
-		SeparationWeight = separationWeight;
-		CellSize = cellSize;
-		Origin = origin;
-		CellWidth = cellWidth;
-		CellHeight = cellHeight;
+		check(context.contextSpatialGrid.members);
+		check(context.contextSpatialGrid.memberActive);
+		/*check(context.contextSpatialGrid.gridOffset);
+		check(context.contextSpatialGrid.dataReadIndex);*/
+		
+		SeparationWeight = context.separationWeight;
+		CellSize = context.contextSpatialGrid.cellSize;
+		Origin = context.contextSpatialGrid.origin;
+		CellWidth = context.contextSpatialGrid.cellWidth;
+		CellHeight = context.contextSpatialGrid.cellHeight;
+		Members = context.contextSpatialGrid.members;
+		//GridOffset = context.contextSpatialGrid.gridOffset;
+		MemberActive = context.contextSpatialGrid.memberActive;
+		//DataReadIndex = context.contextSpatialGrid.dataReadIndex;
+		
+		SpatialGridSystems.InitializedSpatialGridSystems(context.contextSpatialGrid);
+		SpatialGridSystems.BakeSpatialGridSystems();
 	}
 	
-	void UpdateBoidsSystems(/*TObjectPtr<UWorld> world,*/ FFluxPrimeCrowds& members, const TArray<int32>& gridOffset, int32 activeMember)
+	void UpdateBoidsSystems()
 	{
 		//playerLocation = UGameplayStatics::GetPlayerPawn(world, 0)->GetActorLocation();
 		
-		for (int32 i = 0; i < activeMember; ++i)
+		SpatialGridSystems.UpdateSpatialGridSystem();
+		
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
+		
+		TArray<int32>& gridOffsets = SpatialGridSystems.GetGridOffsets();
+		TArray<int32>& gridCounts = SpatialGridSystems.GetGridCounts();
+		TArray<int32>& gridMembers = SpatialGridSystems.GetGridMembers();
+		
+		for (int32 i = 0; i < *MemberActive; ++i)
 		{
 			float separationRadius = FMath::Square(members.CrowdsSize[i] * 1.2f);
 			FVector location = members.CrowdsLocation[i];
 			FVector force = FVector::Zero();
-			int overlapCount = 0;
+			int32 overlapCount = 0;
 			
 			int32 agentCellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
 			int32 agentCellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
@@ -68,9 +109,11 @@ public:
 				members.CrowdsAcceleration[i] += evasionForce;
 			}*/
 			
-			for (int x = -1; x <= 1; ++x)
+			//for (int x = -1; x <= 1; ++x)
+			for (int8 x = -1; x <= 1; ++x)
 			{
-				for (int y = -1; y <= 1; ++y)
+				//for (int y = -1; y <= 1; ++y)
+				for (int8 y = -1; y <= 1; ++y)
 				{
 					int32 neighborX = agentCellX + x;
 					int32 neighborY = agentCellY + y;
@@ -79,15 +122,23 @@ public:
 					
 					int32 neighborCellId = (neighborY * CellWidth) + neighborX;
 					
-					int32 startIndex = gridOffset[neighborCellId];
-					if (startIndex == -1) continue;
+					/*int32 startIndex = (*GridOffset)[neighborCellId];
+					if (startIndex == -1) continue;*/
 					
-					for (int j = startIndex; j < activeMember; ++j)
+					int32 start = gridOffsets[neighborCellId];
+					int32 end   = start + gridCounts[neighborCellId];
+					//int32 count = gridCounts[neighborCellId];
+					
+					//for (int j = startIndex; j < *MemberActive; ++j)
+					for(int32 j = start; j < end; ++j)
 					{
-						if (members.CrowdsCellID[j] != neighborCellId) break;
-						if (i == j) continue;
+						//if (members.CrowdsCellID[j] != neighborCellId) break;
+						//if (i == j) continue;
+						int32 otherAgent = gridMembers[start + j];
+						if (i == otherAgent) continue;
 						
-						FVector diff = location - members.CrowdsLocation[j];
+						//FVector diff = location - members.CrowdsLocation[j];
+						FVector diff = location - members.CrowdsLocation[otherAgent];
 						diff.Z = 0;
 						float distSq = diff.SizeSquared();
 						
@@ -106,6 +157,7 @@ public:
 			if (overlapCount > 0) force /= overlapCount;
 			force *= SeparationWeight;
 			members.CrowdsAcceleration[i] += force;
+			UE_LOG(LogTemp, Log, TEXT("BOIDS SYSTEMS:: ACC %s"), *force.ToString());
 		}
 	}
 };

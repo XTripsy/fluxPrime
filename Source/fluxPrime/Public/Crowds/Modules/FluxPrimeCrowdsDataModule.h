@@ -17,15 +17,18 @@ struct FFluxPrimeCrowdsDataComponentContext
 	
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* crowdsAnimationSoftRef = nullptr;
 	
-	uint16* crowdsTotal = nullptr;
-	int8* crowdsDataReadIndex = nullptr;
+	TMap<FFluxPrimeCrowdsLookup, int32>* crowdsLookup = nullptr;
 	
-	TArray<int32>* crowdsDataShortedIndex = nullptr;
+	uint16* crowdsTotal = nullptr;
+	//int8* crowdsDataReadIndex = nullptr;
+	
+	//TArray<int32>* crowdsDataShortedIndex = nullptr;
 	
 	TArray<FVector_NetQuantize100>* netAcceleration = nullptr;
 	TArray<FVector_NetQuantize100>* netTarget = nullptr;
 	
-	TStaticArray<FFluxPrimeCrowds, 2>* crowdsDatas = nullptr;
+	//TStaticArray<FFluxPrimeCrowds, 2>* crowdsDatas = nullptr;
+	FFluxPrimeCrowds* crowdsDatas = nullptr;
 	
 	bool hasAuthority, isReplicated;
 };
@@ -39,15 +42,17 @@ private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
 	TArray<FFluxPrimeCrowdsCatalog>* CrowdsCatalog = nullptr;
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* CrowdsAnimationSoftRef = nullptr;
+	TMap<FFluxPrimeCrowdsLookup, int32>* CrowdsLookup = nullptr;
 	
 	uint16* CrowdsTotal = nullptr;
-	int8* CrowdsDataReadIndex = nullptr;
+	//int8* CrowdsDataReadIndex = nullptr;
 	
-	TArray<int32>* CrowdsDataShortedIndex = nullptr;
+	//TArray<int32>* CrowdsDataShortedIndex = nullptr;
 	TArray<FVector_NetQuantize100>* NetAcceleration = nullptr;
 	TArray<FVector_NetQuantize100>* NetTarget = nullptr;
 	
-	TStaticArray<FFluxPrimeCrowds, 2>* CrowdsDatas = nullptr;
+	//TStaticArray<FFluxPrimeCrowds, 2>* CrowdsDatas = nullptr;
+	FFluxPrimeCrowds* CrowdsDatas = nullptr;
 	
 	bool bHasAuthority = false, bIsReplicated = false;
 	
@@ -58,12 +63,14 @@ public:
 		check(context.crowdsDatas);
 		check(context.crowdsAnimationSoftRef);
 		check(context.crowdsComponents);
+		check(context.crowdsLookup);
 		
 		CrowdsComponents = context.crowdsComponents;
 		CrowdsCatalog = context.crowdsCatalog;
 		CrowdsAnimationSoftRef = context.crowdsAnimationSoftRef;
-		CrowdsDataReadIndex = context.crowdsDataReadIndex;
-		CrowdsDataShortedIndex = context.crowdsDataShortedIndex;
+		CrowdsLookup = context.crowdsLookup;
+		//CrowdsDataReadIndex = context.crowdsDataReadIndex;
+		//CrowdsDataShortedIndex = context.crowdsDataShortedIndex;
 		NetAcceleration = context.netAcceleration;
 		NetTarget = context.netTarget;
 		CrowdsDatas = context.crowdsDatas;
@@ -76,15 +83,24 @@ public:
 	{
 		for (int i = 0; i < (*CrowdsCatalog).Num(); ++i) *CrowdsTotal += (*CrowdsCatalog)[i].CrowdsTotal;
 		
-		(*CrowdsDatas)[*CrowdsDataReadIndex].Init(*CrowdsTotal);
-		(*CrowdsDatas)[*CrowdsDataReadIndex+1].Init(*CrowdsTotal);
-		CrowdsDataShortedIndex->SetNumUninitialized(*CrowdsTotal);
-		(*NetAcceleration).Init(FVector(), *CrowdsTotal);
-		(*NetTarget).Init(FVector(), *CrowdsTotal);
+		/*auto& crowdRead = (*CrowdsDatas)[*CrowdsDataReadIndex];
+		auto& crowdWrite = (*CrowdsDatas)[*CrowdsDataReadIndex+1];*/
 		
-		for (int i = 0; i < (*CrowdsCatalog).Num(); ++i)
+		/*crowdRead.Init(*CrowdsTotal);
+		crowdWrite.Init(*CrowdsTotal);*/
+		//CrowdsDataShortedIndex->SetNumUninitialized(*CrowdsTotal);
+		NetAcceleration->Init(FVector(), *CrowdsTotal);
+		NetTarget->Init(FVector(), *CrowdsTotal);
+		
+		auto& members = *CrowdsDatas;
+		auto& catalog = *CrowdsCatalog;
+		auto& lookUp = *CrowdsLookup;
+		
+		for (int i = 0; i < catalog.Num(); ++i)
 		{
-			for (int j = 0; j < (*CrowdsCatalog)[i].CrowdsTotal; ++j)
+			UCrowdsIdentity& indentity = *catalog[i].CrowdsIdentity;
+			
+			for (int j = 0; j < catalog[i].CrowdsTotal; ++j)
 			{
 				FTransform tempTransform;
 				tempTransform.SetLocation(FVector::DownVector * 1000.0f);
@@ -94,45 +110,77 @@ public:
 				
 				FFluxPrimeCrowdsAnimation animationData = FFluxPrimeCrowdsAnimation();
 
-				TSoftObjectPtr<UFluxPrimeAnimationData> loadedData = (*CrowdsAnimationSoftRef)[(*CrowdsCatalog)[i].CrowdsIdentity->Identity];
+				TSoftObjectPtr<UFluxPrimeAnimationData> loadedData = (*CrowdsAnimationSoftRef)[catalog[i].CrowdsIdentity->Identity];
+				UFluxPrimeAnimationData& dataAnim = *loadedData;
 				
-				for (int k = 0; k < loadedData->DataAnimations.Num(); ++k)
+				for (int k = 0; k < dataAnim.DataAnimations.Num(); ++k)
 				{
-					int32 index = static_cast<uint8>(loadedData->DataAnimations[k].AnimationState);
+					int32 index = static_cast<uint8>(dataAnim.DataAnimations[k].AnimationState);
 					FFluxPrimeCrowdsAnimationMapping mapping = FFluxPrimeCrowdsAnimationMapping();
-					mapping.AnimationStart = loadedData->DataAnimations[k].AnimationStartFrame;
-					mapping.AnimationEnd = loadedData->DataAnimations[k].AnimationEndFrame;
-					mapping.AnimationLoop = loadedData->DataAnimations[k].AnimationLoops;
-					for (int32 l = 0; l < FluxConfig::AnimationArrayCount; ++l) mapping.AnimationNotify[l] = loadedData->DataAnimations[k].AnimationNotifies[l];
+					mapping.AnimationStart = dataAnim.DataAnimations[k].AnimationStartFrame;
+					mapping.AnimationEnd = dataAnim.DataAnimations[k].AnimationEndFrame;
+					mapping.AnimationLoop = dataAnim.DataAnimations[k].AnimationLoops;
+					for (int32 l = 0; l < FluxConfig::AnimationArrayCount; ++l) mapping.AnimationNotify[l] = dataAnim.DataAnimations[k].AnimationNotifies[l];
 					if (index  < 0 || index > animationData.AnimationData.Num()) continue;
 					
 					animationData.AnimationData[index] = mapping;
 				}
 				
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsLocation.Add(tempTransform.GetLocation());
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsRotation.Add(0);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsVelocity.Add(FVector::ZeroVector);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsAcceleration.Add(FVector::ZeroVector);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsID.Add(id);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsType.Add(i);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsCellID.Add(-1);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsMaxSpeed.Add(((*CrowdsCatalog))[i].CrowdsIdentity->Speed);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsHealth.Add(((*CrowdsCatalog))[i].CrowdsIdentity->Health);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsDamage.Add((*CrowdsCatalog)[i].CrowdsIdentity->Damage);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsSize.Add((*CrowdsCatalog)[i].CrowdsIdentity->Size);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsState.Add(EFluxPrimeCrowdState::StateIdle);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsNavigationPath.Add(FFluxPrimeCrowdsPath());
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsTargetLocation.Add(FVector::ZeroVector);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsCurrentTargetLocationPath.Add(FVector::ZeroVector);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsIndexNavigationPath.Add(0);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsTotalNavigationPath.Add(0);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsAnimationMapping.Add(animationData);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsAnimationState.Add(EFluxPrimeCrowdState::StateIdle);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsStartTimeAnimation.Add(0);
-				(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsPreviousAnimationFrame.Add(-1.0f);
+				/*crowdRead.CrowdsLocation.Add(tempTransform.GetLocation());
+				crowdRead.CrowdsRotation.Add(0);
+				crowdRead.CrowdsVelocity.Add(FVector::ZeroVector);
+				crowdRead.CrowdsAcceleration.Add(FVector::ZeroVector);
+				crowdRead.CrowdsID.Add(id);
+				crowdRead.CrowdsType.Add(i);
+				crowdRead.CrowdsCellID.Add(-1);
+				crowdRead.CrowdsMaxSpeed.Add(((*CrowdsCatalog))[i].CrowdsIdentity->Speed);
+				crowdRead.CrowdsHealth.Add(((*CrowdsCatalog))[i].CrowdsIdentity->Health);
+				crowdRead.CrowdsDamage.Add((*CrowdsCatalog)[i].CrowdsIdentity->Damage);
+				crowdRead.CrowdsSize.Add((*CrowdsCatalog)[i].CrowdsIdentity->Size);
+				crowdRead.CrowdsState.Add(EFluxPrimeCrowdState::StateIdle);
+				crowdRead.CrowdsNavigationPath.Add(FFluxPrimeCrowdsPath());
+				crowdRead.CrowdsTargetLocation.Add(FVector::ZeroVector);
+				//(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsCurrentTargetLocationPath.Add(FVector::ZeroVector);
+				crowdRead.CrowdsRequestNavigationPath.Add(false);
+				crowdRead.CrowdsIndexNavigationPath.Add(0);
+				crowdRead.CrowdsTotalNavigationPath.Add(0);
+				crowdRead.CrowdsAnimationMapping.Add(animationData);
+				crowdRead.CrowdsAnimationState.Add(EFluxPrimeCrowdState::StateIdle);
+				crowdRead.CrowdsStartTimeAnimation.Add(0);
+				crowdRead.CrowdsPreviousAnimationFrame.Add(-1.0f);*/
+				
+				members.CrowdsLocation.Add(tempTransform.GetLocation());
+				members.CrowdsRotation.Add(0);
+				members.CrowdsVelocity.Add(FVector::ZeroVector);
+				members.CrowdsAcceleration.Add(FVector::ZeroVector);
+				members.CrowdsID.Add(id);
+				members.CrowdsType.Add(i);
+				members.CrowdsCellID.Add(-1);
+				members.CrowdsCondition.Add(false);
+				members.CrowdsRequestBackToPool.Add(false);
+				members.CrowdsMaxSpeed.Add(indentity.Speed);
+				members.CrowdsHealth.Add(indentity.Health);
+				members.CrowdsDamage.Add(indentity.Damage);
+				members.CrowdsSize.Add(indentity.Size);
+				members.CrowdsState.Add(EFluxPrimeCrowdState::StateIdle);
+				members.CrowdsNavigationPath.Add(FFluxPrimeCrowdsPath());
+				members.CrowdsTargetLocation.Add(FVector::ZeroVector);
+				//(*CrowdsDatas)[*CrowdsDataReadIndex].CrowdsCurrentTargetLocationPath.Add(FVector::ZeroVector);
+				members.CrowdsRequestNavigationPath.Add(false);
+				members.CrowdsIndexNavigationPath.Add(0);
+				members.CrowdsTotalNavigationPath.Add(0);
+				members.CrowdsAnimationMapping.Add(animationData);
+				members.CrowdsAnimationState.Add(EFluxPrimeCrowdState::StateIdle);
+				members.CrowdsStartTimeAnimation.Add(0);
+				members.CrowdsPreviousAnimationFrame.Add(-1.0f);
+				
+				FFluxPrimeCrowdsLookup lookup;
+				lookup.CrowdsID = id;
+				lookup.CrowdsType = i;
+				lookUp.Add(lookup, j);
 			}
 		}
 		
-		(*CrowdsDatas)[*CrowdsDataReadIndex+1] = (*CrowdsDatas)[*CrowdsDataReadIndex];
+		//crowdWrite = crowdRead;
 	}
 };

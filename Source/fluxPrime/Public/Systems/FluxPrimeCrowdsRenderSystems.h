@@ -7,18 +7,54 @@
 #include "FluxPrimeCrowdsRenderSystems.generated.h"
 
 USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsRenderSystemsContext
+{
+	GENERATED_BODY()
+	
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
+	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
+	FFluxPrimeCrowds* members = nullptr;
+	//int8* dataReadIndex = nullptr;
+	uint16* memberActive = nullptr;
+};
+
+USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsRenderSystems : public FFluxPrimeBaseSystems
 {
 	GENERATED_BODY()
 	
+private:
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
+	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+	FFluxPrimeCrowds* Members = nullptr;
+	//int8* DataReadIndex = nullptr;
+	uint16* MemberActive = nullptr;
+	
 public:
-	void UpdateRenderCrowdsSystems(TArray<TObjectPtr<UInstancedStaticMeshComponent>>& crowdsComponents, FFluxPrimeCrowds& members, const int32 memberActive)
+	void InitializeRenderSystems(FFluxPrimeCrowdsRenderSystemsContext context)
 	{
+		check(context.crowdsComponents);
+		check(context.memberActive);
+		check(context.members);
+		//check(context.dataReadIndex);
+		
+		CrowdsComponents = context.crowdsComponents;
+		Members = context.members;
+		MemberActive = context.memberActive;
+		//DataReadIndex = context.dataReadIndex;
+	}
+	
+	void UpdateRenderCrowdsSystems()
+	{
+		auto& crowdsComponents = *CrowdsComponents;
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
+		
 		int32 totalComponents = crowdsComponents.Num();
 		TArray<TArray<FTransform>> transformsPerComponent;
 		transformsPerComponent.SetNum(totalComponents);
 	
-		for (int32 i = 0; i < memberActive; ++i)
+		for (int32 i = 0; i < *MemberActive; ++i)
 		{
 			int8 typeIndex = members.CrowdsType[i];
 			if (typeIndex < 0 || typeIndex > totalComponents) continue;

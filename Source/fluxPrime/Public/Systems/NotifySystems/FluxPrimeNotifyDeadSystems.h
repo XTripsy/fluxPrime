@@ -14,6 +14,8 @@ struct FFluxPrimeNotifyDeadSystems
 		if (notify.CrowdTypeNotify != EFluxPrimeCrowdAnimationNotify::NotifyDead) return;
 		if (members.CrowdsID[indexMember] != notify.CrowdIDNotify) return;
 		
-		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: DEAD"));
+		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: DEAD| Index %d"), indexMember);
+		members.CrowdsRequestBackToPool[indexMember] = true;
+		members.CrowdsLocation[indexMember] = FVector::DownVector * 1000.0f;
 	}
 };

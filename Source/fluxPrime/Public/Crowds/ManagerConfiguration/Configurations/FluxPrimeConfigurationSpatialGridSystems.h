@@ -23,4 +23,7 @@ struct FFluxPrimeConfigurationSpatialGridSystems : public FFluxPrimeBaseConfigur
 	
 	UPROPERTY(EditAnywhere, meta = (ToolTip = "Show Debug System"))
 	bool IsDebug = false;
+	
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "Show Debug System"))
+	FColor Color = FColor::Black;
 };

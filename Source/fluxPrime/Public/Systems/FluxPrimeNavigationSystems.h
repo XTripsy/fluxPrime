@@ -2,11 +2,24 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeBaseSystems.h"
+#include "FluxPrimeSpatialGridSystems.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "NavigationSystem.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "NavigationPath.h"
 #include "FluxPrimeNavigationSystems.generated.h"
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeNavigationSystemsContext
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	bool isDebug = false;
+	
+	UPROPERTY(EditAnywhere)
+	FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeNavigationSystems : public FFluxPrimeBaseSystems
@@ -20,6 +33,13 @@ private:
 	UPROPERTY()
 	bool IsDebug = false;
 	
+	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+	FFluxPrimeCrowds* Members = nullptr;
+	//int8* DataReadIndex = nullptr;
+	uint16* MemberActive = nullptr;
+	
+	FFluxPrimeSpatialGridSystems SpatialGridSystems;
+	
 private:
 	void ShowDebug(TArray<FVector> path)
 	{
@@ -32,7 +52,7 @@ private:
 				8,
 				FColor::Green,
 				false,
-				-1.0f,
+				2.0f,
 				0,
 				3.0f
 			);
@@ -54,13 +74,6 @@ private:
 			false,
 			FluxConfig::DebugScaleFont
 		);
-	}
-	
-public:
-	void InitializedNavigationSystems(bool isDebug, TObjectPtr<UWorld> world)
-	{
-		World = world;
-		IsDebug = isDebug;
 	}
 	
 	bool CalculatePath(const FVector& start, const FVector& end, TArray<FVector>& outPathPoints)
@@ -101,65 +114,77 @@ public:
 		return path->PathPoints;
 	}
 	
-	//void UpdateNavigationSystems(TStaticArray<FFluxPrimeCrowds, 2>& members, int32 memberActive)
-	void UpdateNavigationSystems(FFluxPrimeCrowds& members, int32 memberActive)
+	void RegeneratePath(FFluxPrimeCrowds& members, int32 i)
 	{
-		for (int i = 0; i < memberActive; ++i)
+		TArray<FVector> path;
+		if (!CalculatePath(members.CrowdsLocation[i], members.CrowdsTargetLocation[i], path)) return;
+		
+		UE_LOG(LogTemp, Log, TEXT("NAVIGATION SYSTEMS:: REGENERATE SUCCESS"));
+		int8 total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
+    
+		for (int8 j = 0; j < total; ++j)
 		{
-			//FVector location = FVector(members[0].CrowdsLocation[i].X, members[0].CrowdsLocation[i].Y, 0);
+			path[j+1].Z = 0;
+			members.CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
+		}
+				
+		members.CrowdsIndexNavigationPath[i] = 0;
+		members.CrowdsTotalNavigationPath[i] = total;
+		members.CrowdsRequestNavigationPath[i] = false;
+	}
+	
+public:
+	void InitializedNavigationSystems(FFluxPrimeNavigationSystemsContext context)
+	{
+		check(context.contextSpatialGrid.members);
+		check(context.contextSpatialGrid.memberActive);
+		//check(context.contextSpatialGrid.dataReadIndex);
+		
+		World = context.contextSpatialGrid.world;
+		IsDebug = context.isDebug;
+		Members = context.contextSpatialGrid.members;
+		MemberActive = context.contextSpatialGrid.memberActive;
+		//DataReadIndex = context.contextSpatialGrid.dataReadIndex;
+		
+		SpatialGridSystems.InitializedSpatialGridSystems(context.contextSpatialGrid);
+		SpatialGridSystems.BakeSpatialGridSystems();
+	}
+	
+	void UpdateNavigationSystems()
+	{
+		SpatialGridSystems.UpdateSpatialGridSystem();
+		
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
+		
+		int8 index = 0;
+		for (int i = 0; i < *MemberActive; ++i)
+		{
+			if (index < 20 && members.CrowdsRequestNavigationPath[i])
+			{
+				RegeneratePath(members, i);
+				index++;
+				UE_LOG(LogTemp, Log, TEXT("NAVIGATION SYSTEMS:: REGENERATE"));
+			}
+			
 			FVector location = FVector(members.CrowdsLocation[i].X, members.CrowdsLocation[i].Y, 0);
-			//int8 indexNavigationPath = members[0].CrowdsIndexNavigationPath[i];
 			int8 indexNavigationPath = members.CrowdsIndexNavigationPath[i];
 			UE_LOG(LogTemp, Error, TEXT("CEK DISTANCE"));
 			
-			//if (!members[0].CrowdsNavigationPath[i].LocationPaths->IsValidIndex(indexNavigationPath+1))
 			if (!members.CrowdsNavigationPath[i].LocationPaths->IsValidIndex(indexNavigationPath+1))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("NOT VALID"));
 				continue;
-			}
 			
-			//if (FVector::DistXY(location, members[0].CrowdsNavigationPath[i].LocationPaths[indexNavigationPath]) < 50)
 			if (FVector::DistXY(location, members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath]) < 50)
-			{
-				/*members[0].CrowdsIndexNavigationPath[i]++;
-				members[1].CrowdsIndexNavigationPath[i]++;*/
 				members.CrowdsIndexNavigationPath[i]++;
-				UE_LOG(LogTemp, Warning, TEXT("INDEX ADD"));
-			}
 			
-			//float dist = FVector::DistSquaredXY(location, members[0].CrowdsNavigationPath[i].LocationPaths[members[0].CrowdsTotalNavigationPath[i]]);
 			float dist = FVector::DistSquaredXY(location, members.CrowdsNavigationPath[i].LocationPaths[members.CrowdsTotalNavigationPath[i]]);
 			if (dist < 2500.0f) continue;
 			
-			//if (IsDebug) ShowDebugText(members[0], i);
 			if (IsDebug) ShowDebugText(members, i);
 			
-			//if (members[0].CrowdsIndexNavigationPath[i] == members[0].CrowdsTotalNavigationPath[i])
-			if (members.CrowdsIndexNavigationPath[i] == members.CrowdsTotalNavigationPath[i])
-			{
-				//TArray<FVector> path = GetNavigationPath(World, members.CrowdsLocation[i], members.CrowdsTargetLocation[i]);
-				TArray<FVector> path;
-				//if (!CalculatePath( members[0].CrowdsLocation[i], members[0].CrowdsTargetLocation[i], path)) continue;
-				if (!CalculatePath( members.CrowdsLocation[i], members.CrowdsTargetLocation[i], path)) continue;
-				
-				int8 total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
-    
-				for (int8 j = 0; j < total; ++j)
-				{
-					path[j+1].Z = 0;
-					/*members[0].CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
-					members[1].CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];*/
-					members.CrowdsNavigationPath[i].LocationPaths[j] = path[j+1];
-				}
-				
-				members.CrowdsIndexNavigationPath[i] = 0;
-				members.CrowdsTotalNavigationPath[i] = total;
-				/*members[0].CrowdsIndexNavigationPath[i] = 0;
-				members[1].CrowdsIndexNavigationPath[i] = 0;
-				members[0].CrowdsTotalNavigationPath[i] = total;
-				members[1].CrowdsTotalNavigationPath[i] = total;*/
-			}
+			if (members.CrowdsIndexNavigationPath[i] != members.CrowdsTotalNavigationPath[i]) continue;
+			
+			RegeneratePath(members, i);
 		}
 	}
 	

@@ -11,7 +11,26 @@
 #include "NotifySystems/FluxPrimeNotifySpawnVFXSystems.h"
 #include "FluxPrimeAnimationSystems.generated.h"
 
-DECLARE_DELEGATE_OneParam(FOnCrowdsStateChange, const FInstancedStruct& payload);
+USTRUCT(BlueprintType)
+struct FFluxPrimeAnimationSystemsContext
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	bool isDebug = false;
+	
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<UWorld> world;
+	
+	uint32 totalMember = 0;
+	
+	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
+	FFluxPrimeCrowds* members = nullptr;
+	//int8* dataReadIndex = nullptr;
+	uint16* memberActive = nullptr;
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeAnimationSystems : public FFluxPrimeBaseSystems
@@ -22,8 +41,15 @@ private:
 	UPROPERTY()
 	bool IsDebug = false;
 	
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
+	
 	UPROPERTY()
-	TArray<TObjectPtr<UInstancedStaticMeshComponent>> CrowdsComponents;
+	TObjectPtr<UWorld> World;
+	
+	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+	FFluxPrimeCrowds* Members = nullptr;
+	//int8* DataReadIndex = nullptr;
+	uint16* MemberActive = nullptr;
 	
 	UPROPERTY()
 	TArray<FFluxPrimeAnimationNotify> QueueAnimationNotifies;
@@ -40,17 +66,14 @@ private:
 	UPROPERTY()
 	FFluxPrimeNotifyDeadSystems NotifyDeadSystems;
 	
-public:
-	FOnCrowdsStateChange OnCrowdsStateChange;
-	
 private:
-	void ShowDebug(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 indexMembers, int32 animationIndex, float currentFrame)
+	void ShowDebug(FFluxPrimeCrowds& members, int32 indexMembers, int32 animationIndex, float currentFrame)
 	{
 		FVector textLocation = members.CrowdsLocation[indexMembers] + (FVector::UpVector * FluxConfig::DebugLocationAnimation);
 		FString debugData = FString::Printf(TEXT("Animation Index: %d \n Animation Frame: %f"), animationIndex, currentFrame);
 		
 		DrawDebugString(
-			world,
+			World,
 			textLocation,
 			debugData,
 			nullptr,
@@ -75,20 +98,20 @@ private:
 			   NotifyFrame <= CurrentFrame;
 	}
 	
-	void PlayAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 indexMembers)
+	void PlayAnimation(FFluxPrimeCrowds& members, int32 indexMembers)
 	{
 		uint8 indexAnimation = static_cast<uint8>(members.CrowdsAnimationState[indexMembers]);
 		
 		float startFrame = members.CrowdsAnimationMapping[indexMembers].AnimationData[indexAnimation].AnimationStart;
 		float endFrame = members.CrowdsAnimationMapping[indexMembers].AnimationData[indexAnimation].AnimationEnd;
 		
-		float realTime = world->GetRealTimeSeconds();
+		float realTime = World->GetRealTimeSeconds();
 		float localAnimTime = realTime - members.CrowdsStartTimeAnimation[indexMembers];
 		float realTimeFrames = localAnimTime * 30.0f;
 		float reminder = FMath::Fmod(realTimeFrames, (endFrame - startFrame) + 1.0f);
 		float current = startFrame + reminder;
 		
-		if (IsDebug) ShowDebug(world, members, indexMembers, indexAnimation, current);
+		if (IsDebug) ShowDebug(members, indexMembers, indexAnimation, current);
 		
 		PlayAnimationNotify(members.CrowdsAnimationMapping[indexMembers].AnimationData[indexAnimation].AnimationNotify, members.CrowdsID[indexMembers], current, members.CrowdsPreviousAnimationFrame[indexMembers]);
 		
@@ -124,7 +147,7 @@ private:
 		QueueAnimationNotifies.Reset();
 	}
 	
-	void BroadcastChangeState(uint16 id, int8 type,	uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame,uint16 previousStartTime)
+	/*void BroadcastChangeState(uint16 id, int8 type,	uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame,uint16 previousStartTime)
 	{
 		FFluxPrimeOnSwictAnimationPayload payload;
 		payload.IdPayload = id;
@@ -137,11 +160,11 @@ private:
 		
 		FInstancedStruct instancedStruct = FInstancedStruct::Make(payload);
 		OnCrowdsStateChange.ExecuteIfBound(instancedStruct);
-	}
+	}*/
 	
-	void UpdateAnimation(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, uint16 i)
+	void UpdateAnimation(FFluxPrimeCrowds& members, uint16 i)
 	{
-		if (!world) return;
+		if (!World) return;
 		
 		if (members.CrowdsAnimationState[i] != members.CrowdsState[i])
 		{
@@ -163,34 +186,96 @@ private:
 			uint16 currentStartFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationStart;
 			uint16 currentEndFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationEnd;
 			
-			BroadcastChangeState(id, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime);
+			SwitchAnimation(id, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime);
 			
 			// update start time
-			members.CrowdsStartTimeAnimation[i] = world->GetRealTimeSeconds();
+			members.CrowdsStartTimeAnimation[i] = World->GetRealTimeSeconds();
 			members.CrowdsPreviousAnimationFrame[i] = -1.0f;
 		}
 	}
 	
-public:
-	void InitializedAnimationSystems(bool isDebug, TArray<TObjectPtr<UInstancedStaticMeshComponent>> crowdsComponents, uint32 totalMember)
+	void SwitchAnimation(uint16 id, int8 type,	uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame,uint16 previousStartTime)
 	{
-		IsDebug = isDebug;
-		CrowdsComponents = crowdsComponents;
-		QueueAnimationNotifies.Reserve(totalMember * FluxConfig::AnimationArrayCount);
+		if (!CrowdsComponents->IsValidIndex(type)) return;
+	
+		// previous
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			0,
+			previousStartTime,
+			false
+			);
+	
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			1,
+			previousStartFrame,
+			false
+			);
+	
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			2,
+			previousEndFrame,
+			false
+			);
+		
+		// current
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			3,
+			World->GetRealTimeSeconds(),
+			false
+			);
+	
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			4,
+			currentStartFrame,
+			false
+			);
+	
+		(*CrowdsComponents)[type]->SetCustomDataValue(
+			id,
+			5,
+			currentEndFrame,
+			false
+			);
 	}
 	
-	void UpdateAnimationSystemsFrame(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, int32 activeMembers)
+public:
+	void InitializedAnimationSystems(FFluxPrimeAnimationSystemsContext context)
 	{
-		for (int i = 0; i < activeMembers; ++i)
+		check(context.world);
+		check(context.members);
+		check(context.memberActive);
+		//check(context.dataReadIndex);
+		check(context.crowdsComponents);
+		
+		World = context.world;
+		IsDebug = context.isDebug;
+		Members = context.members;
+		MemberActive = context.memberActive;
+		//DataReadIndex = context.dataReadIndex;
+		CrowdsComponents = context.crowdsComponents;
+		QueueAnimationNotifies.Reserve(context.totalMember * FluxConfig::AnimationArrayCount);
+	}
+	
+	void UpdateAnimationSystemsFrame()
+	{
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
+		
+		for (int i = 0; i < *MemberActive; ++i)
 		{
-			UpdateAnimation(world, members, i);
-			PlayAnimation(world, members, i);
+			UpdateAnimation(members, i);
+			PlayAnimation(members, i);
 			ExecuteQueueAnimationNotify(members, i);
 		}
 	}
 	
 	void EndPlayAnimationSystems()
 	{
-		OnCrowdsStateChange.Unbind();
+		
 	}
 };

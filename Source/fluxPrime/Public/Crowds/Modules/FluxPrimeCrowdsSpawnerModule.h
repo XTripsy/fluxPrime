@@ -2,11 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Cores/FluxPrimeStruct.h"
-#include "Components/InstancedStaticMeshComponent.h"
-#include "Cores/FluxPrimeEnum.h"
 #include "Crowds/Identity/CrowdsIdentity.h"
 #include "StructUtils/InstancedStruct.h"
-#include "Systems/FluxPrimeNavigationSystems.h"
 #include "FluxPrimeCrowdsSpawnerModule.generated.h"
 
 USTRUCT()
@@ -17,15 +14,13 @@ struct FFluxPrimeCrowdsSpawnerComponentContext
 	uint16* crowdsActive = nullptr;
 	uint16* crowdsTotal = nullptr;
 	
-	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
-	
 	TMap<FName, int8>* crowdsTypes = nullptr;
+	TMap<FFluxPrimeCrowdsLookup, int32>* crowdsLookup = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
 	
 	FFluxPrimeCrowds* crowdsData = nullptr;
-	FFluxPrimeNavigationSystems* navigationSystems = nullptr;
 };
 
 DECLARE_DELEGATE_OneParam(FOnSpawnCrowdsNet, const FInstancedStruct& payload);
@@ -39,11 +34,9 @@ private:
 	uint16* CrowdsActive = nullptr;
 	uint16* CrowdsTotal = nullptr;
 	FFluxPrimeCrowds* CrowdsData = nullptr;
-	FFluxPrimeNavigationSystems* NavigationSystems = nullptr;
 	
 	TMap<FName, int8>* CrowdsTypes = nullptr;
-	
-	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
+	TMap<FFluxPrimeCrowdsLookup, int32>* CrowdsLookup = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
@@ -69,68 +62,20 @@ private:
 	
 	uint32 GetID(uint32 typeCrowds, uint32 indexSelected)
 	{
+		auto& members = *CrowdsData;
+		
 		for (int i = indexSelected; i < *CrowdsTotal; ++i)
 		{
-			if (CrowdsData->CrowdsType[i] == typeCrowds)
+			if (members.CrowdsType[i] == typeCrowds)
 			{
-				int32 tempID = CrowdsData->CrowdsID[indexSelected];
-				uint32 id = CrowdsData->CrowdsID[i];
-				CrowdsData->CrowdsID[i] = tempID;
+				int32 tempID = members.CrowdsID[indexSelected];
+				uint32 id = members.CrowdsID[i];
+				members.CrowdsID[i] = tempID;
 				return id;
 			}
 		}
 	
 		return INDEX_NONE;
-	}
-
-	
-	uint32 GetPath(FVector location, uint32 indexSelected)
-	{
-		if (!NavigationSystems) return 0;
-		
-		uint32 total = 0;
-		TArray<FVector> path;
-		
-		if (NavigationSystems->IsActive)
-		{
-			if (!NavigationSystems->CalculatePath(location, FVector::ZeroVector, path)) return total;
-			
-			total = FMath::Min(path.Num() - 1, FluxConfig::NavigationArrayCount);
-		    
-			for (uint8 i = 0; i < total; ++i)
-			{
-				path[i+1].Z = 0;
-				CrowdsData->CrowdsNavigationPath[indexSelected].LocationPaths[i] = path[i+1];
-			}
-		}
-		
-		return total;
-	}
-
-	void SetAnimationData(uint32 id, uint32 typeCrowds, uint32 indexSelected)
-	{
-		uint8 indexAnimation = static_cast<uint8>(CrowdsData->CrowdsState[indexSelected]);
-		
-		(*CrowdsComponents)[typeCrowds]->SetCustomDataValue(
-				id,
-				0,
-				CrowdsData->CrowdsStartTimeAnimation[indexSelected],
-				false
-				);
-		
-		(*CrowdsComponents)[typeCrowds]->SetCustomDataValue(
-				id,
-				1,
-				CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationStart,//CrowdsData->CrowdsAnimationData[indexSelected].AnimationOffset[indexAnimation],
-				false
-				);
-		
-		(*CrowdsComponents)[typeCrowds]->SetCustomDataValue(
-				id,
-				2,
-				CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationEnd,//CrowdsData->CrowdsAnimationData[indexSelected].AnimationOffset[indexAnimation+1],
-				false
-				);
 	}
 
 	void SendCrowdsNetData(UCrowdsIdentity* identity, uint32 indexSelected, uint32 typeCrowds, int16 total)
@@ -159,13 +104,13 @@ public:
 	{
 		check(context.crowdsTypes);
 		check(context.crowdsData);
+		check(context.crowdsLookup);
 		
 		CrowdsActive = context.crowdsActive;
 		CrowdsTotal = context.crowdsTotal;
-		CrowdsComponents = context.crowdsComponents;
 		CrowdsTypes = context.crowdsTypes;
 		CrowdsData = context.crowdsData;
-		NavigationSystems = context.navigationSystems;
+		CrowdsLookup = context.crowdsLookup;
 		World = context.world;
 	}
 
@@ -174,6 +119,8 @@ public:
 		if (!identity || !CrowdsTypes->Contains(identity->Identity)) return;
 		if (*CrowdsActive == *CrowdsTotal) return;
 
+		auto& members = *CrowdsData;
+		auto& indentityData = *identity;
 		uint32 indexSelected = *CrowdsActive;
 		uint32 typeCrowds = (*CrowdsTypes)[identity->Identity];
 		uint32 indexDataSelected = GetIndexSelected(typeCrowds);
@@ -181,29 +128,32 @@ public:
 		if (indexSelected == INDEX_NONE) return;
 		
 		int32 id = GetID(typeCrowds, indexSelected);
-		int16 total = GetPath(location, indexSelected);
 		
-		FFluxPrimeCrowdsAnimation tempAnimationData = CrowdsData->CrowdsAnimationMapping[indexSelected]; 
+		FFluxPrimeCrowdsAnimation tempAnimationData = members.CrowdsAnimationMapping[indexSelected]; 
 		
-		CrowdsData->CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
-		CrowdsData->CrowdsRotation[indexSelected] = rotation.Yaw;
-		CrowdsData->CrowdsID[indexSelected] = id;
-		CrowdsData->CrowdsType[indexSelected] = typeCrowds;
-		CrowdsData->CrowdsMaxSpeed[indexSelected] = identity->Speed;
-		CrowdsData->CrowdsDamage[indexSelected] = identity->Damage;
-		CrowdsData->CrowdsHealth[indexSelected] = identity->Health;
-		CrowdsData->CrowdsSize[indexSelected] = identity->Size;
-		//CrowdsData->CrowdsState[indexSelected] = EFluxPrimeCrowdState::StateWalk;
-		CrowdsData->CrowdsAnimationMapping[indexSelected] = CrowdsData->CrowdsAnimationMapping[indexDataSelected];
-		CrowdsData->CrowdsIndexNavigationPath[indexSelected] = 0;
-		CrowdsData->CrowdsTotalNavigationPath[indexSelected] = total;
-		CrowdsData->CrowdsPreviousAnimationFrame[indexSelected] = -1.0f;
-		//CrowdsData->CrowdsStartTimeAnimation[indexSelected] = World->GetRealTimeSeconds();
+		members.CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
+		members.CrowdsRotation[indexSelected] = rotation.Yaw;
+		members.CrowdsID[indexSelected] = id;
+		members.CrowdsType[indexSelected] = typeCrowds;
+		members.CrowdsMaxSpeed[indexSelected] = indentityData.Speed;
+		members.CrowdsDamage[indexSelected] = indentityData.Damage;
+		members.CrowdsHealth[indexSelected] = indentityData.Health;
+		members.CrowdsSize[indexSelected] = indentityData.Size;
+		members.CrowdsCondition[indexSelected] = true;
+		members.CrowdsRequestBackToPool[indexSelected] = false;
+		members.CrowdsAnimationMapping[indexSelected] = members.CrowdsAnimationMapping[indexDataSelected];
+		members.CrowdsIndexNavigationPath[indexSelected] = 0;
+		members.CrowdsRequestNavigationPath[indexSelected] = true;
+		members.CrowdsPreviousAnimationFrame[indexSelected] = -1.0f;
 
-		CrowdsData->CrowdsAnimationMapping[indexDataSelected] = tempAnimationData;
+		members.CrowdsAnimationMapping[indexDataSelected] = tempAnimationData;
 		
-		//SetAnimationData(id, typeCrowds, indexSelected);
-		SendCrowdsNetData(identity, indexSelected, typeCrowds, total);
+		FFluxPrimeCrowdsLookup key;
+		key.CrowdsID = id;
+		key.CrowdsType = typeCrowds;
+		int32& indexLookup = CrowdsLookup->FindOrAdd(key);
+		indexLookup = *CrowdsActive;
+		//SendCrowdsNetData(identity, indexSelected, typeCrowds, total);
 		
 		++*CrowdsActive;
 	}

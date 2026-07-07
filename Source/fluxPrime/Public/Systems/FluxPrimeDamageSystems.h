@@ -18,9 +18,9 @@ public:
 			if (members.CrowdsID[i] != id) continue;
 			
 			FVector location = members.CrowdsLocation[i];
-			int32 cellID = spatialGridSystems->GetSpatialGridSystemsCellID(location);
+			/*int32 cellID = spatialGridSystems->GetSpatialGridSystemsCellID(location);
 			
-			if (members.CrowdsCellID[i] != cellID) continue;
+			if (members.CrowdsCellID[i] != cellID) continue;*/
 			
 			members.CrowdsHealth[i] -= 1;
 			/*members.CrowdsStartTimeAnimationFrame[i] = world->GetRealTimeSeconds();

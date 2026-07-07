@@ -22,6 +22,22 @@ namespace FluxConfig
 	constexpr float DebugScaleFont = .8f;
 }
 
+USTRUCT(BlueprintType)
+struct FFluxPrimeCrowdsLookup
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	int32 CrowdsID;
+	
+	UPROPERTY(EditAnywhere)
+	int8 CrowdsType;
+	
+	bool operator==(const FFluxPrimeCrowdsLookup& Other) const
+	{
+		return CrowdsID == Other.CrowdsID && CrowdsType == Other.CrowdsType;
+	}
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsPath
@@ -126,6 +142,9 @@ struct FFluxPrimeCrowdsAnimationMapping
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
+	FFluxCrowdsAnimationNotify AnimationNotify[FluxConfig::AnimationArrayCount];
+	
+	UPROPERTY(EditAnywhere)
 	uint32 AnimationStart;
 	
 	UPROPERTY(EditAnywhere)
@@ -133,9 +152,6 @@ struct FFluxPrimeCrowdsAnimationMapping
 	
 	UPROPERTY(EditAnywhere)
 	bool AnimationLoop;
-	
-	UPROPERTY(EditAnywhere)
-	FFluxCrowdsAnimationNotify AnimationNotify[FluxConfig::AnimationArrayCount];
 };
 
 USTRUCT(BlueprintType)
@@ -240,6 +256,12 @@ struct FFluxPrimeCrowds
 	UPROPERTY(EditAnywhere)
 	TArray<int32> CrowdsCellID;
 	
+	UPROPERTY(EditAnywhere)
+	TArray<bool> CrowdsCondition;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<bool> CrowdsRequestBackToPool;
+	
 #pragma endregion
 	
 	UPROPERTY(EditAnywhere)
@@ -283,8 +305,8 @@ struct FFluxPrimeCrowds
 	
 #pragma region NavigationData
 	
-	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsCurrentTargetLocationPath;
+	/*UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsCurrentTargetLocationPath;*/
 	
 	UPROPERTY(EditAnywhere)
 	TArray<FVector> CrowdsTargetLocation;
@@ -298,6 +320,9 @@ struct FFluxPrimeCrowds
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsTotalNavigationPath;
 	
+	UPROPERTY(EditAnywhere)
+	TArray<bool> CrowdsRequestNavigationPath;
+	
 #pragma endregion
 	
 	void Init(int32 totalMember)
@@ -307,6 +332,8 @@ struct FFluxPrimeCrowds
 		CrowdsVelocity.Reserve(totalMember);
 		CrowdsAcceleration.Reserve(totalMember);
 		CrowdsCellID.Reserve(totalMember);
+		CrowdsCondition.Reserve(totalMember);
+		CrowdsRequestBackToPool.Reserve(totalMember);
 		CrowdsMaxSpeed.Reserve(totalMember);
 		CrowdsType.Reserve(totalMember);
 		CrowdsID.Reserve(totalMember);
@@ -317,8 +344,9 @@ struct FFluxPrimeCrowds
 		CrowdsNavigationPath.Reserve(totalMember);
 		CrowdsIndexNavigationPath.Reserve(totalMember);
 		CrowdsTotalNavigationPath.Reserve(totalMember);
+		CrowdsRequestNavigationPath.Reserve(totalMember);
 		CrowdsTargetLocation.Reserve(totalMember);
-		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
+		//CrowdsCurrentTargetLocationPath.Reserve(totalMember);
 		CrowdsAnimationMapping.Reserve(totalMember);
 		CrowdsAnimationState.Reserve(totalMember);
 		CrowdsStartTimeAnimation.Reserve(totalMember);
@@ -337,3 +365,10 @@ struct FFluxPrimeCrowdsCatalog
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1"))
 	int32 CrowdsTotal;
 };
+
+FORCEINLINE uint32 GetTypeHash(const FFluxPrimeCrowdsLookup& Key)
+{
+	return HashCombine(
+		GetTypeHash(Key.CrowdsID),
+		GetTypeHash(Key.CrowdsType));
+}

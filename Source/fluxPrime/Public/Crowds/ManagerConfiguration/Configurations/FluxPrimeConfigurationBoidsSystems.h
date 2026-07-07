@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeBaseConfiguration.h"
+#include "FluxPrimeConfigurationSpatialGridSystems.h"
 #include "FluxPrimeConfigurationBoidsSystems.generated.h"
 
 USTRUCT(BlueprintType)
@@ -11,4 +12,7 @@ struct FFluxPrimeConfigurationBoidsSystems : public FFluxPrimeBaseConfiguration
 	
 	UPROPERTY(EditAnywhere, meta = (ToolTip = "SeparationWeight"))
 	float SeparationWeight = 0.0f;
+	
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "SpatialGrid"))
+	FFluxPrimeConfigurationSpatialGridSystems ConfigurationSpatialGrid;
 };

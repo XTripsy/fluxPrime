@@ -4,8 +4,23 @@
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeBaseSystems.h"
 #include "Cores/FluxPrimeEnum.h"
-#include "StructUtils/InstancedStruct.h"
 #include "FluxPrimeMovementSystems.generated.h"
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeMovementSystemsContext
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	bool isDebug = false;
+	
+	UPROPERTY()
+	TObjectPtr<UWorld> world; 
+	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
+	FFluxPrimeCrowds* members = nullptr;
+	//int8* dataReadIndex = nullptr;
+	uint16* memberActive = nullptr;
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeMovementSystems : public FFluxPrimeBaseSystems
@@ -16,15 +31,26 @@ private:
 	UPROPERTY()
 	bool IsDebug = false;
 	
+	UPROPERTY()
+	TObjectPtr<UWorld> World; 
+	
+	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+	FFluxPrimeCrowds* Members = nullptr;
+	//int8* DataReadIndex = nullptr;
+	uint16* MemberActive = nullptr;
+	
 private:
-	void ShowDebug(TObjectPtr<UWorld> world, FFluxPrimeCrowds& members, const int32 indexMember, FVector direction)
+	void ShowDebug(const int32 indexMember, FVector direction)
 	{
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
+		
 		float arrowLength = 50.0f;
 		FVector startPos = members.CrowdsLocation[indexMember] + (FVector::UpVector * FluxConfig::DebugLocationMovement);
 		FVector endPos = startPos + (direction * arrowLength);
 
 		DrawDebugDirectionalArrow(
-			world,
+			World,
 			startPos,
 			endPos,
 			250.0f,
@@ -42,7 +68,7 @@ private:
 		endPos = startPos + (direction * arrowLength);
 		
 		DrawDebugDirectionalArrow(
-			world,
+			World,
 			startPos,
 			endPos,
 			300.0f,
@@ -92,51 +118,58 @@ private:
 	}
 	
 public:
-	void InitializedMovementSystems(bool isDebug)
+	void InitializedMovementSystems(FFluxPrimeMovementSystemsContext context)
 	{
-		IsDebug = isDebug;
+		check(context.world);
+		check(context.members);
+		check(context.memberActive);
+		//check(context.dataReadIndex);
+		
+		IsDebug = context.isDebug;
+		World = context.world;
+		Members = context.members;
+		MemberActive = context.memberActive;
+		//DataReadIndex = context.dataReadIndex;
 	}
 	
-	void UpdateMovementSystems(TObjectPtr<UWorld> world, double DeltaTime, FFluxPrimeCrowds& members, const int32 memberActive)
+	void UpdateMovementSystems(double DeltaTime)
 	{
-		TArray<int32> queueCrowdsAnimation;
-		queueCrowdsAnimation.Reserve(memberActive);
+		//auto& members = (*Members)[*DataReadIndex];
+		auto& members = *Members;
 		
-		for (int i = 0; i < memberActive; ++i)
+		for (int i = 0; i < *MemberActive; ++i)
 		{
 			if (members.CrowdsState[i] != EFluxPrimeCrowdState::StateWalk) continue;
 			
 			int8 indexNavigationPath = members.CrowdsIndexNavigationPath[i];
 			FVector location = members.CrowdsLocation[i];
-			location.Z = 0;
+			location.Z = 0.0f;
+
 			FVector dir = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath] - location;
-			members.CrowdsCurrentTargetLocationPath[i] = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath];
+			dir.Normalize();
+			if (IsDebug) ShowDebug(i, dir);
+			// current ini untuk net
+			//members.CrowdsCurrentTargetLocationPath[i] = members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath];
+
+			UE_LOG(LogTemp, Log, TEXT("MOVEMENT SYSTEMS :: CURRENT PATH %s"), *members.CrowdsNavigationPath[i].LocationPaths[indexNavigationPath].ToString());
 			
-			dir = dir.GetSafeNormal();
-			FVector desiredVelocity = dir * members.CrowdsMaxSpeed[i];
-			FVector targetForce = (desiredVelocity - members.CrowdsVelocity[i]) * .4f;
-			FVector totalForce = targetForce + members.CrowdsAcceleration[i];
-			totalForce = totalForce.GetClampedToMaxSize(1500);
-			members.CrowdsVelocity[i] += totalForce * DeltaTime;
-			
-			if (IsDebug) ShowDebug(world, members, i, dir);
-			
-			members.CrowdsVelocity[i] = members.CrowdsVelocity[i].GetClampedToMaxSize(members.CrowdsMaxSpeed[i] * 1.2f);
-			members.CrowdsLocation[i] += members.CrowdsVelocity[i] * DeltaTime;
-			
-			UE_LOG(LogTemp, Log, TEXT("MOVEMENT SYSTEM:: ID %d, INDEX %d"), members.CrowdsID[i], i);
-			
-			// cek velocity is fast enough
-			if (members.CrowdsVelocity[i].SizeSquared() > 10.0f) 
-			{
-				// rotation handle
-				float targetYaw = members.CrowdsVelocity[i].Rotation().Yaw - 85;
-				float currentYaw = members.CrowdsRotation[i];
-				float deltaYaw = targetYaw - currentYaw;
-				deltaYaw = FMath::UnwindDegrees(deltaYaw);
-				float interpDelta = FMath::FInterpTo(0.0f, deltaYaw, DeltaTime, 55.0f);
-				members.CrowdsRotation[i] = FMath::UnwindDegrees(currentYaw + interpDelta); 
+			if (!dir.IsNearlyZero())
+			{	
+				float targetYaw = dir.Rotation().Yaw - 85.0f;
+				members.CrowdsRotation[i] = FMath::RInterpTo(FRotator(0.f, members.CrowdsRotation[i], 0.f), FRotator(0.f, targetYaw, 0.f), DeltaTime, 10.0f).Yaw;
+				float angleError = FMath::Abs(FMath::FindDeltaAngleDegrees(members.CrowdsRotation[i], targetYaw));
+				
+				float moveFactor = FMath::GetMappedRangeValueClamped(FVector2D(120.f, 0.f), FVector2D(0.25f, 1.0f), angleError);
+				FVector desiredVelocity = dir * members.CrowdsMaxSpeed[i] * moveFactor;
+				FVector avoidanceVelocity = members.CrowdsAcceleration[i];
+				FVector finalDesiredVelocity = desiredVelocity + avoidanceVelocity;
+				
+				members.CrowdsVelocity[i] = FMath::VInterpTo(members.CrowdsVelocity[i], finalDesiredVelocity, DeltaTime, 8.0f);
+				members.CrowdsVelocity[i] = members.CrowdsVelocity[i].GetClampedToMaxSize(members.CrowdsMaxSpeed[i] * 1.2f);
+				
+				members.CrowdsLocation[i] += members.CrowdsVelocity[i] * DeltaTime;
 			}
+
 			members.CrowdsAcceleration[i] = FVector::ZeroVector;
 		}
 	}

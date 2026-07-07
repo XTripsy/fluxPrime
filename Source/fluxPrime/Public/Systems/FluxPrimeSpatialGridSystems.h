@@ -6,11 +6,48 @@
 #include "FluxPrimeSpatialGridSystems.generated.h"
 
 USTRUCT(BlueprintType)
+struct FFluxPrimeSpatialGridSystemsContext
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere)
+    TObjectPtr<UWorld> world;
+    
+    UPROPERTY(EditAnywhere)
+    FVector origin = FVector(-10000.0f, -10000.0f, 0.0f); 
+    
+    UPROPERTY(EditAnywhere)
+    float cellSize = 100.0f;
+
+    UPROPERTY(EditAnywhere)
+    int32 cellWidth = 200;
+	
+    UPROPERTY(EditAnywhere)
+    int32 cellHeight = 200;
+
+    UPROPERTY()
+    bool isDebug = false;
+    
+    UPROPERTY()
+    FColor debugColor = FColor::Black;
+    
+    //TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
+    FFluxPrimeCrowds* members = nullptr;
+    /*TArray<int32>* gridOffset = nullptr;
+    TArray<int32>* shortedIndex = nullptr; 
+    int8* dataReadIndex = nullptr;*/ 
+    uint16* memberActive = nullptr;
+};
+
+USTRUCT(BlueprintType)
 struct FFluxPrimeSpatialGridSystems : public FFluxPrimeBaseSystems
 {
     GENERATED_BODY()
     
 private:
+    UPROPERTY(EditAnywhere)
+    TObjectPtr<UWorld> World;
+    
     UPROPERTY(EditAnywhere)
     float CellSize = 100.0f;
 
@@ -29,14 +66,32 @@ private:
     UPROPERTY()
     bool IsDebug = false;
     
+    UPROPERTY()
+    FColor DebugColor = FColor::Black;
+    
+    //TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
+    FFluxPrimeCrowds* Members = nullptr;
+    /*TArray<int32>* GridOffset = nullptr;
+    TArray<int32>* ShortedIndex = nullptr;
+    int8* DataReadIndex = nullptr;*/ 
+    uint16* MemberActive = nullptr;
+    
+    UPROPERTY()
+    TArray<int32> GridOffsets;
+    
+    UPROPERTY()
+    TArray<int32> GridCounts;
+    
+    UPROPERTY()
+    TArray<int32> GridMembers;
 private:
-    void ShowDebug(TObjectPtr<UWorld> world, FVector location, int32 id)
+    void ShowDebug(FVector location, int32 id)
     {
         FVector textLocation = location + (FVector::UpVector * FluxConfig::DebugLocationSpatialGrid);
         FString debugData = FString::Printf(TEXT("Cell ID: %d"), id);
 		
         DrawDebugString(
-            world,
+            World,
             textLocation,
             debugData,
             nullptr,
@@ -47,7 +102,7 @@ private:
         );
     }
     
-    void DrawSpatialGridDebug(UWorld* World)
+    void DrawSpatialGridDebug()
     {
         if (!World) return;
 
@@ -56,7 +111,7 @@ private:
             FVector StartLocation = Origin + FVector(x * CellSize, 0, 1000);
             FVector EndLocation = StartLocation + FVector(0, CellHeight * CellSize, 1000);
         
-            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, 5, 0, 2.0f);
+            DrawDebugLine(World, StartLocation, EndLocation, DebugColor, true, 5, 0, 2.0f);
         }
 
         for (int32 y = 0; y <= CellHeight; y++)
@@ -64,24 +119,8 @@ private:
             FVector StartLocation = Origin + FVector(0, y * CellSize, 1000);
             FVector EndLocation = StartLocation + FVector(CellWidth * CellSize, 0, 1000);
         
-            DrawDebugLine(World, StartLocation, EndLocation, FColor::Green, true, 5, 0, 2.0f);
+            DrawDebugLine(World, StartLocation, EndLocation, DebugColor, true, 5, 0, 2.0f);
         }
-    }
-	
-public:
-    void InitializedSpatialGridSystems(bool isDebug, float cellSize, FVector origin, int32 cellWidth, int32 cellHeight)
-    {
-        IsDebug = isDebug;
-        CellSize = cellSize;
-        Origin = origin;
-        CellWidth = cellWidth;
-        CellHeight = cellHeight;
-    }
-	
-    void BakeSpatialGridSystems(TObjectPtr<UWorld> world)
-    {
-        TotalCells = CellWidth * CellHeight;
-        if (IsDebug) DrawSpatialGridDebug(world);
     }
     
     int32 GetSpatialGridSystemsCellID(FVector location)
@@ -94,23 +133,87 @@ public:
 
         return (CellY * CellWidth) + CellX;
     }
-    
-    void UpdateSpatialGridSystem(TObjectPtr<UWorld> world, TStaticArray<FFluxPrimeCrowds, 2>& members, TArray<int32>& gridOffset, TArray<int32>& shortedIndex, int8& dataReadIndex, int32 activeMembers)
+	
+public:
+    void InitializedSpatialGridSystems(FFluxPrimeSpatialGridSystemsContext context)
     {
-        int8 writeIndex = (dataReadIndex + 1) % 2;
-        FFluxPrimeCrowds& readBuffer = members[dataReadIndex];
-        FFluxPrimeCrowds& writeBuffer = members[writeIndex];
+        check(context.world);
+        check(context.members);
+        /*check(context.gridOffset);
+        check(context.dataReadIndex);*/
         
-        for (int i = 0; i < activeMembers; ++i)
+        World = context.world;
+        IsDebug = context.isDebug;
+        CellSize = context.cellSize;
+        Origin = context.origin;
+        CellWidth = context.cellWidth;
+        CellHeight = context.cellHeight;
+        DebugColor = context.debugColor;
+        Members = context.members;
+        /*GridOffset = context.gridOffset;
+        ShortedIndex = context.shortedIndex;
+        DataReadIndex = context.dataReadIndex;*/
+        MemberActive = context.memberActive;
+    }
+	
+    void BakeSpatialGridSystems()
+    {
+        check(World);
+        
+        TotalCells = CellWidth * CellHeight;
+        
+        //int32 totalMember = (*Members)[0].CrowdsID.Num();
+        int32 totalMember = Members->CrowdsID.Num();
+        GridCounts.Init(0, TotalCells);
+        GridOffsets.SetNum(TotalCells);
+        GridMembers.SetNum(totalMember);
+        
+        if (IsDebug) DrawSpatialGridDebug();
+    }
+    
+    void UpdateSpatialGridSystem()
+    {
+        //auto& dataReadIndex = *DataReadIndex;
+        auto& members = *Members;
+        auto& activeMembers = *MemberActive;
+        /*auto& shortedIndex = *ShortedIndex;
+        auto& gridOffset = *GridOffset;*/
+        
+        int32 totalMember = members.CrowdsID.Num();
+        GridCounts.Init(0, TotalCells);
+        GridOffsets.SetNumUninitialized(TotalCells);
+        GridMembers.SetNumUninitialized(totalMember);
+        
+        /*int8 writeIndex = (dataReadIndex + 1) % 2;
+        FFluxPrimeCrowds& readBuffer = members[dataReadIndex];
+        FFluxPrimeCrowds& writeBuffer = members[writeIndex];*/
+
+        int32 offsets = 0;
+        for (int i = 0; i < TotalCells; ++i)
         {
-            FVector location = readBuffer.CrowdsLocation[i];
-            
-            readBuffer.CrowdsCellID[i] = GetSpatialGridSystemsCellID(location);
-            
-            if (IsDebug) ShowDebug(world, location, readBuffer.CrowdsCellID[i]);
+            GridOffsets[i] = offsets;
+            offsets += GridCounts[i];
         }
         
-        shortedIndex.SetNumUninitialized(activeMembers, EAllowShrinking::No);
+        TArray<int32> memberOffsets = GridOffsets;
+        for (int i = 0; i < activeMembers; ++i)
+        {
+            /*FVector location = readBuffer.CrowdsLocation[i];
+            readBuffer.CrowdsCellID[i] = GetSpatialGridSystemsCellID(location);
+            int32 cellId = readBuffer.CrowdsCellID[i];*/
+            FVector location = members.CrowdsLocation[i];
+            members.CrowdsCellID[i] = GetSpatialGridSystemsCellID(location);
+            int32 cellId = members.CrowdsCellID[i];
+            
+            GridCounts[cellId]++;
+            
+            int32 memberIndex = memberOffsets[cellId]++;
+            GridMembers[memberIndex] = i;
+            
+            if (IsDebug) ShowDebug(location, cellId);
+        }
+        
+        /*shortedIndex.SetNumUninitialized(activeMembers, EAllowShrinking::No);
         for (int i = 0; i < activeMembers; ++i)
         {
             shortedIndex[i] = i;
@@ -143,7 +246,8 @@ public:
             writeBuffer.CrowdsIndexNavigationPath[i] = readBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsTotalNavigationPath[i] = readBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsNavigationPath[i] = readBuffer.CrowdsNavigationPath[tempShortedIndex];
-            writeBuffer.CrowdsCurrentTargetLocationPath[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
+            //writeBuffer.CrowdsCurrentTargetLocationPath[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
+            writeBuffer.CrowdsRequestNavigationPath[i] = readBuffer.CrowdsRequestNavigationPath[tempShortedIndex];
             writeBuffer.CrowdsAnimationMapping[i] = readBuffer.CrowdsAnimationMapping[tempShortedIndex];
             writeBuffer.CrowdsAnimationState[i] = readBuffer.CrowdsAnimationState[tempShortedIndex];
             writeBuffer.CrowdsStartTimeAnimation[i] = readBuffer.CrowdsStartTimeAnimation[tempShortedIndex];
@@ -162,6 +266,21 @@ public:
             }
         }
         
-        dataReadIndex = writeIndex;
+        dataReadIndex = writeIndex;*/
+    }
+    
+    TArray<int32>& GetGridOffsets()
+    {
+        return GridOffsets;
+    }
+    
+    TArray<int32>& GetGridCounts()
+    {
+        return GridCounts;
+    }
+    
+    TArray<int32>& GetGridMembers()
+    {
+        return GridMembers;
     }
 };
