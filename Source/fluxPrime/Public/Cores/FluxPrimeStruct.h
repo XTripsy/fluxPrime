@@ -305,8 +305,8 @@ struct FFluxPrimeCrowds
 	
 #pragma region NavigationData
 	
-	/*UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsCurrentTargetLocationPath;*/
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsCurrentTargetLocationPath;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<FVector> CrowdsTargetLocation;
@@ -346,7 +346,7 @@ struct FFluxPrimeCrowds
 		CrowdsTotalNavigationPath.Reserve(totalMember);
 		CrowdsRequestNavigationPath.Reserve(totalMember);
 		CrowdsTargetLocation.Reserve(totalMember);
-		//CrowdsCurrentTargetLocationPath.Reserve(totalMember);
+		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
 		CrowdsAnimationMapping.Reserve(totalMember);
 		CrowdsAnimationState.Reserve(totalMember);
 		CrowdsStartTimeAnimation.Reserve(totalMember);
