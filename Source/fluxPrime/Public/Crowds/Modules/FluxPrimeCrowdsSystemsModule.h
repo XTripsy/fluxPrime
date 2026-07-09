@@ -25,6 +25,7 @@
 #include "Systems/FluxPrimeHealthSystems.h"
 #include "Systems/FluxPrimeStateMachineSystems.h"
 #include "Systems/FluxPrimeTargetSystems.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
 
 USTRUCT()
@@ -36,6 +37,7 @@ struct FFluxPrimeCrowdsSystemsComponentContext
 	TObjectPtr<UManagerConfiguration> managerConfiguration;
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
+	TArray<FFluxPrimeCrowdsCatalog>* crowdsCatalog = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
@@ -61,6 +63,7 @@ struct FFluxPrimeCrowdsSystemsModule
 	
 private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
+	TArray<FFluxPrimeCrowdsCatalog>* CrowdsCatalog = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
@@ -107,10 +110,12 @@ public:
 		check(context.crowdsDatas);
 		check(context.crowdsActive);
 		check(context.crowdsLookup);
+		check(context.crowdsCatalog);
 		//check(context.crowdsDataReadIndex);
 		
 		CrowdsComponents = context.crowdsComponents;
 		ManagerConfiguration = context.managerConfiguration;
+		CrowdsCatalog = context.crowdsCatalog;
 		
 		/*GridOffset = context.gridOffset;
 		CrowdsDataShortedIndex = context.crowdsDataShortedIndex;
@@ -312,11 +317,18 @@ public:
 
 		if (MovementSystems.IsActive)
 		{
+			auto& member = *CrowdsDatas;
+			
 			FFluxPrimeMovementSystemsContext context;
 			context.isDebug = configurationMovement->IsDebug;
 			context.world = World;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.rotationCrowds = &member.CrowdsRotation;
+			context.maxSpeedCrowds = &member.CrowdsMaxSpeed;
+			context.accelerationCrowds = &member.CrowdsAcceleration;
+			context.velocityCrowds = &member.CrowdsVelocity;
+			context.stateCrowds = &member.CrowdsState;
+			context.currentPathCrowds = &member.CrowdsCurrentTargetLocationPath;
 			context.memberActive = CrowdsActive;
 			
 			MovementSystems.InitializedMovementSystems(context);
@@ -347,6 +359,7 @@ public:
 		{
 			FFluxPrimeCrowdsRenderSystemsContext context;
 			context.crowdsComponents = CrowdsComponents;
+			context.crowdsCatalog = CrowdsCatalog;
 			context.members = CrowdsDatas;
 			//context.dataReadIndex = CrowdsDataReadIndex;
 			context.memberActive = CrowdsActive;
@@ -376,6 +389,8 @@ public:
 	
 	void TickSystems(const float DeltaTime)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Systems_Module);
+		
 		HealthSystems.UpdateHealthSystems();
 		if (SpatialGridSystems.IsActive) SpatialGridSystems.UpdateSpatialGridSystem();
 		if (StateMachineSystems.IsActive) StateMachineSystems.UpdateStateMachineSystems();
