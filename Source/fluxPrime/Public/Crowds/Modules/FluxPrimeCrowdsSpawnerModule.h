@@ -91,8 +91,8 @@ private:
 		payload.IndexSelectedPayload = indexSelected;
 		payload.MaxSpeedPayload = identity->Speed;
 		payload.TypePayload = typeCrowds;
-		payload.StartFramePayload = CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationStart;
-		payload.EndFramePayload = CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationEnd;
+		/*payload.StartFramePayload = CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationStart;
+		payload.EndFramePayload = CrowdsData->CrowdsAnimationMapping[indexSelected].AnimationData[indexAnimation].AnimationEnd;*/
 		
 		FInstancedStruct instancedStruct = FInstancedStruct::Make(payload);
 		
@@ -125,11 +125,11 @@ public:
 		uint32 typeCrowds = (*CrowdsTypes)[identity->Identity];
 		uint32 indexDataSelected = GetIndexSelected(typeCrowds);
 		
-		if (indexSelected == INDEX_NONE) return;
+		if (indexSelected == INDEX_NONE || indexDataSelected == INDEX_NONE) return;
 		
 		int32 id = GetID(typeCrowds, indexSelected);
 		
-		FFluxPrimeCrowdsAnimation tempAnimationData = members.CrowdsAnimationMapping[indexSelected]; 
+		//FFluxPrimeCrowdsAnimation tempAnimationData = members.CrowdsAnimationMapping[indexSelected]; 
 		
 		members.CrowdsLocation[indexSelected] = FVector(location.X, location.Y, 0);
 		members.CrowdsRotation[indexSelected] = rotation.Yaw;
@@ -141,12 +141,13 @@ public:
 		members.CrowdsSize[indexSelected] = indentityData.Size;
 		members.CrowdsCondition[indexSelected] = true;
 		members.CrowdsRequestBackToPool[indexSelected] = false;
-		members.CrowdsAnimationMapping[indexSelected] = members.CrowdsAnimationMapping[indexDataSelected];
+		//members.CrowdsAnimationMapping[indexSelected] = members.CrowdsAnimationMapping[indexDataSelected];
 		members.CrowdsIndexNavigationPath[indexSelected] = 0;
 		members.CrowdsRequestNavigationPath[indexSelected] = true;
 		members.CrowdsPreviousAnimationFrame[indexSelected] = -1.0f;
+		members.CrowdsState[indexSelected] = EFluxPrimeCrowdState::StateWalk;
 
-		members.CrowdsAnimationMapping[indexDataSelected] = tempAnimationData;
+		//members.CrowdsAnimationMapping[indexDataSelected] = tempAnimationData;
 		
 		FFluxPrimeCrowdsLookup key;
 		key.CrowdsID = id;

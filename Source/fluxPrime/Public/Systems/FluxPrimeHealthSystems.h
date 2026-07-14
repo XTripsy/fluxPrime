@@ -13,7 +13,8 @@ struct FFluxPrimeHealthSystemsContext
 	UPROPERTY()
 	bool isDebug = false;
 	
-	FFluxPrimeCrowds* members = nullptr;
+	TArray<bool>* conditionCrowds = nullptr;
+	TArray<int8>* healthCrowds = nullptr;
 	uint16* memberActive = nullptr;
 };
 
@@ -23,33 +24,39 @@ struct FFluxPrimeHealthSystems : public FFluxPrimeBaseSystems
 	GENERATED_BODY()
 	
 private:
-	FFluxPrimeCrowds* Members = nullptr;
+	TArray<bool>* ConditionCrowds = nullptr;
+	TArray<int8>* HealthCrowds = nullptr;
 	uint16* MemberActive = nullptr;
 	
 public:
 	void InitializeHealthSystems(FFluxPrimeHealthSystemsContext context)
 	{
-		check(context.members);
+		check(context.conditionCrowds);
+		check(context.healthCrowds);
 		check(context.memberActive);
 		
-		Members = context.members;
+		ConditionCrowds = context.conditionCrowds;
+		HealthCrowds = context.healthCrowds;
 		MemberActive = context.memberActive;
 	}
 	
 	void OnHitHealthSystems(uint32 indexMember)
 	{
-		FFluxPrimeCrowds& member = *Members;
-		member.CrowdsHealth[indexMember]--;
-		UE_LOG(LogTemp, Log, TEXT("HEALTH SYSTEMS:: DAMAGE %d"), member.CrowdsHealth[indexMember]);
+		auto& healthCrowds = *HealthCrowds;
+		healthCrowds[indexMember]--;
+		UE_LOG(LogTemp, Log, TEXT("HEALTH SYSTEMS:: DAMAGE %d"), healthCrowds[indexMember]);
 	}
 	
 	void UpdateHealthSystems()
 	{
-		FFluxPrimeCrowds& member = *Members;
-
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Health_Systems);
+		
+		auto& conditionCrowds = *ConditionCrowds;
+		auto& healthCrowds = *HealthCrowds;
+		
 		for (int i = 0; i < *MemberActive; ++i)
 		{
-			if (member.CrowdsCondition[i] && member.CrowdsHealth[i] <= 0) member.CrowdsCondition[i] = false;
+			if (conditionCrowds[i] && healthCrowds[i] <= 0) conditionCrowds[i] = false;
 		}
 	}
 };

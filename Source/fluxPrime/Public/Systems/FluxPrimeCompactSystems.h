@@ -69,8 +69,10 @@ private:
 		SwapData(members.CrowdsTotalNavigationPath, currentIndex, lastIndex);
 		SwapData(members.CrowdsRequestNavigationPath, currentIndex, lastIndex);
 		SwapData(members.CrowdsTargetLocation, currentIndex, lastIndex);
-		SwapData(members.CrowdsAnimationMapping, currentIndex, lastIndex);
+		SwapData(members.CrowdsCurrentTargetLocationPath, currentIndex, lastIndex);
+		//SwapData(members.CrowdsAnimationMapping, currentIndex, lastIndex);
 		SwapData(members.CrowdsAnimationState, currentIndex, lastIndex);
+		SwapData(members.CrowdsRequestAnimationNotify, currentIndex, lastIndex);
 		SwapData(members.CrowdsStartTimeAnimation, currentIndex, lastIndex);
 		SwapData(members.CrowdsPreviousAnimationFrame, currentIndex, lastIndex);
 	}
@@ -89,6 +91,8 @@ public:
 	
 	void UpdateCompactSystems()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Compact_Systems);
+		
 		auto& members = *Members;
 		int32 lastIndex = *MemberActive - 1;
 

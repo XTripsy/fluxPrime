@@ -25,9 +25,11 @@ struct FFluxPrimeStateMachineSystemsContext
 	UPROPERTY()
 	bool isDebug;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
-	FFluxPrimeCrowds* members = nullptr;
-	//int8* dataReadIndex = nullptr;
+	TArray<EFluxPrimeCrowdState>* stateCrowds = nullptr;
+	TArray<FVector>* locationCrowds = nullptr;
+	TArray<FVector>* targetLocationCrowds = nullptr;
+	TArray<FVector>* velocityCrowds = nullptr;
+	TArray<bool>* conditionCrowds = nullptr;
 	uint16* memberActive = nullptr;
 };
 
@@ -56,24 +58,28 @@ private:
 	UPROPERTY()
 	bool IsDebug = false;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
-	FFluxPrimeCrowds* Members = nullptr;
-	//int8* DataReadIndex = nullptr;
+	TArray<EFluxPrimeCrowdState>* StateCrowds = nullptr;
+	TArray<FVector>* LocationCrowds = nullptr;
+	TArray<FVector>* TargetLocationCrowds = nullptr;
+	TArray<FVector>* VelocityCrowds = nullptr;
+	TArray<bool>* ConditionCrowds = nullptr;
 	uint16* MemberActive = nullptr;
 	
 private:
-	static bool CheckCondition(const FFluxPrimeCrowdAnimationStateTransition& Transition, const FFluxPrimeCrowds& Members, int32 Index)
+	static bool CheckCondition(const FFluxPrimeCrowdAnimationStateTransition& Transition, 
+		const TArray<FVector>& locationCrowds, const TArray<FVector>& targetLocationCrowds,
+		const TArray<FVector>& velocityCrowds, const TArray<bool>& conditionCrowds, int32 Index)
 	{
 		switch (Transition.ConditionType)
 		{
 		case EFluxPrimeCrowdAnimationTransitionType::IsAlive:
-			return !Members.CrowdsCondition[Index];
+			return !conditionCrowds[Index];
 		case EFluxPrimeCrowdAnimationTransitionType::VelocityAbove:
-			return Members.CrowdsVelocity[Index].SizeSquared() > Transition.Value;
+			return velocityCrowds[Index].SizeSquared() > Transition.Value;
 		case EFluxPrimeCrowdAnimationTransitionType::TargetInRange:
-			return FVector::Dist2D(Members.CrowdsLocation[Index], Members.CrowdsTargetLocation[Index]) < Transition.Value;
+			return FVector::Dist2D(locationCrowds[Index], targetLocationCrowds[Index]) < Transition.Value;
 		case EFluxPrimeCrowdAnimationTransitionType::TargetOutRange:
-			return FVector::Dist2D(Members.CrowdsLocation[Index], Members.CrowdsTargetLocation[Index]) > Transition.Value;
+			return FVector::Dist2D(locationCrowds[Index], targetLocationCrowds[Index]) > Transition.Value;
 		default:
 			return false;
 		}
@@ -82,14 +88,20 @@ private:
 public:
 	void InitializeStateMachineSystems(FFluxPrimeStateMachineSystemsContext context)
 	{
-		check(context.members);
 		check(context.memberActive);
-		//check(context.dataReadIndex);
+		check(context.locationCrowds);
+		check(context.targetLocationCrowds);
+		check(context.velocityCrowds);
+		check(context.stateCrowds);
+		check(context.conditionCrowds);
 		
 		IsDebug = context.isDebug;
-		Members = context.members;
+		LocationCrowds = context.locationCrowds;
+		TargetLocationCrowds = context.targetLocationCrowds;
+		VelocityCrowds = context.velocityCrowds;
+		StateCrowds = context.stateCrowds;
+		ConditionCrowds = context.conditionCrowds;
 		MemberActive = context.memberActive;
-		//DataReadIndex = context.dataReadIndex;
 		
 		Transitions.Add({
 			EFluxPrimeCrowdState::StateAbility,
@@ -134,26 +146,31 @@ public:
 		});
 	}
 	
-	static void ChangeCrowdState(FFluxPrimeCrowds& members, const int32 memberIndex, const EFluxPrimeCrowdState newState)
+	static void ChangeCrowdState(TArray<EFluxPrimeCrowdState>& state, const int32 memberIndex, const EFluxPrimeCrowdState newState)
 	{
-		members.CrowdsState[memberIndex] = newState;
+		state[memberIndex] = newState;
 	}
 	
 	void UpdateStateMachineSystems()
 	{
-		//auto& members = (*Members)[*DataReadIndex];
-		auto& members = *Members;
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_FSM_Systems);
+		
+		auto& stateCrowds = *StateCrowds;
+		auto& locationCrowds = *LocationCrowds;
+		auto& targetCrowds = *TargetLocationCrowds;
+		auto& velocityCrowds = *VelocityCrowds;
+		auto& conditionCrowds = *ConditionCrowds;
 		
 		for (int32 i = 0; i < *MemberActive; ++i)
 		{
-			EFluxPrimeCrowdState CurrentState = members.CrowdsState[i];
+			EFluxPrimeCrowdState CurrentState = stateCrowds[i];
 
 			for (const auto& pair : Transitions)
 			{
 				if (pair.From != CurrentState) continue;
-				if (!CheckCondition(pair, members, i)) continue;
+				if (!CheckCondition(pair, locationCrowds, targetCrowds, velocityCrowds, conditionCrowds, i)) continue;
 				
-				ChangeCrowdState(members, i, pair.To);
+				ChangeCrowdState(stateCrowds, i, pair.To);
 				break;
 			}
 		}

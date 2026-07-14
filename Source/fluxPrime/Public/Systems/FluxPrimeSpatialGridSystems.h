@@ -32,7 +32,9 @@ struct FFluxPrimeSpatialGridSystemsContext
     FColor debugColor = FColor::Black;
     
     //TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
-    FFluxPrimeCrowds* members = nullptr;
+    //FFluxPrimeCrowds* members = nullptr;
+    TArray<FVector>* locationCrowds = nullptr;
+    TArray<int32>* cellIDCrowds = nullptr;
     /*TArray<int32>* gridOffset = nullptr;
     TArray<int32>* shortedIndex = nullptr; 
     int8* dataReadIndex = nullptr;*/ 
@@ -70,7 +72,9 @@ private:
     FColor DebugColor = FColor::Black;
     
     //TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
-    FFluxPrimeCrowds* Members = nullptr;
+    //FFluxPrimeCrowds* Members = nullptr;
+    TArray<FVector>* LocationCrowds = nullptr;
+    TArray<int32>* CellIDCrowds = nullptr;
     /*TArray<int32>* GridOffset = nullptr;
     TArray<int32>* ShortedIndex = nullptr;
     int8* DataReadIndex = nullptr;*/ 
@@ -123,24 +127,12 @@ private:
         }
     }
     
-    int32 GetSpatialGridSystemsCellID(FVector location)
-    {
-        int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
-        int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
-
-        CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
-        CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
-
-        return (CellY * CellWidth) + CellX;
-    }
-	
 public:
     void InitializedSpatialGridSystems(FFluxPrimeSpatialGridSystemsContext context)
     {
         check(context.world);
-        check(context.members);
-        /*check(context.gridOffset);
-        check(context.dataReadIndex);*/
+        check(context.locationCrowds);
+        check(context.cellIDCrowds);
         
         World = context.world;
         IsDebug = context.isDebug;
@@ -149,10 +141,8 @@ public:
         CellWidth = context.cellWidth;
         CellHeight = context.cellHeight;
         DebugColor = context.debugColor;
-        Members = context.members;
-        /*GridOffset = context.gridOffset;
-        ShortedIndex = context.shortedIndex;
-        DataReadIndex = context.dataReadIndex;*/
+        LocationCrowds = context.locationCrowds;
+        CellIDCrowds = context.cellIDCrowds;
         MemberActive = context.memberActive;
     }
 	
@@ -162,8 +152,8 @@ public:
         
         TotalCells = CellWidth * CellHeight;
         
-        //int32 totalMember = (*Members)[0].CrowdsID.Num();
-        int32 totalMember = Members->CrowdsID.Num();
+        auto& cellID = *CellIDCrowds;
+        int32 totalMember = cellID.Num();
         GridCounts.Init(0, TotalCells);
         GridOffsets.SetNum(TotalCells);
         GridMembers.SetNum(totalMember);
@@ -173,20 +163,17 @@ public:
     
     void UpdateSpatialGridSystem()
     {
-        //auto& dataReadIndex = *DataReadIndex;
-        auto& members = *Members;
-        auto& activeMembers = *MemberActive;
-        /*auto& shortedIndex = *ShortedIndex;
-        auto& gridOffset = *GridOffset;*/
+        TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_Systems);
         
-        int32 totalMember = members.CrowdsID.Num();
+        auto& activeMembers = *MemberActive;
+        
+        auto& locationCrowds = *LocationCrowds;
+        auto& cellID = *CellIDCrowds;
+        
+        int32 totalMember = cellID.Num();
         GridCounts.Init(0, TotalCells);
         GridOffsets.SetNumUninitialized(TotalCells);
         GridMembers.SetNumUninitialized(totalMember);
-        
-        /*int8 writeIndex = (dataReadIndex + 1) % 2;
-        FFluxPrimeCrowds& readBuffer = members[dataReadIndex];
-        FFluxPrimeCrowds& writeBuffer = members[writeIndex];*/
 
         int32 offsets = 0;
         for (int i = 0; i < TotalCells; ++i)
@@ -198,12 +185,9 @@ public:
         TArray<int32> memberOffsets = GridOffsets;
         for (int i = 0; i < activeMembers; ++i)
         {
-            /*FVector location = readBuffer.CrowdsLocation[i];
-            readBuffer.CrowdsCellID[i] = GetSpatialGridSystemsCellID(location);
-            int32 cellId = readBuffer.CrowdsCellID[i];*/
-            FVector location = members.CrowdsLocation[i];
-            members.CrowdsCellID[i] = GetSpatialGridSystemsCellID(location);
-            int32 cellId = members.CrowdsCellID[i];
+            FVector location = locationCrowds[i];
+            cellID[i] = GetSpatialGridSystemsCellID(location);
+            int32 cellId = cellID[i];
             
             GridCounts[cellId]++;
             
@@ -212,61 +196,22 @@ public:
             
             if (IsDebug) ShowDebug(location, cellId);
         }
-        
-        /*shortedIndex.SetNumUninitialized(activeMembers, EAllowShrinking::No);
-        for (int i = 0; i < activeMembers; ++i)
-        {
-            shortedIndex[i] = i;
-        }
-        
-        Algo::Sort(shortedIndex, [&readBuffer](int32 a, int32 b)
-            {
-                return readBuffer.CrowdsCellID[a] < readBuffer.CrowdsCellID[b];
-            }
-        );
-        
-        for (int i = 0; i < activeMembers; ++i)
-        {
-            int32 tempShortedIndex = shortedIndex[i];
-            
-            writeBuffer.CrowdsLocation[i] = readBuffer.CrowdsLocation[tempShortedIndex];
-            writeBuffer.CrowdsRotation[i] = readBuffer.CrowdsRotation[tempShortedIndex];
-            writeBuffer.CrowdsAcceleration[i] = readBuffer.CrowdsAcceleration[tempShortedIndex];
-            writeBuffer.CrowdsVelocity[i] = readBuffer.CrowdsVelocity[tempShortedIndex];
-            writeBuffer.CrowdsID[i] = readBuffer.CrowdsID[tempShortedIndex];
-            writeBuffer.CrowdsCellID[i] = readBuffer.CrowdsCellID[tempShortedIndex];
-            writeBuffer.CrowdsMaxSpeed[i] = readBuffer.CrowdsMaxSpeed[tempShortedIndex];
-            writeBuffer.CrowdsType[i] = readBuffer.CrowdsType[tempShortedIndex];
-            writeBuffer.CrowdsHealth[i] = readBuffer.CrowdsHealth[tempShortedIndex];
-            writeBuffer.CrowdsSize[i] = readBuffer.CrowdsSize[tempShortedIndex];
-            writeBuffer.CrowdsState[i] = readBuffer.CrowdsState[tempShortedIndex];
-            writeBuffer.CrowdsDamage[i] = readBuffer.CrowdsDamage[tempShortedIndex];
-            writeBuffer.CrowdsState[i] = readBuffer.CrowdsState[tempShortedIndex];
-            writeBuffer.CrowdsTargetLocation[i] = readBuffer.CrowdsTargetLocation[tempShortedIndex];
-            writeBuffer.CrowdsIndexNavigationPath[i] = readBuffer.CrowdsIndexNavigationPath[tempShortedIndex];
-            writeBuffer.CrowdsTotalNavigationPath[i] = readBuffer.CrowdsTotalNavigationPath[tempShortedIndex];
-            writeBuffer.CrowdsNavigationPath[i] = readBuffer.CrowdsNavigationPath[tempShortedIndex];
-            //writeBuffer.CrowdsCurrentTargetLocationPath[i] = readBuffer.CrowdsCurrentTargetLocationPath[tempShortedIndex];
-            writeBuffer.CrowdsRequestNavigationPath[i] = readBuffer.CrowdsRequestNavigationPath[tempShortedIndex];
-            writeBuffer.CrowdsAnimationMapping[i] = readBuffer.CrowdsAnimationMapping[tempShortedIndex];
-            writeBuffer.CrowdsAnimationState[i] = readBuffer.CrowdsAnimationState[tempShortedIndex];
-            writeBuffer.CrowdsStartTimeAnimation[i] = readBuffer.CrowdsStartTimeAnimation[tempShortedIndex];
-            writeBuffer.CrowdsPreviousAnimationFrame[i] = readBuffer.CrowdsPreviousAnimationFrame[tempShortedIndex];
-        }
-        
-        gridOffset.Init(-1, TotalCells);
-        
-        gridOffset[writeBuffer.CrowdsCellID[0]] = 0;
+    }
+    
+    int32 GetSpatialGridSystemsCellID(FVector location) const
+    {
+        int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
+        int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
 
-        for (int i = 1; i < activeMembers; ++i)
-        {
-            if (writeBuffer.CrowdsCellID[i] != writeBuffer.CrowdsCellID[i - 1])
-            {
-                gridOffset[writeBuffer.CrowdsCellID[i]] = i;
-            }
-        }
-        
-        dataReadIndex = writeIndex;*/
+        CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
+        CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
+
+        return (CellY * CellWidth) + CellX;
+    }
+    
+    int32 GetTotalCells() const
+    {
+        return TotalCells;
     }
     
     TArray<int32>& GetGridOffsets()

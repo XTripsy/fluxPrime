@@ -17,9 +17,9 @@ struct FFluxPrimeTargetSystemsContext
 	UPROPERTY()
 	bool isDebug = false;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
-	FFluxPrimeCrowds* members = nullptr;
-	//int8* dataReadIndex = nullptr;
+	TArray<FVector>* locationCrowds = nullptr;
+	TArray<FVector>* locationTargetCrowds = nullptr;
+	TArray<bool>* requestNavigationPathCrowds = nullptr;
 	uint16* memberActive = nullptr;
 	
 };
@@ -36,9 +36,9 @@ private:
 	UPROPERTY()
 	bool IsDebug = false;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
-	FFluxPrimeCrowds* Members = nullptr;
-	//int8* DataReadIndex = nullptr;
+	TArray<FVector>* LocationCrowds = nullptr;
+	TArray<FVector>* LocationTargetCrowds = nullptr;
+	TArray<bool>* RequestNavigationPathCrowds = nullptr;
 	uint16* MemberActive = nullptr;
 	
 	FVector LastPositionTarget, CurrentPositionTarget;
@@ -63,15 +63,17 @@ public:
 	void InitializeTargetSystems(FFluxPrimeTargetSystemsContext context)
 	{
 		check(context.world);
-		check(context.members);
+		check(context.locationCrowds);
+		check(context.locationTargetCrowds);
+		check(context.requestNavigationPathCrowds);
 		check(context.memberActive);
-		//check(context.dataReadIndex);
 		
 		World = context.world;
 		IsDebug = context.isDebug;
-		Members = context.members;
+		LocationCrowds = context.locationCrowds;
+		LocationTargetCrowds = context.locationTargetCrowds;
+		RequestNavigationPathCrowds = context.requestNavigationPathCrowds;
 		MemberActive = context.memberActive;
-		//DataReadIndex = context.dataReadIndex;
 		
 		FVector targetLocation = UGameplayStatics::GetPlayerPawn(World, 0)->GetActorLocation();
 		LastPositionTarget = targetLocation;
@@ -81,19 +83,23 @@ public:
 	// ini masih error
 	void UpdateTargetSystems()
 	{
-		//auto& members = (*Members)[*DataReadIndex];
-		auto& members = *Members;
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
+		
+		auto& locationCrowds = *LocationCrowds;
+		auto& requestCrowds = *RequestNavigationPathCrowds;
+		auto& targetLocationCrowds = *LocationTargetCrowds;
+		
 		CurrentPositionTarget = UGameplayStatics::GetPlayerPawn(World, 0)->GetActorLocation();
 		
 		TArray<uint8> queue;
 		for (int i = 0; i < *MemberActive; ++i)
 		{
-			if (FVector::DistSquaredXY(members.CrowdsLocation[i], CurrentPositionTarget) < 1000000 &&
+			if (FVector::DistSquaredXY(locationCrowds[i], CurrentPositionTarget) < 1000000 &&
 				FVector::DistSquaredXY(LastPositionTarget, CurrentPositionTarget) > 10000 &&
-				!members.CrowdsRequestNavigationPath[i])
+				!requestCrowds[i])
 			{
-				members.CrowdsRequestNavigationPath[i] = true;
-				members.CrowdsTargetLocation[i] = CurrentPositionTarget;
+				requestCrowds[i] = true;
+				targetLocationCrowds[i] = CurrentPositionTarget;
 			}
 			
 			queue.Add(i);
@@ -103,10 +109,10 @@ public:
 		{
 			for (auto& pair : queue)
 			{
-				if (members.CrowdsRequestNavigationPath[pair]) continue;
+				if (requestCrowds[pair]) continue;
 				
-				members.CrowdsRequestNavigationPath[pair] = true;
-				members.CrowdsTargetLocation[pair] = CurrentPositionTarget;
+				requestCrowds[pair] = true;
+				targetLocationCrowds[pair] = CurrentPositionTarget;
 			}
 			
 			if (IsDebug) ShowDebug();

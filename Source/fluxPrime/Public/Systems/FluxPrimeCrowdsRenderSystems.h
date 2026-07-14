@@ -12,9 +12,10 @@ struct FFluxPrimeCrowdsRenderSystemsContext
 	GENERATED_BODY()
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
-	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
-	FFluxPrimeCrowds* members = nullptr;
-	//int8* dataReadIndex = nullptr;
+	TArray<FFluxPrimeCrowdsCatalog>* crowdsCatalog = nullptr;
+	TArray<FVector>* locationCrowds = nullptr;
+	TArray<float>* rotationCrowds = nullptr;
+	TArray<int8>* typeCrowds = nullptr;
 	uint16* memberActive = nullptr;
 };
 
@@ -24,58 +25,74 @@ struct FFluxPrimeCrowdsRenderSystems : public FFluxPrimeBaseSystems
 	GENERATED_BODY()
 	
 private:
+	TArray<TArray<FTransform>> TransformsPerComponent;
+	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
-	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
-	FFluxPrimeCrowds* Members = nullptr;
-	//int8* DataReadIndex = nullptr;
+	TArray<FVector>* LocationCrowds = nullptr;
+	TArray<float>* RotationCrowds = nullptr;
+	TArray<int8>* TypeCrowds = nullptr;
 	uint16* MemberActive = nullptr;
+	
+private:
+	void Initialize(TArray<FFluxPrimeCrowdsCatalog>* catalog)
+	{
+		TransformsPerComponent.SetNum(catalog->Num());
+		TransformsPerComponent.Init(TArray<FTransform>(), catalog->Num());
+		
+		for (int i = 0; i < TransformsPerComponent.Num(); ++i)
+		{
+			TransformsPerComponent[i].Reserve((*catalog)[i].CrowdsTotal);
+		}
+	}
 	
 public:
 	void InitializeRenderSystems(FFluxPrimeCrowdsRenderSystemsContext context)
 	{
 		check(context.crowdsComponents);
 		check(context.memberActive);
-		check(context.members);
-		//check(context.dataReadIndex);
+		check(context.locationCrowds);
+		check(context.rotationCrowds);
+		check(context.typeCrowds);
+		check(context.crowdsCatalog);
 		
 		CrowdsComponents = context.crowdsComponents;
-		Members = context.members;
+		LocationCrowds = context.locationCrowds;
+		RotationCrowds = context.rotationCrowds;
+		TypeCrowds = context.typeCrowds;
 		MemberActive = context.memberActive;
-		//DataReadIndex = context.dataReadIndex;
+		Initialize(context.crowdsCatalog);
 	}
 	
 	void UpdateRenderCrowdsSystems()
 	{
 		auto& crowdsComponents = *CrowdsComponents;
-		//auto& members = (*Members)[*DataReadIndex];
-		auto& members = *Members;
+		auto& typeCrowds = *TypeCrowds;
+		auto& locationCrowds = *LocationCrowds;
+		auto& rotationCrowds = *RotationCrowds;
 		
 		int32 totalComponents = crowdsComponents.Num();
-		TArray<TArray<FTransform>> transformsPerComponent;
-		transformsPerComponent.SetNum(totalComponents);
 	
 		for (int32 i = 0; i < *MemberActive; ++i)
 		{
-			int8 typeIndex = members.CrowdsType[i];
+			int8 typeIndex = typeCrowds[i];
 			if (typeIndex < 0 || typeIndex > totalComponents) continue;
 
 			FTransform transform;
-			transform.SetLocation(members.CrowdsLocation[i]);
+			transform.SetLocation(locationCrowds[i]);
 
-			float unpackedYaw = members.CrowdsRotation[i];
+			float unpackedYaw = rotationCrowds[i];
 			FRotator Rot(0.0f, unpackedYaw, 0.0f);
 			transform.SetRotation(Rot.Quaternion());
 			
-			UE_LOG(LogTemp, Log, TEXT("RENDER SYSTEMS:: typeIndex %d"), typeIndex);
-		
-			transformsPerComponent[typeIndex].Add(transform);
+			TransformsPerComponent[typeIndex].Add(transform);
 		}
 
 		for (int32 i = 0; i < totalComponents; ++i)
 		{
-			if (transformsPerComponent[i].Num() <= 0) continue;
-		
-			crowdsComponents[i]->BatchUpdateInstancesTransforms(0, transformsPerComponent[i], true, true, true);
+			if (TransformsPerComponent[i].Num() <= 0) continue;
+
+			crowdsComponents[i]->BatchUpdateInstancesTransforms(0, TransformsPerComponent[i], true, true, true);
+			TransformsPerComponent[i].Reset();
 		}
 	}
 	

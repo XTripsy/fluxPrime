@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeEnum.h"
-#include "GameplayTagContainer.h"
 #include "FluxPrimeStruct.generated.h"
 
 class UCrowdsIdentity;
@@ -134,6 +133,41 @@ struct FFluxCrowdsAnimationNotify
 	
 	UPROPERTY(EditAnywhere)
 	int32 AnimationNotifyFrame = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeRuntimeAnimationNotifyData
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	FFluxCrowdsAnimationNotify AnimationNotify[FluxConfig::AnimationArrayCount];
+	
+	UPROPERTY()
+	int8 AnimationNotifyCount;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeRuntimeAnimationNotify
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	FFluxPrimeRuntimeAnimationNotifyData RuntimeAnimationNotifyData[static_cast<int32>(EFluxPrimeCrowdState::Count)];
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeRuntimeAnimationMapping
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	uint32 AnimationStart[static_cast<int32>(EFluxPrimeCrowdState::Count)];
+	
+	UPROPERTY(EditAnywhere)
+	uint32 AnimationEnd[static_cast<int32>(EFluxPrimeCrowdState::Count)];
+	
+	bool AnimationLoop[static_cast<int32>(EFluxPrimeCrowdState::Count)];
 };
 
 USTRUCT(BlueprintType)
@@ -289,11 +323,14 @@ struct FFluxPrimeCrowds
 	
 #pragma region AnimationData
 	
-	UPROPERTY(EditAnywhere)
-	TArray<FFluxPrimeCrowdsAnimation> CrowdsAnimationMapping;
+	/*UPROPERTY(EditAnywhere)
+	TArray<FFluxPrimeCrowdsAnimation> CrowdsAnimationMapping;*/
 
 	UPROPERTY(EditAnywhere)
 	TArray<EFluxPrimeCrowdState> CrowdsAnimationState;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<EFluxPrimeCrowdAnimationNotify> CrowdsRequestAnimationNotify;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<float> CrowdsStartTimeAnimation;
@@ -347,8 +384,9 @@ struct FFluxPrimeCrowds
 		CrowdsRequestNavigationPath.Reserve(totalMember);
 		CrowdsTargetLocation.Reserve(totalMember);
 		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
-		CrowdsAnimationMapping.Reserve(totalMember);
+		//CrowdsAnimationMapping.Reserve(totalMember);
 		CrowdsAnimationState.Reserve(totalMember);
+		CrowdsRequestAnimationNotify.Reserve(totalMember);
 		CrowdsStartTimeAnimation.Reserve(totalMember);
 		CrowdsPreviousAnimationFrame.Reserve(totalMember);
 	}

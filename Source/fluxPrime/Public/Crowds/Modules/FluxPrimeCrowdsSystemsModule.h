@@ -26,6 +26,7 @@
 #include "Systems/FluxPrimeStateMachineSystems.h"
 #include "Systems/FluxPrimeTargetSystems.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Systems/FluxPrimeAnimationNotifySystems.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
 
 USTRUCT()
@@ -38,16 +39,11 @@ struct FFluxPrimeCrowdsSystemsComponentContext
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
 	TArray<FFluxPrimeCrowdsCatalog>* crowdsCatalog = nullptr;
+	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* crowdsAnimationSoftRef = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
 	
-	//TArray<int32>* gridOffset = nullptr;
-	//TArray<int32>* crowdsDataShortedIndex = nullptr;
-	
-	//int8* crowdsDataReadIndex = nullptr;
-	
-	//TStaticArray<FFluxPrimeCrowds, 2>* crowdsDatas = nullptr;
 	FFluxPrimeCrowds* crowdsDatas = nullptr;
 	uint16* crowdsActive = nullptr;
 	uint16* crowdsTotal = nullptr;
@@ -64,13 +60,10 @@ struct FFluxPrimeCrowdsSystemsModule
 private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
 	TArray<FFluxPrimeCrowdsCatalog>* CrowdsCatalog = nullptr;
+	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* CrowdsAnimationSoftRef = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
-	
-	/*TArray<int32>* GridOffset = nullptr;
-	TArray<int32>* CrowdsDataShortedIndex = nullptr;
-	int8* CrowdsDataReadIndex = nullptr;*/
 	
 	FFluxPrimeCrowdsRenderSystems CrowdsRenderSystems;
 	FFluxPrimeSpatialGridSystems SpatialGridSystems;
@@ -79,12 +72,12 @@ private:
 	FFluxPrimeNavigationSystems NavigationSystems;
 	FFluxPrimeGroundHeightSystems GroundHeightSystems;
 	FFluxPrimeAnimationSystems AnimationSystems;
+	FFluxPrimeAnimationNotifySystems AnimationNotifySystems;
 	FFluxPrimeDamageSystems DamageSystems;
 	FFluxPrimeStateMachineSystems StateMachineSystems;
 	FFluxPrimeHealthSystems HealthSystems;
 	FFluxPrimeCompactSystems CompactSystems;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* CrowdsDatas = nullptr;
 	FFluxPrimeCrowds* CrowdsDatas = nullptr;
 	uint16* CrowdsActive = nullptr;
 	uint16* CrowdsTotal = nullptr;
@@ -111,15 +104,12 @@ public:
 		check(context.crowdsActive);
 		check(context.crowdsLookup);
 		check(context.crowdsCatalog);
-		//check(context.crowdsDataReadIndex);
+		check(context.crowdsAnimationSoftRef);
 		
 		CrowdsComponents = context.crowdsComponents;
 		ManagerConfiguration = context.managerConfiguration;
 		CrowdsCatalog = context.crowdsCatalog;
-		
-		/*GridOffset = context.gridOffset;
-		CrowdsDataShortedIndex = context.crowdsDataShortedIndex;
-		CrowdsDataReadIndex = context.crowdsDataReadIndex;*/
+		CrowdsAnimationSoftRef = context.crowdsAnimationSoftRef;
 		
 		CrowdsDatas = context.crowdsDatas;
 		CrowdsActive = context.crowdsActive;
@@ -217,33 +207,15 @@ public:
 		if (configurationStateMachine) configurationStateMachine->IsDebug = false;
 	#endif
 		
-		// spatial grid
-		/*if (SpatialGridSystems.IsActive)
-		{
-			FFluxPrimeSpatialGridSystemsContext context;
-			context.world = World;
-			context.members = CrowdsDatas;
-			/*context.gridOffset = GridOffset;
-			context.shortedIndex = CrowdsDataShortedIndex;
-			context.dataReadIndex = CrowdsDataReadIndex;#1#
-			context.memberActive = CrowdsActive;
-			context.debugColor = FColor::Green;
-			context.isDebug = configurationSpatialGrid->IsDebug;
-			context.cellHeight = configurationSpatialGrid->CellHeight;
-			context.cellWidth = configurationSpatialGrid->CellWidth;
-			context.cellSize = configurationSpatialGrid->CellSize;
-			context.origin = configurationSpatialGrid->Origin;
-
-			SpatialGridSystems.InitializedSpatialGridSystems(context);
-			SpatialGridSystems.BakeSpatialGridSystems();
-		}*/
+		auto& member = *CrowdsDatas;
 		
 		// ground height
 		if (GroundHeightSystems.IsActive)
 		{
 			FFluxPrimeGroundHeightSystemsContext context;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.rotationCrowds = &member.CrowdsRotation;
+			context.maxSpeedCrowds = &member.CrowdsMaxSpeed;
 			context.memberActive = CrowdsActive;
 			context.world = World;
 			context.origin = configurationGroundHeight->Origin;
@@ -259,20 +231,26 @@ public:
 		{
 			FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
 			contextSpatialGrid.world = World;
-			contextSpatialGrid.members = CrowdsDatas;
-			/*contextSpatialGrid.gridOffset = GridOffset;
-			contextSpatialGrid.shortedIndex = CrowdsDataShortedIndex;
-			contextSpatialGrid.dataReadIndex = CrowdsDataReadIndex;*/
+			contextSpatialGrid.locationCrowds = &member.CrowdsLocation;
+			contextSpatialGrid.cellIDCrowds = &member.CrowdsCellID;
 			contextSpatialGrid.memberActive = CrowdsActive;
-			contextSpatialGrid.debugColor = configurationBoids->ConfigurationSpatialGrid.Color;
-			contextSpatialGrid.isDebug = configurationBoids->ConfigurationSpatialGrid.IsDebug;
-			contextSpatialGrid.cellHeight = configurationBoids->ConfigurationSpatialGrid.CellHeight;
-			contextSpatialGrid.cellWidth = configurationBoids->ConfigurationSpatialGrid.CellWidth;
-			contextSpatialGrid.cellSize = configurationBoids->ConfigurationSpatialGrid.CellSize;
-			contextSpatialGrid.origin = configurationBoids->ConfigurationSpatialGrid.Origin;
+			contextSpatialGrid.debugColor = configurationNavigation->ConfigurationSpatialGrid.Color;
+			contextSpatialGrid.isDebug = configurationNavigation->ConfigurationSpatialGrid.IsDebug;
+			contextSpatialGrid.cellHeight = configurationNavigation->ConfigurationSpatialGrid.CellHeight;
+			contextSpatialGrid.cellWidth = configurationNavigation->ConfigurationSpatialGrid.CellWidth;
+			contextSpatialGrid.cellSize = configurationNavigation->ConfigurationSpatialGrid.CellSize;
+			contextSpatialGrid.origin = configurationNavigation->ConfigurationSpatialGrid.Origin;
 			
 			FFluxPrimeNavigationSystemsContext context;
 			context.isDebug = configurationNavigation->IsDebug;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.crowdsCellID = &member.CrowdsCellID;
+			context.navigationPathCrowds = &member.CrowdsNavigationPath;
+			context.locationTargetCrowds = &member.CrowdsTargetLocation;
+			context.indexNavigationPathCrowds = &member.CrowdsIndexNavigationPath;
+			context.totalNavigationPathCrowds = &member.CrowdsTotalNavigationPath;
+			context.requestNavigationPathCrowds = &member.CrowdsRequestNavigationPath;
+			context.locationCurrentTargetCrowds = &member.CrowdsCurrentTargetLocationPath;
 			context.contextSpatialGrid = contextSpatialGrid;
 			
 			NavigationSystems.InitializedNavigationSystems(context);
@@ -282,10 +260,8 @@ public:
 		{
 			FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
 			contextSpatialGrid.world = World;
-			contextSpatialGrid.members = CrowdsDatas;
-			/*contextSpatialGrid.gridOffset = GridOffset;
-			contextSpatialGrid.shortedIndex = CrowdsDataShortedIndex;
-			contextSpatialGrid.dataReadIndex = CrowdsDataReadIndex;*/
+			contextSpatialGrid.locationCrowds = &member.CrowdsLocation;
+			contextSpatialGrid.cellIDCrowds = &member.CrowdsCellID;
 			contextSpatialGrid.memberActive = CrowdsActive;
 			contextSpatialGrid.debugColor = configurationBoids->ConfigurationSpatialGrid.Color;
 			contextSpatialGrid.isDebug = configurationBoids->ConfigurationSpatialGrid.IsDebug;
@@ -296,6 +272,9 @@ public:
 			
 			FFluxPrimeBoidsSystemsContext context;
 			context.separationWeight = configurationBoids->SeparationWeight;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.accelerationCrowds = &member.CrowdsAcceleration;
+			context.sizeCrowds = &member.CrowdsSize;
 			context.contextSpatialGrid = contextSpatialGrid;
 			
 			BoidsSystems.InitializeBoidsSystems(context);
@@ -303,32 +282,63 @@ public:
 
 		if (AnimationSystems.IsActive)
 		{
-			FFluxPrimeAnimationSystemsContext context;
-			context.isDebug = configurationAnimation->IsDebug;
-			context.crowdsComponents = CrowdsComponents;
-			context.world = World;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
-			context.memberActive = CrowdsActive;
-			context.totalMember = *CrowdsTotal;
+			{
+				FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
+				contextSpatialGrid.world = World;
+				contextSpatialGrid.locationCrowds = &member.CrowdsLocation;
+				contextSpatialGrid.cellIDCrowds = &member.CrowdsCellID;
+				contextSpatialGrid.memberActive = CrowdsActive;
+				contextSpatialGrid.debugColor = configurationAnimation->ConfigurationSpatialGrid.Color;
+				contextSpatialGrid.isDebug = configurationAnimation->ConfigurationSpatialGrid.IsDebug;
+				contextSpatialGrid.cellHeight = configurationAnimation->ConfigurationSpatialGrid.CellHeight;
+				contextSpatialGrid.cellWidth = configurationAnimation->ConfigurationSpatialGrid.CellWidth;
+				contextSpatialGrid.cellSize = configurationAnimation->ConfigurationSpatialGrid.CellSize;
+				contextSpatialGrid.origin = configurationAnimation->ConfigurationSpatialGrid.Origin;
+				
+				FFluxPrimeAnimationSystemsContext context;
+				context.isDebug = configurationAnimation->IsDebug;
+				context.contextSpatialGrid = contextSpatialGrid;
+				context.crowdsComponents = CrowdsComponents;
+				context.crowdsCatalog = CrowdsCatalog;
+				context.crowdsAnimationSoftRef = CrowdsAnimationSoftRef;
+				context.world = World;
+				context.crowdsCellID = &member.CrowdsCellID;
+				context.crowdsCurrentTargetLocationPath = &member.CrowdsCurrentTargetLocationPath;
+				context.idCrowds = &member.CrowdsID;
+				context.typeCrowds = &member.CrowdsType;
+				context.stateCrowds = &member.CrowdsState;
+				context.animationStateCrowds = &member.CrowdsAnimationState;
+				context.startTimeAnimationCrowds = &member.CrowdsStartTimeAnimation;
+				context.previousAnimationFrameCrowds = &member.CrowdsPreviousAnimationFrame;
+				context.crowdsRequestAnimationNotify = &member.CrowdsRequestAnimationNotify;
+				context.memberActive = CrowdsActive;
+				context.totalMember = *CrowdsTotal;
 			
-			AnimationSystems.InitializedAnimationSystems(context);
+				AnimationSystems.InitializedAnimationSystems(context);
+			}
+			
+			{
+				FFluxPrimeAnimationNotifySystemsContext context;
+				context.crowdsDatas = &member;
+				context.memberActive = CrowdsActive;
+				context.isDebug = false;
+				
+				AnimationNotifySystems.InitializeAnimationNotifySystems(context);
+			}
 		}
 
 		if (MovementSystems.IsActive)
 		{
-			auto& member = *CrowdsDatas;
-			
 			FFluxPrimeMovementSystemsContext context;
 			context.isDebug = configurationMovement->IsDebug;
 			context.world = World;
+			context.currentPathCrowds = &member.CrowdsCurrentTargetLocationPath;
+			context.accelerationCrowds = &member.CrowdsAcceleration;
 			context.locationCrowds = &member.CrowdsLocation;
 			context.rotationCrowds = &member.CrowdsRotation;
 			context.maxSpeedCrowds = &member.CrowdsMaxSpeed;
-			context.accelerationCrowds = &member.CrowdsAcceleration;
 			context.velocityCrowds = &member.CrowdsVelocity;
 			context.stateCrowds = &member.CrowdsState;
-			context.currentPathCrowds = &member.CrowdsCurrentTargetLocationPath;
 			context.memberActive = CrowdsActive;
 			
 			MovementSystems.InitializedMovementSystems(context);
@@ -338,8 +348,11 @@ public:
 		{
 			FFluxPrimeStateMachineSystemsContext context;
 			context.isDebug = configurationStateMachine->IsDebug;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
+			context.stateCrowds = &member.CrowdsState;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.targetLocationCrowds = &member.CrowdsTargetLocation;
+			context.velocityCrowds = &member.CrowdsVelocity;
+			context.conditionCrowds = &member.CrowdsCondition;
 			context.memberActive = CrowdsActive;
 			
 			StateMachineSystems.InitializeStateMachineSystems(context);
@@ -349,8 +362,9 @@ public:
 			FFluxPrimeTargetSystemsContext context;
 			context.isDebug = true;
 			context.world = World;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.locationTargetCrowds = &member.CrowdsTargetLocation;
+			context.requestNavigationPathCrowds = &member.CrowdsRequestNavigationPath;
 			context.memberActive = CrowdsActive;
 			
 			TargetSystems.InitializeTargetSystems(context);
@@ -360,8 +374,9 @@ public:
 			FFluxPrimeCrowdsRenderSystemsContext context;
 			context.crowdsComponents = CrowdsComponents;
 			context.crowdsCatalog = CrowdsCatalog;
-			context.members = CrowdsDatas;
-			//context.dataReadIndex = CrowdsDataReadIndex;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.rotationCrowds = &member.CrowdsRotation;
+			context.typeCrowds = &member.CrowdsType;
 			context.memberActive = CrowdsActive;
 			
 			CrowdsRenderSystems.InitializeRenderSystems(context);
@@ -369,7 +384,8 @@ public:
 		
 		{
 			FFluxPrimeHealthSystemsContext context;
-			context.members = CrowdsDatas;
+			context.conditionCrowds = &member.CrowdsCondition;
+			context.healthCrowds = &member.CrowdsHealth;
 			context.memberActive = CrowdsActive;
 			context.isDebug = true;
 			
@@ -399,7 +415,11 @@ public:
 		TargetSystems.UpdateTargetSystems();
 		if (NavigationSystems.IsActive) NavigationSystems.UpdateNavigationSystems();
 		if (MovementSystems.IsActive) MovementSystems.UpdateMovementSystems(DeltaTime);
-		if (AnimationSystems.IsActive) AnimationSystems.UpdateAnimationSystemsFrame();
+		if (AnimationSystems.IsActive)
+		{
+			AnimationSystems.UpdateAnimationSystemsFrame();
+			AnimationNotifySystems.UpdateAnimationNotifySystems();
+		}
 	
 		CrowdsRenderSystems.UpdateRenderCrowdsSystems();
 		CompactSystems.UpdateCompactSystems();

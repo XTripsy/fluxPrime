@@ -6,6 +6,7 @@
 #include "Crowds/Components/FluxPrimeCrowdsNetComponent.h"
 #include "Engine/AssetManager.h"
 #include "Net/UnrealNetwork.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 UFluxPrimeCrowdsManager::UFluxPrimeCrowdsManager()
 {
@@ -131,8 +132,6 @@ void UFluxPrimeCrowdsManager::Initialize()
 		context.crowdsAnimationSoftRef = &CrowdsAnimationSoftRef;
 		context.crowdsTotal = &CrowdsTotal;
 		context.crowdsLookup = &CrowdsLookup;
-		//context.crowdsDataReadIndex = &CrowdsDataReadIndex;
-		//context.crowdsDataShortedIndex = &CrowdsDataShortedIndex;
 		context.netAcceleration = &NetAcceleration;
 		context.netTarget = &NetTarget;
 		context.crowdsDatas = &CrowdsDatas;
@@ -149,10 +148,8 @@ void UFluxPrimeCrowdsManager::Initialize()
 		
 		context.crowdsComponents = CrowdsComponents;
 		context.managerConfiguration = ManagerConfiguration;
-		
-		/*context.gridOffset = &GridOffset;
-		context.crowdsDataShortedIndex = &CrowdsDataShortedIndex;
-		context.crowdsDataReadIndex = &CrowdsDataReadIndex;*/
+		context.crowdsCatalog = &CrowdsCatalog;
+		context.crowdsAnimationSoftRef = &CrowdsAnimationSoftRef;
 		
 		context.crowdsDatas = &CrowdsDatas;
 		context.crowdsActive = &CrowdsActive;
@@ -244,6 +241,8 @@ void UFluxPrimeCrowdsManager::BeginPlay()
 void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	
+	TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Manager);
 	
 	if (CrowdsComponents->IsEmpty() || CrowdsActive <= 0) return;
 	

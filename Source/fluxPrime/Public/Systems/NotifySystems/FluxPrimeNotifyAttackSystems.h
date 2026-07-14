@@ -1,18 +1,34 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "FluxPrimeNotifyBaseSystems.h"
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeNotifyAttackSystems.generated.h"
 
-USTRUCT(BlueprintType)
-struct FFluxPrimeNotifyAttackSystems
+USTRUCT()
+struct FFluxPrimeNotifyAttackSystemsContext
 {
 	GENERATED_BODY()
 	
-	void ExecuteNotify(FFluxPrimeCrowds& members, uint16 indexMember, const FFluxPrimeAnimationNotify& notify)
+	TArray<EFluxPrimeCrowdAnimationNotify>* requestNotifyCrowds = nullptr;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeNotifyAttackSystems : public FFluxPrimeNotifyBaseSystems
+{
+	GENERATED_BODY()
+	
+public:
+	void InitializeNotifyAttackSystems(FFluxPrimeNotifyAttackSystemsContext context)
 	{
-		if (notify.CrowdTypeNotify != EFluxPrimeCrowdAnimationNotify::NotifyAttack) return;
-		if (members.CrowdsID[indexMember] != notify.CrowdIDNotify) return;
+		check(context.requestNotifyCrowds);
+		
+		RequestNotifyCrowds = context.requestNotifyCrowds;
+	}
+	
+	void ExecuteNotify(const uint16 indexMember)
+	{
+		if ((*RequestNotifyCrowds)[indexMember] != EFluxPrimeCrowdAnimationNotify::NotifyAttack) return;
 		
 		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: ATTACK"));
 	}

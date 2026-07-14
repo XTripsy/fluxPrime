@@ -4,10 +4,10 @@
 #include "FluxPrimeStateBaseSystems.h"
 #include "Cores/FluxPrimeEnum.h"
 #include "Cores/FluxPrimeStruct.h"
-#include "FluxPrimeWalkSystems.generated.h"
+#include "FluxPrimeStateWalkSystems.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeWalkSystems : public FFluxPrimeStateBaseSystems
+struct FFluxPrimeStateWalkSystems : public FFluxPrimeStateBaseSystems
 {
 	GENERATED_BODY()
 	

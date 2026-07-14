@@ -3,12 +3,12 @@
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Cores/FluxPrimeStruct.h"
-#include "FluxPrimeBaseStateSystems.generated.h"
+#include "FluxPrimeStateBaseSystems.generated.h"
 
 DECLARE_DELEGATE_OneParam(FOnCrowdsStateChange, const FInstancedStruct& payload);
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeBaseStateSystems
+struct FFluxPrimeStateBaseSystems
 {
 	GENERATED_BODY()
 	
@@ -47,8 +47,8 @@ protected:
 			
 			// previous
 			uint8 indexAnimation = static_cast<uint8>(members.CrowdsAnimationState[i]);
-			uint16 previousStartFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationStart;
-			uint16 previousEndFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationEnd;
+			/*uint16 previousStartFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationStart;
+			uint16 previousEndFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationEnd;*/
 			uint16 previousTime = members.CrowdsStartTimeAnimation[i];
 			
 			// change current state
@@ -56,10 +56,10 @@ protected:
 			
 			// current
 			indexAnimation = static_cast<uint8>(members.CrowdsAnimationState[i]);
-			uint16 currentStartFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationStart;
-			uint16 currentEndFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationEnd;
+			/*uint16 currentStartFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationStart;
+			uint16 currentEndFrame = members.CrowdsAnimationMapping[i].AnimationData[indexAnimation].AnimationEnd;*/
 			
-			BroadcastChangeState(id, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime);
+			//BroadcastChangeState(id, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime);
 			
 			// update start time
 			members.CrowdsStartTimeAnimation[i] = World->GetRealTimeSeconds();

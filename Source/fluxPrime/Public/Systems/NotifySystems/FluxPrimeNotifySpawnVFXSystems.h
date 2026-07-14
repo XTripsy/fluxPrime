@@ -4,15 +4,29 @@
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeNotifySpawnVFXSystems.generated.h"
 
-USTRUCT(BlueprintType)
-struct FFluxPrimeNotifySpawnVFXSystems
+USTRUCT()
+struct FFluxPrimeNotifySpawnVFXSystemsContext
 {
 	GENERATED_BODY()
 	
-	void ExecuteNotify(FFluxPrimeCrowds& members, uint16 indexMember, const FFluxPrimeAnimationNotify& notify)
+	TArray<EFluxPrimeCrowdAnimationNotify>* requestNotifyCrowds = nullptr;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeNotifySpawnVFXSystems : public FFluxPrimeNotifyBaseSystems
+{
+	GENERATED_BODY()
+	
+	void InitializeNotifySpawnVFXSystems(FFluxPrimeNotifySpawnVFXSystemsContext context)
 	{
-		if (notify.CrowdTypeNotify != EFluxPrimeCrowdAnimationNotify::NotifySpawnVFX) return;
-		if (members.CrowdsID[indexMember] != notify.CrowdIDNotify) return;
+		check(context.requestNotifyCrowds);
+		
+		RequestNotifyCrowds = context.requestNotifyCrowds;
+	}
+	
+	void ExecuteNotify(const uint16 indexMember)
+	{
+		if ((*RequestNotifyCrowds)[indexMember] != EFluxPrimeCrowdAnimationNotify::NotifySpawnVFX) return;
 		
 		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: SPAWN VFX"));
 	}

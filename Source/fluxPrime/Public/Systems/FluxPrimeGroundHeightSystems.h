@@ -27,9 +27,9 @@ struct FFluxPrimeGroundHeightSystemsContext
 	UPROPERTY(EditAnywhere)
 	int32 cellHeight = 200;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* members = nullptr;
-	FFluxPrimeCrowds* members = nullptr;
-	//int8* dataReadIndex = nullptr;
+	TArray<FVector>* locationCrowds = nullptr;
+	TArray<float>* rotationCrowds = nullptr;
+	TArray<float>* maxSpeedCrowds = nullptr;
 	uint16* memberActive = nullptr;
 };
 
@@ -57,31 +57,35 @@ private:
 	UPROPERTY(EditAnywhere)
 	TArray<float> GroundHeightMap;
 	
-	//TStaticArray<FFluxPrimeCrowds, 2>* Members = nullptr;
-	FFluxPrimeCrowds* Members = nullptr;
-	//int8* DataReadIndex = nullptr;
+	TArray<FVector>* LocationCrowds = nullptr;
+	TArray<float>* RotationCrowds = nullptr;
+    TArray<float>* MaxSpeedCrowds = nullptr;
 	uint16* MemberActive = nullptr;
 	
 public:
 	void InitializedGroundHeightSystems(FFluxPrimeGroundHeightSystemsContext context)
 	{
 		check(context.world);
-		check(context.members);
 		check(context.memberActive);
-		//check(context.dataReadIndex);
+		check(context.locationCrowds);
+		check(context.rotationCrowds);
+		check(context.maxSpeedCrowds);
 		
 		World = context.world;
 		CellSize = context.cellSize;
 		Origin = context.origin;
 		CellWidth = context.cellWidth;
 		CellHeight = context.cellHeight;
-		Members = context.members;
+		LocationCrowds = context.locationCrowds;
+		RotationCrowds = context.rotationCrowds;
+		MaxSpeedCrowds = context.maxSpeedCrowds;
 		MemberActive = context.memberActive;
-		//DataReadIndex = context.dataReadIndex;
 	}
 	
 	void BakeGroundHeightSystems()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_GroundHeight_Systems);
+		
 		int32 TotalCells = CellWidth * CellHeight;
 		GroundHeightMap.Init(0.0f, TotalCells);
 
@@ -122,21 +126,22 @@ public:
 	
 	void UpdateGroundHeightSystems(double deltaTime)
 	{
-		//auto& member = (*Members)[*DataReadIndex];
-		auto& member = *Members;
-		
 		FVector2D inputRange(75.0f, 300.0f);
 		FVector2D outputRange(1.75f, 6.0f);
 		
+		auto& locationCrowds = *LocationCrowds;
+		auto& rotationCrowds = *RotationCrowds;
+		auto& maxSpeedCrwods = *MaxSpeedCrowds;
+		
 		for (int i = 0; i < *MemberActive; ++i)
 		{
-			float unpackedYaw = member.CrowdsRotation[i] + 65;//FRotator::DecompressAxisFromByte(members.CrowdsRotation[i]) + 65;
+			float unpackedYaw = rotationCrowds[i] + 65;
 			FVector forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
-			FVector location = member.CrowdsLocation[i] + (forwardVector * 75);
-			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, member.CrowdsMaxSpeed[i]);
+			FVector location = locationCrowds[i] + (forwardVector * 75);
+			float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, maxSpeedCrwods[i]);
 			float target = GetGroundHeight(location);
 			target += 10;
-			member.CrowdsLocation[i].Z = FMath::Lerp(member.CrowdsLocation[i].Z, target, deltaTime * value);
+			locationCrowds[i].Z = FMath::Lerp(locationCrowds[i].Z, target, deltaTime * value);
 		}
 	}
 	

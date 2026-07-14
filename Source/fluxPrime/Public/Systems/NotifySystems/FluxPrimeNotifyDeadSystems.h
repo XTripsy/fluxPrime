@@ -4,18 +4,42 @@
 #include "Cores/FluxPrimeStruct.h"
 #include "FluxPrimeNotifyDeadSystems.generated.h"
 
-USTRUCT(BlueprintType)
-struct FFluxPrimeNotifyDeadSystems
+USTRUCT()
+struct FFluxPrimeNotifyDeadSystemsContext
 {
 	GENERATED_BODY()
 	
-	void ExecuteNotify(FFluxPrimeCrowds& members, uint16 indexMember, const FFluxPrimeAnimationNotify& notify)
+	TArray<FVector>* locationCrowds = nullptr;
+	TArray<bool>* requestBackPoolCrowds = nullptr;
+	TArray<EFluxPrimeCrowdAnimationNotify>* requestNotifyCrowds = nullptr;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeNotifyDeadSystems : public FFluxPrimeNotifyBaseSystems
+{
+	GENERATED_BODY()
+	
+private:
+	TArray<FVector>* LocationCrowds = nullptr;
+	TArray<bool>* RequestBackPoolCrowds = nullptr;
+	
+public:
+	void InitializeNotifyDeadSystems(FFluxPrimeNotifyDeadSystemsContext context)
 	{
-		if (notify.CrowdTypeNotify != EFluxPrimeCrowdAnimationNotify::NotifyDead) return;
-		if (members.CrowdsID[indexMember] != notify.CrowdIDNotify) return;
+		check(context.locationCrowds);
+		check(context.requestBackPoolCrowds);
+		check(context.requestNotifyCrowds);
 		
-		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: DEAD| Index %d"), indexMember);
-		members.CrowdsRequestBackToPool[indexMember] = true;
-		members.CrowdsLocation[indexMember] = FVector::DownVector * 1000.0f;
+		RequestNotifyCrowds = context.requestNotifyCrowds;
+		LocationCrowds = context.locationCrowds;
+		RequestBackPoolCrowds = context.requestBackPoolCrowds;
+	}
+	
+	void ExecuteNotify(const uint16 indexMember)
+	{
+		if ((*RequestNotifyCrowds)[indexMember] != EFluxPrimeCrowdAnimationNotify::NotifyDead) return;
+		
+		(*RequestBackPoolCrowds)[indexMember] = true;
+		(*LocationCrowds)[indexMember] = FVector::DownVector * 1000.0f;
 	}
 };
