@@ -7,7 +7,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "FluxPrimeWorldSubsystem.generated.h"
 
-class AFluxPrimeCrowdsController;
+class AFluxPrimeController;
 
 UCLASS()
 class FLUXPRIME_API UFluxPrimeWorldSubsystem : public UWorldSubsystem
@@ -16,11 +16,11 @@ class FLUXPRIME_API UFluxPrimeWorldSubsystem : public UWorldSubsystem
 	
 private:
 	UPROPERTY()
-	TWeakObjectPtr<AFluxPrimeCrowdsController> CrowdsController;
+	TWeakObjectPtr<AFluxPrimeController> CrowdsController;
 	
 private:
 	void HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params);
-	AFluxPrimeCrowdsController* GetCrowdsController() const;
+	AFluxPrimeController* GetCrowdsController() const;
 	void ExecuteSpawnAction(const FInstancedStruct& payload);
 	void ExecuteStateAction(const FInstancedStruct& payload);
 	void ExecuteDamageAction(const FInstancedStruct& payload);

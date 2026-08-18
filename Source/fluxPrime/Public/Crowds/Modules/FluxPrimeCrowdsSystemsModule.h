@@ -4,29 +4,32 @@
 #include "Cores/FluxPrimeStruct.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Crowds/ManagerConfiguration/ManagerConfiguration.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationAnimationSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationBoidsSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationDamageSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationGroundHeightSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationMovementSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationNavigationSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationProxyTargetSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationSpatialGridSystems.h"
-#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationStateMachineSystems.h"
-#include "Systems/FluxPrimeBoidsSystems.h"
-#include "Systems/FluxPrimeGroundHeightSystems.h"
-#include "Systems/FluxPrimeMovementSystems.h"
-#include "Systems/FluxPrimeNavigationSystems.h"
-#include "Systems/FluxPrimeSpatialGridSystems.h"
-#include "Systems/FluxPrimeAnimationSystems.h"
-#include "Systems/FluxPrimeCompactSystems.h"
-#include "Systems/FluxPrimeCrowdsRenderSystems.h"
-#include "Systems/FluxPrimeDamageSystems.h"
-#include "Systems/FluxPrimeHealthSystems.h"
-#include "Systems/FluxPrimeStateMachineSystems.h"
-#include "Systems/FluxPrimeTargetSystems.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationAnimationSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationBoidsSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationAbilitySystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationGroundHeightSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationHealthSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationMovementSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationNavigationSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationProxyTargetSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationSpatialGridSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationStateMachineSystem.h"
+#include "Crowds/ManagerConfiguration/Configurations/FluxPrimeConfigurationTargetSystem.h"
+#include "Systems/FluxPrimeBoidsSystem.h"
+#include "Systems/FluxPrimeGroundHeightSystem.h"
+#include "Systems/FluxPrimeMovementSystem.h"
+#include "Systems/FluxPrimeNavigationSystem.h"
+#include "Systems/FluxPrimeSpatialGridSystem.h"
+#include "Systems/FluxPrimeAnimationSystem.h"
+#include "Systems/FluxPrimeCompactSystem.h"
+#include "Systems/FluxPrimeRenderSystem.h"
+#include "Systems/FluxPrimeAbilitySystem.h"
+#include "Systems/FluxPrimeHealthSystem.h"
+#include "Systems/FluxPrimeStateMachineSystem.h"
+#include "Systems/FluxPrimeTargetSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Systems/FluxPrimeAnimationNotifySystems.h"
+#include "Systems/FluxPrimeAnimationNotifySystem.h"
+#include "Cores/FluxPrimeNiagaraCallback.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
 
 USTRUCT()
@@ -47,9 +50,12 @@ struct FFluxPrimeCrowdsSystemsComponentContext
 	FFluxPrimeCrowds* crowdsDatas = nullptr;
 	uint16* crowdsActive = nullptr;
 	uint16* crowdsTotal = nullptr;
+	TArray<TArray<int16>>* crowdsPool = nullptr;
+	TArray<int16>* crowdsHeadPool = nullptr;
 	TMap<FFluxPrimeCrowdsLookup, int32>* crowdsLookup = nullptr;
-	
-	bool hasAuthority;
+	FOnCrowdsManagerActionChange* onCrowdsManagerActionChange = nullptr;
+	//TArray<TWeakObjectPtr<AActor>>* crowdsTarget = nullptr;
+	TArray<FFluxPrimeTargetCatalog>* crowdsTarget = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -65,31 +71,35 @@ private:
 	UPROPERTY()
 	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
 	
-	FFluxPrimeCrowdsRenderSystems CrowdsRenderSystems;
-	FFluxPrimeSpatialGridSystems SpatialGridSystems;
-	FFluxPrimeBoidsSystems BoidsSystems;
-	FFluxPrimeMovementSystems MovementSystems;
-	FFluxPrimeNavigationSystems NavigationSystems;
-	FFluxPrimeGroundHeightSystems GroundHeightSystems;
-	FFluxPrimeAnimationSystems AnimationSystems;
-	FFluxPrimeAnimationNotifySystems AnimationNotifySystems;
-	FFluxPrimeDamageSystems DamageSystems;
-	FFluxPrimeStateMachineSystems StateMachineSystems;
-	FFluxPrimeHealthSystems HealthSystems;
-	FFluxPrimeCompactSystems CompactSystems;
+	FFluxPrimeRenderSystem CrowdsRenderSystems;
+	FFluxPrimeSpatialGridSystem SpatialGridSystems;
+	FFluxPrimeBoidsSystem BoidsSystems;
+	FFluxPrimeMovementSystem MovementSystems;
+	FFluxPrimeNavigationSystem NavigationSystems;
+	FFluxPrimeGroundHeightSystem GroundHeightSystems;
+	FFluxPrimeAnimationSystem AnimationSystems;
+	FFluxPrimeAnimationNotifySystem AnimationNotifySystems;
+	FFluxPrimeStateMachineSystem StateMachineSystems;
+	FFluxPrimeHealthSystem HealthSystems;
+	FFluxPrimeTargetSystem TargetSystems;
+	FFluxPrimeAbilitySystem AbilitySystems;
+	FFluxPrimeCompactSystem CompactSystems;
 	
 	FFluxPrimeCrowds* CrowdsDatas = nullptr;
 	uint16* CrowdsActive = nullptr;
 	uint16* CrowdsTotal = nullptr;
+	TArray<TArray<int16>>* CrowdsPool = nullptr;
+	TArray<int16>* CrowdsHeadPool = nullptr;
 	TMap<FFluxPrimeCrowdsLookup, int32>* CrowdsLookup = nullptr;
-	
-	bool bHasAuthority = false;
+	FOnCrowdsManagerActionChange* OnCrowdsManagerActionChange = nullptr;
+	//TArray<TWeakObjectPtr<AActor>>* CrowdsTarget = nullptr;
+	TArray<FFluxPrimeTargetCatalog>* CrowdsTarget = nullptr;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
 	
 	UPROPERTY()
-	FFluxPrimeTargetSystems TargetSystems;
+	TObjectPtr<UFluxPrimeNiagaraCallback> NiagaraCallback = nullptr;
 	
 public:
 	void Damage(uint32 index)
@@ -101,10 +111,14 @@ public:
 	{
 		check(context.world);
 		check(context.crowdsDatas);
+		check(context.crowdsPool);
+		check(context.crowdsHeadPool);
 		check(context.crowdsActive);
 		check(context.crowdsLookup);
 		check(context.crowdsCatalog);
 		check(context.crowdsAnimationSoftRef);
+		check(context.onCrowdsManagerActionChange);
+		check(context.crowdsTarget);
 		
 		CrowdsComponents = context.crowdsComponents;
 		ManagerConfiguration = context.managerConfiguration;
@@ -114,86 +128,106 @@ public:
 		CrowdsDatas = context.crowdsDatas;
 		CrowdsActive = context.crowdsActive;
 		CrowdsTotal = context.crowdsTotal;
+		CrowdsPool = context.crowdsPool;
+		CrowdsHeadPool = context.crowdsHeadPool;
 		CrowdsLookup = context.crowdsLookup;
-		
-		bHasAuthority = context.hasAuthority;
+		OnCrowdsManagerActionChange = context.onCrowdsManagerActionChange;
+		CrowdsTarget = context.crowdsTarget;
 		
 		World = context.world;
+		NiagaraCallback = NewObject<UFluxPrimeNiagaraCallback>();
+		
+		{
+			FFluxPrimeNiagaraCallbackContext contextCallback;
+			contextCallback.world = World;
+			NiagaraCallback->InitializedNiagaraCallback(contextCallback);
+		}
 	}
 
 	void InitializeSystems()
 	{
-		const FFluxPrimeConfigurationGroundHeightSystems* configurationGroundHeight = nullptr;
-		const FFluxPrimeConfigurationSpatialGridSystems* configurationSpatialGrid = nullptr;
-		const FFluxPrimeConfigurationNavigationSystems* configurationNavigation = nullptr;
-		const FFluxPrimeConfigurationBoidsSystems* configurationBoids = nullptr;
-		const FFluxPrimeConfigurationMovementSystems* configurationMovement = nullptr;
-		const FFluxPrimeConfigurationAnimationSystems* configurationAnimation = nullptr;
-		const FFluxPrimeConfigurationProxyTargetSystems* configurationProxyTarget = nullptr;
-		const FFluxPrimeConfigurationDamageSystems* configurationDamage = nullptr;
-		const FFluxPrimeConfigurationStateMachineSystems* configurationStateMachine = nullptr;
+		const FFluxPrimeConfigurationGroundHeightSystem* configurationGroundHeight = nullptr;
+		const FFluxPrimeConfigurationSpatialGridSystem* configurationSpatialGrid = nullptr;
+		const FFluxPrimeConfigurationNavigationSystem* configurationNavigation = nullptr;
+		const FFluxPrimeConfigurationBoidsSystem* configurationBoids = nullptr;
+		const FFluxPrimeConfigurationMovementSystem* configurationMovement = nullptr;
+		const FFluxPrimeConfigurationAnimationSystem* configurationAnimation = nullptr;
+		const FFluxPrimeConfigurationProxyTargetSystem* configurationProxyTarget = nullptr;
+		const FFluxPrimeConfigurationStateMachineSystem* configurationStateMachine = nullptr;
+		const FFluxPrimeConfigurationTargetSystem* configurationTarget = nullptr;
+		const FFluxPrimeConfigurationHealthSystem* configurationHealth = nullptr;
+		const FFluxPrimeConfigurationAbilitySystem* configurationAbility = nullptr;
 		
 		for (auto& pair : ManagerConfiguration->ConfigurationFragments)
 		{
 			if (!pair.IsValid()) continue;
 			
-			if (const FFluxPrimeConfigurationGroundHeightSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationGroundHeightSystems>())
+			if (const FFluxPrimeConfigurationGroundHeightSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationGroundHeightSystem>())
 			{
 				GroundHeightSystems.IsActive = true;
 				configurationGroundHeight = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationSpatialGridSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationSpatialGridSystems>())
+			if (const FFluxPrimeConfigurationSpatialGridSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationSpatialGridSystem>())
 			{
-				if (!bHasAuthority) continue;
 				configurationSpatialGrid = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationNavigationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationNavigationSystems>())
+			if (const FFluxPrimeConfigurationNavigationSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationNavigationSystem>())
 			{
-				if (!bHasAuthority) continue;
 				NavigationSystems.IsActive = true;
 				configurationNavigation = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationBoidsSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationBoidsSystems>())
+			if (const FFluxPrimeConfigurationBoidsSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationBoidsSystem>())
 			{
-				if (!bHasAuthority) continue;
 				BoidsSystems.IsActive = true;
 				configurationBoids = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationMovementSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationMovementSystems>())
+			if (const FFluxPrimeConfigurationMovementSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationMovementSystem>())
 			{
 				MovementSystems.IsActive = true;
 				configurationMovement = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationAnimationSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationAnimationSystems>())
+			if (const FFluxPrimeConfigurationAnimationSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationAnimationSystem>())
 			{
-				if (!bHasAuthority) continue;
 				AnimationSystems.IsActive = true;
 				configurationAnimation = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationDamageSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationDamageSystems>())
+			if (const FFluxPrimeConfigurationAbilitySystem* configuration = pair.GetPtr<FFluxPrimeConfigurationAbilitySystem>())
 			{
-				if (!bHasAuthority) continue;
-				DamageSystems.IsActive = true;
-				configurationDamage = configuration;
+				AbilitySystems.IsActive = true;
+				configurationAbility = configuration;
 				continue;
 			}
 			
-			if (const FFluxPrimeConfigurationStateMachineSystems* configuration = pair.GetPtr<FFluxPrimeConfigurationStateMachineSystems>())
+			if (const FFluxPrimeConfigurationStateMachineSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationStateMachineSystem>())
 			{
 				StateMachineSystems.IsActive = true;
 				configurationStateMachine = configuration;
+				continue;
+			}
+			
+			if (const FFluxPrimeConfigurationTargetSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationTargetSystem>())
+			{
+				TargetSystems.IsActive = true;
+				configurationTarget = configuration;
+				continue;
+			}
+			
+			if (const FFluxPrimeConfigurationHealthSystem* configuration = pair.GetPtr<FFluxPrimeConfigurationHealthSystem>())
+			{
+				HealthSystems.IsActive = true;
+				configurationHealth = configuration;
 				continue;
 			}
 		}
@@ -209,7 +243,6 @@ public:
 		
 		auto& member = *CrowdsDatas;
 		
-		// ground height
 		if (GroundHeightSystems.IsActive)
 		{
 			FFluxPrimeGroundHeightSystemsContext context;
@@ -243,14 +276,27 @@ public:
 			
 			FFluxPrimeNavigationSystemsContext context;
 			context.isDebug = configurationNavigation->IsDebug;
-			context.locationCrowds = &member.CrowdsLocation;
+			context.queuePathCountPerFrame = configurationNavigation->QueuePathCountPerFrame;
+			context.queueCorridorCountPerFrame = configurationNavigation->QueueCorridorCountPerFrame;
+			context.optimizeTimeSameCellID = configurationNavigation->OptimizeTimeSameCellID;
+			context.optimizeTimeDifferenceCellID = configurationNavigation->OptimizeTimeDifferenceCellID;
+			context.moveTargetTimeSameCellID = configurationNavigation->MoveTargetTimeSameCellID;
+			context.moveTargetTimeDifferenceCellID = configurationNavigation->MoveTargetTimeDifferenceCellID;
+			context.crowdsCurrentLocation = &member.CrowdsLocation;
+			context.crowdsPreviousLocation = &member.CrowdsPreviousLocation;
+			context.crowdsSize = &member.CrowdsSize;
 			context.crowdsCellID = &member.CrowdsCellID;
-			context.navigationPathCrowds = &member.CrowdsNavigationPath;
-			context.locationTargetCrowds = &member.CrowdsTargetLocation;
-			context.indexNavigationPathCrowds = &member.CrowdsIndexNavigationPath;
-			context.totalNavigationPathCrowds = &member.CrowdsTotalNavigationPath;
-			context.requestNavigationPathCrowds = &member.CrowdsRequestNavigationPath;
-			context.locationCurrentTargetCrowds = &member.CrowdsCurrentTargetLocationPath;
+			context.crowdsCorridors = &member.CrowdsCorridors;
+			context.crowdsTarget = &member.CrowdsTarget;
+			context.crowdsCurrentTarget = &member.CrowdsCurrentTarget;
+			context.crowdsLastReplanTarget = &member.CrowdsLastReplanTarget;
+			context.crowdsLastMoveTarget = &member.CrowdsLastMoveTarget;
+			context.crowdsLastOptimizeTime = &member.CrowdsLastOptimizeTime;
+			context.crowdsLastMoveTargetTime = &member.CrowdsLastMoveTargetTime;
+			context.crowdsCountCorridor = &member.CrowdsCountCorridor;
+			context.crowdsNeedReplan = &member.CrowdsRequestNeedReplan;
+			context.crowdsWaypoints = &member.CrowdsWaypoints;
+			context.crowdsCountWaypoints = &member.CrowdsCountWaypoints;
 			context.contextSpatialGrid = contextSpatialGrid;
 			
 			NavigationSystems.InitializedNavigationSystems(context);
@@ -283,6 +329,13 @@ public:
 		if (AnimationSystems.IsActive)
 		{
 			{
+				TArray<FName> catalogIdentity;
+
+				for (auto& pair : *CrowdsCatalog)
+				{
+					catalogIdentity.Add(pair.CrowdsIdentity->Identity);
+				}
+				
 				FFluxPrimeSpatialGridSystemsContext contextSpatialGrid;
 				contextSpatialGrid.world = World;
 				contextSpatialGrid.locationCrowds = &member.CrowdsLocation;
@@ -299,12 +352,13 @@ public:
 				context.isDebug = configurationAnimation->IsDebug;
 				context.contextSpatialGrid = contextSpatialGrid;
 				context.crowdsComponents = CrowdsComponents;
-				context.crowdsCatalog = CrowdsCatalog;
+				context.crowdsCatalogName = &catalogIdentity;
+				context.crowdsCountCatalog = CrowdsCatalog->Num();
 				context.crowdsAnimationSoftRef = CrowdsAnimationSoftRef;
 				context.world = World;
 				context.crowdsCellID = &member.CrowdsCellID;
-				context.crowdsCurrentTargetLocationPath = &member.CrowdsCurrentTargetLocationPath;
-				context.idCrowds = &member.CrowdsID;
+				context.crowdsCurrentTarget = &member.CrowdsCurrentTarget;
+				context.instanceIndexCrowds = &member.CrowdsID;
 				context.typeCrowds = &member.CrowdsType;
 				context.stateCrowds = &member.CrowdsState;
 				context.animationStateCrowds = &member.CrowdsAnimationState;
@@ -332,7 +386,7 @@ public:
 			FFluxPrimeMovementSystemsContext context;
 			context.isDebug = configurationMovement->IsDebug;
 			context.world = World;
-			context.currentPathCrowds = &member.CrowdsCurrentTargetLocationPath;
+			context.currentWaypointCrowds = &member.CrowdsCurrentTarget;
 			context.accelerationCrowds = &member.CrowdsAcceleration;
 			context.locationCrowds = &member.CrowdsLocation;
 			context.rotationCrowds = &member.CrowdsRotation;
@@ -349,8 +403,9 @@ public:
 			FFluxPrimeStateMachineSystemsContext context;
 			context.isDebug = configurationStateMachine->IsDebug;
 			context.stateCrowds = &member.CrowdsState;
+			context.abilityRangeCrowds = &member.CrowdsAbilityRange;
 			context.locationCrowds = &member.CrowdsLocation;
-			context.targetLocationCrowds = &member.CrowdsTargetLocation;
+			context.targetLocationCrowds = &member.CrowdsTarget;
 			context.velocityCrowds = &member.CrowdsVelocity;
 			context.conditionCrowds = &member.CrowdsCondition;
 			context.memberActive = CrowdsActive;
@@ -358,30 +413,53 @@ public:
 			StateMachineSystems.InitializeStateMachineSystems(context);
 		}
 		
+		if (TargetSystems.IsActive)
 		{
+			TArray<float> aggroDistance;
+
+			for (int i = 0; i < CrowdsCatalog->Num(); ++i)
+			{
+				aggroDistance.Add((*CrowdsCatalog)[i].CrowdsIdentity->AggroDistance);
+			}
+			
 			FFluxPrimeTargetSystemsContext context;
 			context.isDebug = true;
 			context.world = World;
 			context.locationCrowds = &member.CrowdsLocation;
-			context.locationTargetCrowds = &member.CrowdsTargetLocation;
-			context.requestNavigationPathCrowds = &member.CrowdsRequestNavigationPath;
+			context.locationTargetCrowds = &member.CrowdsTarget;
+			context.targetCrowdsID = &member.CrowdsTargetID;
+			context.idCrowds = &member.CrowdsID;
+			context.typeCrowds = &member.CrowdsType;
+			context.crowdsTarget = CrowdsTarget;
+			context.crowdsAggroDistance = &aggroDistance;
 			context.memberActive = CrowdsActive;
+			context.onCrowdsManagerActionChange = OnCrowdsManagerActionChange;
 			
 			TargetSystems.InitializeTargetSystems(context);
 		}
 		
 		{
+			TArray<uint16> catalogTotal;
+
+			for (auto& pair : *CrowdsCatalog)
+			{
+				catalogTotal.Add(pair.CrowdsTotal);
+			}
+			
 			FFluxPrimeCrowdsRenderSystemsContext context;
 			context.crowdsComponents = CrowdsComponents;
-			context.crowdsCatalog = CrowdsCatalog;
+			context.crowdsCatalogTotal = &catalogTotal;
+			context.crowdsCountCatalog = CrowdsCatalog->Num();
 			context.locationCrowds = &member.CrowdsLocation;
 			context.rotationCrowds = &member.CrowdsRotation;
 			context.typeCrowds = &member.CrowdsType;
+			context.instanceIndexCrowds = &member.CrowdsID;
 			context.memberActive = CrowdsActive;
 			
 			CrowdsRenderSystems.InitializeRenderSystems(context);
 		}
 		
+		if (HealthSystems.IsActive)
 		{
 			FFluxPrimeHealthSystemsContext context;
 			context.conditionCrowds = &member.CrowdsCondition;
@@ -392,10 +470,42 @@ public:
 			HealthSystems.InitializeHealthSystems(context);
 		}
 		
+		if (AbilitySystems.IsActive)
+		{
+			TArray<TObjectPtr<UScriptStruct>> crowdsCatalogFragment;
+			TArray<FGuid> crowdsCatalogFragmentID;
+
+			for (auto& pair : *CrowdsCatalog)
+			{
+				FAbilityFragmentWrapper temp = pair.CrowdsIdentity->AbilityFragmentWrapper;
+				
+				crowdsCatalogFragment.Add(temp.AbilityFragment);
+				crowdsCatalogFragmentID.Add(temp.ID);
+			}
+			
+			FFluxPrimeAbilitySystemsContext context;
+			context.abilityFragments = configurationAbility->ConfigurationAbilityFragments;
+			context.crowdsCountCatalog = CrowdsCatalog->Num();
+			context.crowdsCatalogFragment = &crowdsCatalogFragment;
+			context.crowdsCatalogFragmentID = &crowdsCatalogFragmentID;
+			context.niagaraCallback = NiagaraCallback;
+			context.requestAbilityCrowds = &member.CrowdsRequestAbility;
+			context.locationCrowds = &member.CrowdsLocation;
+			context.rotationCrowds = &member.CrowdsRotation;
+			context.damageCrowds = &member.CrowdsDamage;
+			context.typeCrowds = &member.CrowdsType;
+			context.memberActive = CrowdsActive;
+			context.world = World;
+			
+			AbilitySystems.InitializedAbilitySystems(context);
+		}
+		
 		{
 			FFluxPrimeCompactSystemsContext context;
 			context.members = CrowdsDatas;
 			context.memberActive = CrowdsActive;
+			context.crowdsPool = CrowdsPool;
+			context.crowdsHeadPool = CrowdsHeadPool;
 			context.crowdsLookup = CrowdsLookup;
 			context.isDebug = true;
 			
@@ -407,12 +517,12 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Systems_Module);
 		
-		HealthSystems.UpdateHealthSystems();
+		if (TargetSystems.IsActive) TargetSystems.UpdateTargetSystems();
+		if (HealthSystems.IsActive) HealthSystems.UpdateHealthSystems();
 		if (SpatialGridSystems.IsActive) SpatialGridSystems.UpdateSpatialGridSystem();
 		if (StateMachineSystems.IsActive) StateMachineSystems.UpdateStateMachineSystems();
 		if (BoidsSystems.IsActive) BoidsSystems.UpdateBoidsSystems();
 		if (GroundHeightSystems.IsActive) GroundHeightSystems.UpdateGroundHeightSystems(DeltaTime);
-		TargetSystems.UpdateTargetSystems();
 		if (NavigationSystems.IsActive) NavigationSystems.UpdateNavigationSystems();
 		if (MovementSystems.IsActive) MovementSystems.UpdateMovementSystems(DeltaTime);
 		if (AnimationSystems.IsActive)
@@ -420,6 +530,7 @@ public:
 			AnimationSystems.UpdateAnimationSystemsFrame();
 			AnimationNotifySystems.UpdateAnimationNotifySystems();
 		}
+		if (AbilitySystems.IsActive) AbilitySystems.UpdateAbilitySystems();
 	
 		CrowdsRenderSystems.UpdateRenderCrowdsSystems();
 		CompactSystems.UpdateCompactSystems();

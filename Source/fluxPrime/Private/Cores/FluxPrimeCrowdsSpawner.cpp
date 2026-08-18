@@ -4,7 +4,6 @@
 #include "Cores/FluxPrimeCrowdsSpawner.h"
 
 #include "EngineUtils.h"
-#include "Crowds/FluxPrimeCrowdsManagerInterface.h"
 
 void AFluxPrimeCrowdsSpawner::Spawning()
 {
@@ -41,7 +40,7 @@ void AFluxPrimeCrowdsSpawner::Spawning()
 
 	targetLocation.Z = (bHit)? HitResult.ImpactPoint.Z : 0.0f;
 	
-	UObject* interfaceObject = CrowdsManagerInterface.GetObject();
+	/*UObject* interfaceObject = CrowdsManagerInterface.GetObject();
 	if (!interfaceObject) return;
 	
 	for (int i = 0; i < TotalSpawnCrowdPerSeconds; ++i)
@@ -54,7 +53,7 @@ void AFluxPrimeCrowdsSpawner::Spawning()
 		uuindex++;
 	}
 	
-	if (uuindex >= 500) GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
+	if (uuindex >= 500) GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);*/
 }
 
 AFluxPrimeCrowdsSpawner::AFluxPrimeCrowdsSpawner()
@@ -64,7 +63,7 @@ AFluxPrimeCrowdsSpawner::AFluxPrimeCrowdsSpawner()
 
 void AFluxPrimeCrowdsSpawner::StartSpawning()
 {
-	if (!CrowdsManagerInterface) return;
+	//if (!CrowdsManagerInterface) return;
 	
 	GetWorld()->GetTimerManager().SetTimer(
 		SpawnTimerHandle, 
@@ -78,7 +77,7 @@ void AFluxPrimeCrowdsSpawner::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	for (TActorIterator<AActor> temp(GetWorld()); temp; ++temp)
+	/*for (TActorIterator<AActor> temp(GetWorld()); temp; ++temp)
 	{
 		AActor* actor = *temp;
     
@@ -87,7 +86,7 @@ void AFluxPrimeCrowdsSpawner::BeginPlay()
 			CrowdsManagerInterface.SetObject(actor);
 			CrowdsManagerInterface.SetInterface(Cast<IFluxPrimeCrowdsManagerInterface>(actor));
 		}
-	}
+	}*/
 }
 
 void AFluxPrimeCrowdsSpawner::EndPlay(const EEndPlayReason::Type EndPlayReason)

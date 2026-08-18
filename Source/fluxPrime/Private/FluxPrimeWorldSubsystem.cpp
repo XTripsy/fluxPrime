@@ -5,7 +5,7 @@
 
 #include "EngineUtils.h"
 #include "Cores/FluxPrimePayload.h"
-#include "Crowds/FluxPrimeCrowdsController.h"
+#include "Crowds/FluxPrimeController.h"
 #include "Crowds/Components/FluxPrimeCrowdsManager.h"
 
 void UFluxPrimeWorldSubsystem::HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params)
@@ -16,14 +16,14 @@ void UFluxPrimeWorldSubsystem::HandleWorldInitializedActors(const UWorld::FActor
 	if (!CrowdsController.IsValid()) UE_LOG(LogTemp, Error, TEXT("NULLL"));
 }
 
-AFluxPrimeCrowdsController* UFluxPrimeWorldSubsystem::GetCrowdsController() const
+AFluxPrimeController* UFluxPrimeWorldSubsystem::GetCrowdsController() const
 {
 	if (CrowdsController.IsValid()) return CrowdsController.Get();
 	
 	UWorld* World = GetWorld();
 	if (!World) return nullptr;
 
-	for (TActorIterator<AFluxPrimeCrowdsController> It(World); It; ++It) return *It;
+	for (TActorIterator<AFluxPrimeController> It(World); It; ++It) return *It;
 
 	return nullptr;
 }

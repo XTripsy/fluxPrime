@@ -4,31 +4,26 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Cores/FluxPrimeAnimationData.h"
 #include "Cores/FluxPrimeStruct.h"
-#include "Crowds/Identity/CrowdsIdentity.h"
+#include "Crowds/Identity/FluxPrimeCrowdsIdentity.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Systems/FluxPrimeStateMachineSystems.h"
+#include "Systems/FluxPrimeStateMachineSystem.h"
 #include "FluxPrimeCrowdsDataModule.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsDataComponentContext
+struct FFluxPrimeCrowdsDataModuleContext
 {
 	GENERATED_BODY()
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
 	TArray<FFluxPrimeCrowdsCatalog>* crowdsCatalog;
 	
+	TArray<TArray<int16>>* crowdsPool = nullptr;
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* crowdsAnimationSoftRef = nullptr;
-	
 	TMap<FFluxPrimeCrowdsLookup, int32>* crowdsLookup = nullptr;
 	
 	uint16* crowdsTotal = nullptr;
 	
-	TArray<FVector_NetQuantize100>* netAcceleration = nullptr;
-	TArray<FVector_NetQuantize100>* netTarget = nullptr;
-	
 	FFluxPrimeCrowds* crowdsDatas = nullptr;
-	
-	bool hasAuthority, isReplicated;
 };
 
 USTRUCT(BlueprintType)
@@ -39,79 +34,56 @@ struct FFluxPrimeCrowdsDataModule
 private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents = nullptr;
 	TArray<FFluxPrimeCrowdsCatalog>* CrowdsCatalog = nullptr;
+	
+	TArray<TArray<int16>>* CrowdsPool = nullptr;
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* CrowdsAnimationSoftRef = nullptr;
 	TMap<FFluxPrimeCrowdsLookup, int32>* CrowdsLookup = nullptr;
 	
 	uint16* CrowdsTotal = nullptr;
 	
-	TArray<FVector_NetQuantize100>* NetAcceleration = nullptr;
-	TArray<FVector_NetQuantize100>* NetTarget = nullptr;
-	
 	FFluxPrimeCrowds* CrowdsDatas = nullptr;
 	
-	bool bHasAuthority = false, bIsReplicated = false;
-	
 public:
-	void Initialize(FFluxPrimeCrowdsDataComponentContext context)
+	void Initialize(FFluxPrimeCrowdsDataModuleContext context)
 	{
 		check(context.crowdsCatalog);
 		check(context.crowdsDatas);
+		check(context.crowdsPool);
 		check(context.crowdsAnimationSoftRef);
 		check(context.crowdsComponents);
 		check(context.crowdsLookup);
 		
 		CrowdsComponents = context.crowdsComponents;
 		CrowdsCatalog = context.crowdsCatalog;
+		CrowdsPool = context.crowdsPool;
 		CrowdsAnimationSoftRef = context.crowdsAnimationSoftRef;
 		CrowdsLookup = context.crowdsLookup;
-		NetAcceleration = context.netAcceleration;
-		NetTarget = context.netTarget;
 		CrowdsDatas = context.crowdsDatas;
 		CrowdsTotal = context.crowdsTotal;
-		bHasAuthority = context.hasAuthority;
-		bIsReplicated = context.isReplicated;
 	}
 	
+	// perlu refactor
 	void InitializeCrowds()
 	{
 		for (int i = 0; i < (*CrowdsCatalog).Num(); ++i) *CrowdsTotal += (*CrowdsCatalog)[i].CrowdsTotal;
 		
-		NetAcceleration->Init(FVector(), *CrowdsTotal);
-		NetTarget->Init(FVector(), *CrowdsTotal);
+		CrowdsDatas->Init(*CrowdsTotal);
 		
 		auto& members = *CrowdsDatas;
 		auto& catalog = *CrowdsCatalog;
+		auto& pool = *CrowdsPool;
 		auto& lookUp = *CrowdsLookup;
 		
+		int32 indexData = 0;
 		for (int i = 0; i < catalog.Num(); ++i)
 		{
-			UCrowdsIdentity& indentity = *catalog[i].CrowdsIdentity;
+			UFluxPrimeCrowdsIdentity& indentity = *catalog[i].CrowdsIdentity;
 			
 			for (int j = 0; j < catalog[i].CrowdsTotal; ++j)
 			{
 				FTransform tempTransform;
 				tempTransform.SetLocation(FVector::DownVector * 1000.0f);
 				int32 id = (*CrowdsComponents)[i]->AddInstance(tempTransform, false);
-				
-				if (!bHasAuthority && bIsReplicated) continue;
-				
-				/*FFluxPrimeCrowdsAnimation animationData = FFluxPrimeCrowdsAnimation();
-
-				TSoftObjectPtr<UFluxPrimeAnimationData> loadedData = (*CrowdsAnimationSoftRef)[catalog[i].CrowdsIdentity->Identity];
-				UFluxPrimeAnimationData& dataAnim = *loadedData;
-				
-				for (int k = 0; k < dataAnim.DataAnimations.Num(); ++k)
-				{
-					int32 index = static_cast<uint8>(dataAnim.DataAnimations[k].AnimationState);
-					FFluxPrimeCrowdsAnimationMapping mapping = FFluxPrimeCrowdsAnimationMapping();
-					mapping.AnimationStart = dataAnim.DataAnimations[k].AnimationStartFrame;
-					mapping.AnimationEnd = dataAnim.DataAnimations[k].AnimationEndFrame;
-					mapping.AnimationLoop = dataAnim.DataAnimations[k].AnimationLoops;
-					for (int32 l = 0; l < FluxConfig::AnimationArrayCount; ++l) mapping.AnimationNotify[l] = dataAnim.DataAnimations[k].AnimationNotifies[l];
-					if (index  < 0 || index > animationData.AnimationData.Num()) continue;
-					
-					animationData.AnimationData[index] = mapping;
-				}*/
 				
 				members.CrowdsLocation.Add(tempTransform.GetLocation());
 				members.CrowdsRotation.Add(0);
@@ -125,24 +97,37 @@ public:
 				members.CrowdsMaxSpeed.Add(indentity.Speed);
 				members.CrowdsHealth.Add(indentity.Health);
 				members.CrowdsDamage.Add(indentity.Damage);
+				members.CrowdsAbilityRange.Add(indentity.AbilityRange);
+				members.CrowdsRequestAbility.Add(false);
 				members.CrowdsSize.Add(indentity.Size);
 				members.CrowdsState.Add(EFluxPrimeCrowdState::StateIdle);
-				members.CrowdsNavigationPath.Add(FFluxPrimeCrowdsPath());
-				members.CrowdsTargetLocation.Add(FVector::ZeroVector);
-				members.CrowdsCurrentTargetLocationPath.Add(FVector::ZeroVector);
-				members.CrowdsRequestNavigationPath.Add(false);
-				members.CrowdsIndexNavigationPath.Add(0);
-				members.CrowdsTotalNavigationPath.Add(0);
-				//members.CrowdsAnimationMapping.Add(animationData);
 				members.CrowdsAnimationState.Add(EFluxPrimeCrowdState::StateIdle);
 				members.CrowdsRequestAnimationNotify.Add(EFluxPrimeCrowdAnimationNotify::NotifyNone);
 				members.CrowdsStartTimeAnimation.Add(0);
 				members.CrowdsPreviousAnimationFrame.Add(-1.0f);
 				
+				members.CrowdsPreviousLocation.Add(FVector::ZeroVector);
+				members.CrowdsCorridors.Add(FFluxPrimeCrowdsCorridor());
+				members.CrowdsTargetID.Add(-1);
+				members.CrowdsTarget.Add(FVector::ZeroVector);
+				members.CrowdsCurrentTarget.Add(FVector::ZeroVector);
+				members.CrowdsLastReplanTarget.Add(FVector::ZeroVector);
+				members.CrowdsLastMoveTarget.Add(FVector::ZeroVector);
+				members.CrowdsLastOptimizeTime.Add(0.0f);
+				members.CrowdsLastMoveTargetTime.Add(0.0f);
+				members.CrowdsCountCorridor.Add(0);
+				members.CrowdsRequestNeedReplan.Add(false);
+				members.CrowdsWaypoints.Add(FFluxPrimeCrowdsWaypoint());
+				members.CrowdsCountWaypoints.Add(0);
+				
+				pool[i].Add(indexData);
+				
 				FFluxPrimeCrowdsLookup lookup;
 				lookup.CrowdsID = id;
 				lookup.CrowdsType = i;
 				lookUp.Add(lookup, j);
+				
+				++indexData;
 			}
 		}
 	}

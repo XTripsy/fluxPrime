@@ -9,7 +9,7 @@
 
 #define ECC_GroundHeight ECC_GameTraceChannel1
 
-class UCrowdsIdentity;
+class UFluxPrimeCrowdsIdentity;
 class IFluxPrimeCrowdsManagerInterface;
 
 UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
@@ -22,11 +22,8 @@ private:
 	UPROPERTY()
 	int32 uuindex = 0;
 	
-	UPROPERTY()
-	TScriptInterface<IFluxPrimeCrowdsManagerInterface> CrowdsManagerInterface;
-	
 	UPROPERTY(EditAnywhere, Category = "Catalogs", meta = (AllowPrivateAccess = true))
-	TArray<TObjectPtr<UCrowdsIdentity>> CrowdsCatalog;
+	TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>> CrowdsCatalog;
 
 	UPROPERTY(EditAnywhere, Category = "Spawner", meta = (AllowPrivateAccess = true, UIMin = "0.2"))
 	float SpawnCrowdPerSeconds = .2f;

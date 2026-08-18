@@ -26,7 +26,7 @@ struct FFluxPrimeAnimationDefinition
 	int32 AnimationEndFrame;
 	
 	UPROPERTY(EditAnywhere)
-	bool AnimationLoops = true;
+	bool AnimationForceNotify = false;
 	
 	UPROPERTY(EditAnywhere)
 	FFluxCrowdsAnimationNotify AnimationNotifies[FluxConfig::AnimationArrayCount];

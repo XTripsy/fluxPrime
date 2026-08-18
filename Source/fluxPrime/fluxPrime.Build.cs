@@ -30,7 +30,9 @@ public class fluxPrime : ModuleRules
 				"NavigationSystem",
 				"Navmesh",
 				"AnimToTexture",
-				"StructUtils", "AITestSuite"
+				"StructUtils", 
+				"AITestSuite",
+				"Niagara"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

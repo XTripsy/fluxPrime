@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Cores/FluxPrimeEvent.h"
 #include "Engine/StreamableManager.h"
 #include "Components/ActorComponent.h"
 #include "Crowds/Modules/FluxPrimeCrowdsDataModule.h"
@@ -16,12 +17,6 @@ struct FFluxPrimeCrowdsManagerContext
 	GENERATED_BODY()
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents;
-	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNetComponent> CrowdsNetComponent;
-	
-	UPROPERTY()
-	bool isReplicated;
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), HideCategories=(Tags, Activation, Cooking, AssetUserData, Navigation))
@@ -44,16 +39,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Crowds | Crowds Manager | Catalogs", meta = (AllowPrivateAccess = true))
 	TArray<FFluxPrimeCrowdsCatalog> CrowdsCatalog;
 	
+	UPROPERTY(EditAnywhere, Category = "Crowds | Crowds Manager | Targets", meta = (AllowPrivateAccess = true))
+	TArray<FFluxPrimeTargetCatalog> CrowdsTarget;
+	
 #pragma endregion 
+	
+	FOnCrowdsManagerActionChange OnCrowdsManagerActionChange;
 	
 private:
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* CrowdsComponents;
-	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNetComponent> CrowdsNetComponent;
-	
-	UPROPERTY()
-	bool IsReplicated;
 	
 #pragma region SoftRefrence
 	
@@ -70,30 +64,17 @@ private:
 	UPROPERTY()
 	TMap<FName, int8> CrowdsTypes;
 	
-	/*UPROPERTY()
-	int8 CrowdsDataReadIndex = 0;
+	TArray<TArray<int16>> CrowdsPool;
 	
 	UPROPERTY()
-	TArray<int32> CrowdsDataShortedIndex;*/
+	TArray<int16> CrowdsHeadPool;
 	
 	UPROPERTY()
 	uint16 CrowdsTotal = 0;
 	
-	UPROPERTY(ReplicatedUsing = OnRep_CrowdActive)
+	UPROPERTY()
 	uint16 CrowdsActive = 0;
 	
-	// variable ini sering di kirim ke clinet 
-	UPROPERTY(Replicated)
-	TArray<FVector_NetQuantize100> NetAcceleration;
-	
-	// variable ini sering di kirim ke clinet 
-	UPROPERTY(Replicated)
-	TArray<FVector_NetQuantize100> NetTarget;
-	
-	/*UPROPERTY()
-	TArray<int32> GridOffset;*/
-	
-	//TStaticArray<FFluxPrimeCrowds, 2> CrowdsDatas;
 	UPROPERTY()
 	FFluxPrimeCrowds CrowdsDatas;
 	
@@ -120,28 +101,33 @@ public:
 
 private:
 	void ShowDebug();
-	void ShortCrowdsByID();
 	
 	UFUNCTION()
 	void Initialize();
 	
 	void InitializeComponentCrowds();
 	void InitializedComponentSystems();
-	
-	UFUNCTION()
-	void OnRep_CrowdActive();
+	void InitializedPlayer();
 	
 protected:
-	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	
 public:
+	void OnActionChange(FInstancedStruct payload);
+	
 	UFUNCTION(BlueprintCallable)
-	inline void SpawnCrowd(UCrowdsIdentity* identity, FVector location, FRotator rotation)
+	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation)
 	{
 		CrowdsSpawnerModule.SpawnCrowd(identity, location, rotation);
+		
+		FFluxPrimeSpawnActionPayload data;
+		data.Identity = identity;
+		data.Location = location;
+		data.Rotation = rotation;
+		FInstancedStruct payload = FInstancedStruct::Make(data);
+		
+		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 	};
 	
 	UFUNCTION(BlueprintCallable)
@@ -149,7 +135,6 @@ public:
 	{
 		for (int i = 0; i < CrowdsActive; ++i)
 		{
-			//CrowdsDatas[CrowdsDataReadIndex].CrowdsState[i] = newState;
 			CrowdsDatas.CrowdsState[i] = newState;
 		}
 	};
@@ -162,8 +147,17 @@ public:
 		lookup.CrowdsType = *CrowdsTypes.Find(type);
 		
 		uint32 index = *CrowdsLookup.Find(lookup);
-		UE_LOG(LogTemp, Log, TEXT("LOOKUP:: %d"), index);
 		
+		if (index == INDEX_NONE) return;
+		
+		UE_LOG(LogTemp, Log, TEXT("LOOKUP:: %d"), index);
 		CrowdsSystemsModule.Damage(index);
+		
+		FFluxPrimeDamageActionPayload data;
+		data.CrowdID = id;
+		data.CrowdType = lookup.CrowdsType;
+		FInstancedStruct payload = FInstancedStruct::Make(data);
+		
+		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 	};
 };

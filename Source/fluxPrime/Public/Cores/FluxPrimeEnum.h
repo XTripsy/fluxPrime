@@ -9,7 +9,7 @@ UENUM(BlueprintType)
 enum class EFluxPrimeCrowdAnimationNotify : uint8
 {
 	NotifyNone				UMETA(DisplayName = "NotifyNone"),
-	NotifyAttack			UMETA(DisplayName = "NotifyAttack"),
+	NotifyAbility			UMETA(DisplayName = "NotifyAbility"),
 	NotifySpawnVFX			UMETA(DisplayName = "NotifySpawnVFX"),
 	NotifySpawnSFX			UMETA(DisplayName = "NotifySpawnSFX"),
 	NotifyDead				UMETA(DisplayName = "NotifyDead"),

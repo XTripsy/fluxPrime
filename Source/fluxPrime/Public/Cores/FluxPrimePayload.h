@@ -12,7 +12,7 @@ struct FFluxPrimeSpawnPayload
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TObjectPtr<UCrowdsIdentity> Identity = nullptr;
+	TObjectPtr<UFluxPrimeCrowdsIdentity> Identity = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector Location = FVector::ZeroVector;

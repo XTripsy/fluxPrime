@@ -4,15 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "FluxPrimeEnum.h"
+#include "Detour/DetourNavMesh.h"
+//#include "Crowds/Identity/FluxPrimeCrowdsIdentity.h"
 #include "FluxPrimeStruct.generated.h"
 
-class UCrowdsIdentity;
+class UFluxPrimeCrowdsIdentity;
 enum class EFluxPrimeCrowdState : uint8;
 
 namespace FluxConfig
 {
 	constexpr int8 AnimationArrayCount = 8;
 	constexpr int8 NavigationArrayCount = 8;
+	constexpr int8 WaypointsCount = 16;
+	constexpr int8 CorridorsCount = 64;
 	constexpr float DebugLocationMovement = 620.0f;
 	constexpr float DebugLocationIdentity = 600.0f;
 	constexpr float DebugLocationAnimation = 520.0f;
@@ -20,6 +24,72 @@ namespace FluxConfig
 	constexpr float DebugLocationSpatialGrid = 360.0f;
 	constexpr float DebugScaleFont = .8f;
 }
+
+USTRUCT()
+struct FFluxPrimeSpawnActionPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TObjectPtr<UFluxPrimeCrowdsIdentity> Identity;
+	
+	UPROPERTY()
+	FVector Location;
+	
+	UPROPERTY()
+	FRotator Rotation;
+};
+
+USTRUCT()
+struct FFluxPrimeDamageActionPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	int16 CrowdID;
+	
+	UPROPERTY()
+	int8 CrowdType;
+};
+
+USTRUCT()
+struct FFluxPrimeChangeTargetActionPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	int16 CrowdID;
+	
+	UPROPERTY()
+	int8 CrowdType;
+	
+	UPROPERTY()
+	uint16 TargetID;
+	
+	UPROPERTY()
+	FVector NewTargetLocation;
+};
+
+USTRUCT()
+struct FFluxPrimeRegisterTargetActionPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> NewCrowdsTarget;
+};
+
+USTRUCT(BlueprintType)
+struct FFluxPrimeTargetCatalog
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere)
+	TWeakObjectPtr<AActor> CrowdsTarget;
+	
+	UPROPERTY(EditAnywhere)
+	uint16 CrowdsTargetPriority;
+};
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsLookup
@@ -39,75 +109,21 @@ struct FFluxPrimeCrowdsLookup
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsPath
+struct FFluxPrimeCrowdsWaypoint
 {
 	GENERATED_BODY()
 	
-	UPROPERTY(EditAnywhere)
-	FVector LocationPaths[FluxConfig::NavigationArrayCount];
+	TStaticArray<FVector, FluxConfig::WaypointsCount> Waypoints;
+	TStaticArray<dtPolyRef, FluxConfig::WaypointsCount> PolyRefs;
+	TStaticArray<uint8, FluxConfig::WaypointsCount> Flags;
 };
 
-USTRUCT(BlueprintType)
-struct FFluxPrimeOnSpawnCrowdsNetPayload
+USTRUCT()
+struct FFluxPrimeCrowdsCorridor
 {
 	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	FVector LocationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	FVector TargetLocationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	FVector AccelerationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 IdPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 IndexSelectedPayload;
-	
-	UPROPERTY(EditAnywhere)
-	int16 MaxSpeedPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 StartFramePayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 EndFramePayload;
-	
-	UPROPERTY(EditAnywhere)
-	int8 RotationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	int8 TypePayload;
-};
 
-USTRUCT(BlueprintType)
-struct FFluxPrimeOnSwictAnimationPayload
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	uint16 IdPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 PreviousStartFrameAnimationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 PreviousEndFrameAnimationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 PreviousStartTimeAnimationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 CurrentStartFrameAnimationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 CurrentEndFrameAnimationPayload;
-	
-	UPROPERTY(EditAnywhere)
-	int8 TypePayload;
+	TStaticArray<NavNodeRef, FluxConfig::CorridorsCount> Corridors;
 };
 
 USTRUCT(BlueprintType)
@@ -167,7 +183,7 @@ struct FFluxPrimeRuntimeAnimationMapping
 	UPROPERTY(EditAnywhere)
 	uint32 AnimationEnd[static_cast<int32>(EFluxPrimeCrowdState::Count)];
 	
-	bool AnimationLoop[static_cast<int32>(EFluxPrimeCrowdState::Count)];
+	bool AnimationForceNotify[static_cast<int32>(EFluxPrimeCrowdState::Count)];
 };
 
 USTRUCT(BlueprintType)
@@ -197,72 +213,6 @@ struct FFluxPrimeCrowdsAnimation
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsNet
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	FVector_NetQuantize100 NetLocation;
-	
-	UPROPERTY(EditAnywhere)
-	FVector_NetQuantize100 NetVelocity;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetMaxSpeed;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetID;
-	
-	UPROPERTY(EditAnywhere)
-	int8 NetRotation;
-	
-	UPROPERTY(EditAnywhere)
-	uint8 NetType;
-};
-
-USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsTargetNet
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	FVector_NetQuantize100 NetTargetLocation;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetID;
-};
-
-USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsAccelerationNet
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	FVector_NetQuantize100 NetAcceleration;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetID;
-};
-
-USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsAnimationNet
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetID;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetStart;
-	
-	UPROPERTY(EditAnywhere)
-	uint16 NetEnd;
-	
-	UPROPERTY(EditAnywhere)
-	uint8 NetType;
-};
-
-USTRUCT(BlueprintType)
 struct FFluxPrimeCrowds
 {
 	GENERATED_BODY()
@@ -279,7 +229,10 @@ struct FFluxPrimeCrowds
 	TArray<float> CrowdsMaxSpeed;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsDamage;
+	TArray<float> CrowdsDamage;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<int16> CrowdsAbilityRange;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int8> CrowdsHealth;
@@ -289,6 +242,11 @@ struct FFluxPrimeCrowds
 	
 	UPROPERTY(EditAnywhere)
 	TArray<int32> CrowdsCellID;
+
+#pragma endregion
+	
+	UPROPERTY(EditAnywhere)
+	TArray<EFluxPrimeCrowdState> CrowdsState;
 	
 	UPROPERTY(EditAnywhere)
 	TArray<bool> CrowdsCondition;
@@ -296,10 +254,8 @@ struct FFluxPrimeCrowds
 	UPROPERTY(EditAnywhere)
 	TArray<bool> CrowdsRequestBackToPool;
 	
-#pragma endregion
-	
 	UPROPERTY(EditAnywhere)
-	TArray<EFluxPrimeCrowdState> CrowdsState;
+	TArray<bool> CrowdsRequestAbility;
 	
 #pragma region TransformData
 	
@@ -322,9 +278,6 @@ struct FFluxPrimeCrowds
 #pragma endregion
 	
 #pragma region AnimationData
-	
-	/*UPROPERTY(EditAnywhere)
-	TArray<FFluxPrimeCrowdsAnimation> CrowdsAnimationMapping;*/
 
 	UPROPERTY(EditAnywhere)
 	TArray<EFluxPrimeCrowdState> CrowdsAnimationState;
@@ -343,25 +296,47 @@ struct FFluxPrimeCrowds
 #pragma region NavigationData
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsCurrentTargetLocationPath;
+	TArray<FVector> CrowdsPreviousLocation;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FVector> CrowdsTargetLocation;
+	TArray<FFluxPrimeCrowdsCorridor> CrowdsCorridors;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FFluxPrimeCrowdsPath> CrowdsNavigationPath;
+	TArray<uint16> CrowdsTargetID;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsIndexNavigationPath;
+	TArray<FVector> CrowdsTarget;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<int8> CrowdsTotalNavigationPath;
+	TArray<FVector> CrowdsCurrentTarget;
+
+	UPROPERTY(EditAnywhere)
+	TArray<FVector> CrowdsLastReplanTarget;
 	
 	UPROPERTY(EditAnywhere)
-	TArray<bool> CrowdsRequestNavigationPath;
+	TArray<FVector> CrowdsLastMoveTarget;
+
+	UPROPERTY(EditAnywhere)
+	TArray<float> CrowdsLastOptimizeTime;
+
+	UPROPERTY(EditAnywhere)
+	TArray<float> CrowdsLastMoveTargetTime;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<uint8> CrowdsCountCorridor;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<bool> CrowdsRequestNeedReplan;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<FFluxPrimeCrowdsWaypoint> CrowdsWaypoints;
+	
+	UPROPERTY(EditAnywhere)
+	TArray<int8> CrowdsCountWaypoints;
 	
 #pragma endregion
 	
+	// perlu refactor
 	void Init(int32 totalMember)
 	{
 		CrowdsLocation.Reserve(totalMember);
@@ -376,19 +351,27 @@ struct FFluxPrimeCrowds
 		CrowdsID.Reserve(totalMember);
 		CrowdsHealth.Reserve(totalMember);
 		CrowdsDamage.Reserve(totalMember);
+		CrowdsAbilityRange.Reserve(totalMember);
+		CrowdsRequestAbility.Reserve(totalMember);
 		CrowdsSize.Reserve(totalMember);
 		CrowdsState.Reserve(totalMember);
-		CrowdsNavigationPath.Reserve(totalMember);
-		CrowdsIndexNavigationPath.Reserve(totalMember);
-		CrowdsTotalNavigationPath.Reserve(totalMember);
-		CrowdsRequestNavigationPath.Reserve(totalMember);
-		CrowdsTargetLocation.Reserve(totalMember);
-		CrowdsCurrentTargetLocationPath.Reserve(totalMember);
-		//CrowdsAnimationMapping.Reserve(totalMember);
 		CrowdsAnimationState.Reserve(totalMember);
 		CrowdsRequestAnimationNotify.Reserve(totalMember);
 		CrowdsStartTimeAnimation.Reserve(totalMember);
 		CrowdsPreviousAnimationFrame.Reserve(totalMember);
+		CrowdsPreviousLocation.Reserve(totalMember);
+		CrowdsCorridors.Reserve(totalMember);
+		CrowdsTargetID.Reserve(totalMember);
+		CrowdsTarget.Reserve(totalMember);
+		CrowdsCurrentTarget.Reserve(totalMember);
+		CrowdsLastReplanTarget.Reserve(totalMember);
+		CrowdsLastMoveTarget.Reserve(totalMember);
+		CrowdsLastOptimizeTime.Reserve(totalMember);
+		CrowdsLastMoveTargetTime.Reserve(totalMember);
+		CrowdsCountCorridor.Reserve(totalMember);
+		CrowdsRequestNeedReplan.Reserve(totalMember);
+		CrowdsWaypoints.Reserve(totalMember);
+		CrowdsCountWaypoints.Reserve(totalMember);
 	}
 };
 
@@ -398,7 +381,7 @@ struct FFluxPrimeCrowdsCatalog
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1"))
-	TObjectPtr<UCrowdsIdentity> CrowdsIdentity;
+	TObjectPtr<UFluxPrimeCrowdsIdentity> CrowdsIdentity;
 	
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1"))
 	int32 CrowdsTotal;
@@ -406,7 +389,5 @@ struct FFluxPrimeCrowdsCatalog
 
 FORCEINLINE uint32 GetTypeHash(const FFluxPrimeCrowdsLookup& Key)
 {
-	return HashCombine(
-		GetTypeHash(Key.CrowdsID),
-		GetTypeHash(Key.CrowdsType));
+	return HashCombine(GetTypeHash(Key.CrowdsID), GetTypeHash(Key.CrowdsType));
 }
