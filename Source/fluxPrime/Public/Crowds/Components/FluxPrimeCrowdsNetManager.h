@@ -25,6 +25,9 @@ public:
 	UFluxPrimeCrowdsNetManager();
 	
 public:
+	UFUNCTION(Server, Reliable)
+	void ServerActionChange(const FInstancedStruct& payload);
+	
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastActionChange(const FInstancedStruct& payload);
 	

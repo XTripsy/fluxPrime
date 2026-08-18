@@ -9,6 +9,12 @@ UFluxPrimeCrowdsNetManager::UFluxPrimeCrowdsNetManager()
     SetIsReplicatedByDefault(true);
 }
 
+void UFluxPrimeCrowdsNetManager::ServerActionChange_Implementation(const FInstancedStruct& payload)
+{
+	OnCrowdsNetManagerActionChange.ExecuteIfBound(payload);
+	MulticastActionChange(payload);
+}
+
 void UFluxPrimeCrowdsNetManager::MulticastActionChange_Implementation(const FInstancedStruct& payload)
 {
 	OnCrowdsNetManagerActionChange.ExecuteIfBound(payload);
@@ -16,5 +22,11 @@ void UFluxPrimeCrowdsNetManager::MulticastActionChange_Implementation(const FIns
 
 void UFluxPrimeCrowdsNetManager::OnActionChange(FInstancedStruct payload)
 {
+	if (!GetOwner()->HasAuthority())
+	{
+		ServerActionChange(payload);
+		return;
+	}
+	
 	MulticastActionChange(payload);
 }
