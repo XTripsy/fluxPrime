@@ -57,11 +57,11 @@ private:
 	void InitializedTransformData(const TArray<uint16>* catalogTotal)
 	{
 		TransformsPerComponent.Init(TArray<FTransform>(), catalogTotal->Num());
+		FTransform transform;
+		transform.SetLocation(FVector::DownVector * 10000);
 	
 		for (int i = 0; i < TransformsPerComponent.Num(); ++i)
 		{
-			FTransform transform;
-			transform.SetLocation(FVector::DownVector * 10000);
 			TransformsPerComponent[i].Init(transform, (*catalogTotal)[i]);
 		}
 	}
@@ -101,7 +101,7 @@ public:
 
 				FTransform transform;
 				transform.SetLocation(entityDataLocation[i]);
-
+				
 				float unpackedYaw = entityDataRotation[i].Yaw;
 				FRotator Rot(0.0f, unpackedYaw, 0.0f);
 				transform.SetRotation(Rot.Quaternion());

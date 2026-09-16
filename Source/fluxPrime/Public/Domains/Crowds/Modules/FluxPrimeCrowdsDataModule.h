@@ -30,7 +30,7 @@ struct FFluxPrimeCrowdsDataModule : public FFluxPrimeBaseDataModule
 	TArray<int16> IdDataID, SizeDataID;
 	
 public:
-	void NewInitialized(FFluxPrimeCrowdsDataModuleContext context)
+	void Initialized(FFluxPrimeCrowdsDataModuleContext context)
 	{
 		check(context.crowdsComponents);
 		check(context.entityCatalog);
@@ -68,11 +68,6 @@ public:
 				crowdsSize[j].ValueInt16 = size;
 				
 				dataStore.UpdateLookUpValue(id, j);
-			}
-			
-			for (int k = 0; k < dataStore.GetTotalEntityCount(); ++k)
-			{
-				UE_LOG(LogTemp, Log, TEXT("INIT DATA TAG:: ID %d | TYPE %d"), crowdsID[k].ValueInt16, i);
 			}
 		}
 	}

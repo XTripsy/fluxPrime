@@ -23,6 +23,15 @@ UFluxPrimeCrowdsManager::UFluxPrimeCrowdsManager()
 
 void UFluxPrimeCrowdsManager::PreLoading()
 {
+#if WITH_EDITOR
+	
+	{
+		TObjectPtr<UManagerConfiguration> LocalManagerConfiguration = DuplicateObject<UManagerConfiguration>(ManagerConfiguration, this);
+		ManagerConfiguration = LocalManagerConfiguration;
+	}
+	
+#endif
+	
 	ModuleFragments = &ManagerConfiguration->ModuleFragments;
 	
 	TArray<FSoftObjectPath> pathsToLoad;
@@ -132,7 +141,7 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 		
 			FModuleExecutor& Executor = GetModuleExecutor(executorIndex);
 			FFluxPrimeCrowdsDataModule& module = Executor.Data->GetMutable<FFluxPrimeCrowdsDataModule>();
-			module.NewInitialized(context);
+			module.Initialized(context);
 			continue;
 		}
 		
@@ -206,6 +215,7 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->NumCustomDataFloats = 6;
 		tempISMC->bReceivesDecals = false;
 		tempISMC->RegisterComponent();
+		tempISMC->SetHiddenInGame(false);
 		CrowdsComponents.Add(tempISMC);
 		
 		CrowdsTypes.Add(identity->Identity, i);
@@ -252,7 +262,7 @@ void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType
 #endif
 	
 	if (CrowdsComponents.IsEmpty()) return;
-
+	
 	int16 indexData = 0;
 	for (auto& dataStore : DataStores)
 	{
@@ -322,6 +332,6 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		
 		if (indexData == INDEX_NONE) return;
 		
-		moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[typeIndex], typeIndex, indexData, data.CrowdDamageTaken);
+		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[typeIndex], typeIndex, indexData, data.CrowdDamageTaken);
 	}
 }
