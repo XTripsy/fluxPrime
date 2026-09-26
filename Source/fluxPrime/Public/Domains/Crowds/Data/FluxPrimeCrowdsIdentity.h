@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Framework/Data/FluxPrimeBaseIdentity.h"
 #include "Framework/Data/FluxPrimeStateData.h"
 #include "Generics/Data/FluxPrimeAbilityData.h"
@@ -30,7 +31,7 @@ public:
 	float AggroDistance;
 	
 	UPROPERTY(EditAnywhere)
-	FAbilityFragment AbilityFragment;
+	FGameplayTag AbilityIdentity;
 	
 	UPROPERTY(EditAnywhere)
 	float Damage;

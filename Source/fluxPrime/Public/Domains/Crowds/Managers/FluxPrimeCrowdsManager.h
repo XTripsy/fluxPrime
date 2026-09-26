@@ -59,6 +59,8 @@ private:
 	
 	void InitializedModules();
 	void InitializeComponentCrowds();
+	
+	UFUNCTION(BlueprintCallable)
 	void InitializedPlayer();
 	
 	inline void RegisterNotifyID(FGameplayTag identity)

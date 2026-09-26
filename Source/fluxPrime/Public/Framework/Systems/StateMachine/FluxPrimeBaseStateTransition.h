@@ -4,6 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Framework/Data/FluxPrimeStateData.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeBaseStateTransition.generated.h"
 
 using FFluxPrimeTransitionConditionExecute = bool (*)(FInstancedStruct&, const int32, const int32, FFluxPrimeArchetypeDataStore&);
@@ -80,6 +81,8 @@ protected:
 public:
 	void ExecuteStateTransition(int8& currentState,  int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_State_Transition_Systems);
+		
 		for (auto& pair : Transition)
 		{
 			if (currentState == pair.FromState && pair.ConditionExecute(*pair.Data, indexDataID, indexEntity, dataStore))

@@ -33,6 +33,9 @@ struct FSpawnerModuleDataTagConfig
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
     FGameplayTag EntityDataConditionTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FGameplayTag EntityDataRequestSyncAnimationTag;
+	
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
     FGameplayTag EntityDataRequestBackToPoolTag;
 
@@ -77,6 +80,7 @@ struct FSpawnerModuleDataTagConfig
           && EntityDataStateTag.IsValid() 
           && EntityDataMaxSpeedTag.IsValid() 
           && EntityDataConditionTag.IsValid() 
+          && EntityDataRequestSyncAnimationTag.IsValid() 
           && EntityDataRequestBackToPoolTag.IsValid() 
           && EntityDataRequestAbilityTag.IsValid() 
           && EntityDataRequestAnimationNotifyTag.IsValid() 
@@ -114,8 +118,11 @@ struct FFluxPrimeCrowdsSpawnerModule : public FFluxPrimeBaseModule
 private:
 	UPROPERTY(EditAnywhere)
 	FSpawnerModuleDataTagConfig DataTagConfig;
+	
+	UPROPERTY(EditAnywhere)
+	float RandomOffsetPercent = 0.5f;
 
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataHealthID, EntityDataStateID, EntityDataMaxSpeedID, EntityDataConditionID, EntityDataRequestBackToPoolID, EntityDataRequestAbilityID, EntityDataRequestAnimationNotifyID, EntityDataStartTimeAnimationID, EntityDataPreviousAnimationFrameID, EntityDataTargetIdID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataRequestNeedReplanID, EntityDataCountWaypointsID, EntityDataIdID;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataHealthID, EntityDataStateID, EntityDataMaxSpeedID, EntityDataConditionID, EntityDataRequestSyncAnimationID, EntityDataRequestBackToPoolID, EntityDataRequestAbilityID, EntityDataRequestAnimationNotifyID, EntityDataStartTimeAnimationID, EntityDataPreviousAnimationFrameID, EntityDataTargetIdID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataRequestNeedReplanID, EntityDataCountWaypointsID, EntityDataIdID;
 	
 public:
 	void Initialized(const TArray<FFluxPrimeArchetypeDataStore>& dataStores)
@@ -128,6 +135,7 @@ public:
 			EntityDataStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStateTag));
 			EntityDataMaxSpeedID.Add(dataStore.GetDataID(DataTagConfig.EntityDataMaxSpeedTag));
 			EntityDataConditionID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionTag));
+			EntityDataRequestSyncAnimationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestSyncAnimationTag));
 			EntityDataRequestBackToPoolID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestBackToPoolTag));
 			EntityDataRequestAbilityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag));
 			EntityDataRequestAnimationNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAnimationNotifyTag));
@@ -154,6 +162,8 @@ public:
 		
 		if (dataStore.GetActiveEntityCount() >= dataStore.GetTotalEntityCount()) return;
 		
+		const float baseSpeed = identity.Speed;
+		
 		int8 health = identity.Health;
 		int32 indexSelected = dataStore.GetActiveEntityCount();
 		
@@ -161,8 +171,9 @@ public:
 		reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]))[indexSelected] = FRotator(0, context.rotation.Yaw, 0);
 		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataHealthID[indexDataID]))[indexSelected].ValueInt16 = health;
 		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]))[indexSelected].ValueFloat = identity.Speed;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]))[indexSelected].ValueFloat = FMath::FRandRange(baseSpeed * (1.0f - RandomOffsetPercent), baseSpeed * (1.0f + RandomOffsetPercent));
 		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionID[indexDataID]))[indexSelected].ValueBool = true;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]))[indexSelected].ValueBool = false;
 		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]))[indexSelected].ValueBool = false;
 		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]))[indexSelected].ValueBool = false;
 		reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]))[indexSelected].ValueInt32 = INDEX_NONE;

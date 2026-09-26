@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeHealthSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -77,6 +78,8 @@ public:
 				entityDataHealth[i].ValueInt16 -= entityDataDamageTaken[i].ValueInt16;
 				entityDataConditionAlive[i].ValueBool = entityDataHealth[i].ValueInt16 > 0;
 				entityDataDamageTaken[i].ValueInt16 = 0;
+				
+				if (!entityDataConditionAlive[i].ValueBool) UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d [HEALTH]"), i, indexDataID);
 			}
 			
 			indexDataID++;

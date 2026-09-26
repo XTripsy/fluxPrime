@@ -9,9 +9,9 @@
 class UFluxPrimeCrowdsManager;
 class UManagerConfiguration;
 
-UCLASS(NotBlueprintable, HideCategories=(Rendering, Replication, Collision, Input, 
+UCLASS(Blueprintable, HideCategories=(Rendering, Replication, Collision, Input, Activation, AssetUserData, Navigation,
 		Actor, LOD, Cooking, Transform, Physics, Networking, LevelInstance, HLOD, WorldPartition, DataLayers))
-class FLUXPRIME_API AFluxPrimeCrowdsController final : public AFluxPrimeBaseController
+class FLUXPRIME_API AFluxPrimeCrowdsController : public AFluxPrimeBaseController
 {
 	GENERATED_BODY()
 

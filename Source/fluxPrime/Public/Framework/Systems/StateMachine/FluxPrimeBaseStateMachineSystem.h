@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
-#include "Framework/Data/FluxPrimeStateData.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeBaseStateMachineSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -117,11 +117,23 @@ public:
 				currentState = entityDataState[indexEntity].ValueInt8;
 				FFluxPrimeRuntimeDataStateMapping& pairData = RuntimeDataStateMachine[indexDataID];
 				
-				FStateExecutor& pairState = pairData.State[currentState];
+				if (pairData.State.IsValidIndex(currentState))
+				{
+					FStateExecutor& pairState = pairData.State[currentState];
+					pairState.Execute(*pairState.Data, deltaTime, indexDataID, indexEntity, dataStore);
+				}
+				
+				if (pairData.Transition.IsValidIndex(currentState))
+				{
+					FStateTransitionExecutor& pairTransition = pairData.Transition[currentState];
+					pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);
+				}
+				
+				/*FStateExecutor& pairState = pairData.State[currentState];
 				FStateTransitionExecutor& pairTransition = pairData.Transition[currentState];
 				
 				pairState.Execute(*pairState.Data, deltaTime, indexDataID, indexEntity, dataStore);
-				pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);
+				pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);*/
 			}
 			
 			indexDataID++;

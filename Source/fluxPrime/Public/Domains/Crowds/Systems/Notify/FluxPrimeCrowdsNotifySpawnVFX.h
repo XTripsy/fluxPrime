@@ -12,9 +12,13 @@ struct FNotifySpawnVfxDataTagConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FGameplayTag EntityDataRequestNotifyTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FGameplayTag EntityDataLocationTag;
+	
 	bool IsValid() const
 	{
-		return EntityDataRequestNotifyTag.IsValid();
+		return EntityDataRequestNotifyTag.IsValid()
+		    && EntityDataLocationTag.IsValid();
 	}
 };
 
@@ -23,8 +27,10 @@ struct FFluxPrimeCrowdsNotifySpawnVFXContext
 {
 	GENERATED_BODY()
 	
+	UPROPERTY()
+	TObjectPtr<UWorld> world = nullptr;
+	
 	FGetNotifyID getNotifyID = nullptr;
-	//FFluxPrimeDataStore* dataStore = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
@@ -36,35 +42,44 @@ struct FFluxPrimeCrowdsNotifySpawnVFX : public FFluxPrimeNotifyBase
 public:
 	UPROPERTY(EditAnywhere)
 	FNotifySpawnVfxDataTagConfig DataTagConfig;
+	
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<UNiagaraSystem> VFXSystem = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<UWorld> World = nullptr;
 
-	//int16 EntityDataRequestNotifyID;
-	TArray<int16> EntityDataRequestNotifyID;
+	TArray<int16> EntityDataRequestNotifyID, EntityDataLocationID;
 	
 public:
 	void Initialized(FFluxPrimeCrowdsNotifySpawnVFXContext context)
 	{
+		check(context.world);
 		check(context.getNotifyID);
-		//check(context.dataStore);
 		check(context.dataStores);
 		
+		World = context.world;
 		NotifyID = context.getNotifyID(NotifyTag);
-		
-		/*auto& dataStore = *context.dataStore;
-
-		EntityDataRequestNotifyID = dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag);*/
 
 		for (auto& dataStore : *context.dataStores)
 		{
+			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
 			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
 		}
 	}
 	
-	//void ExecuteNotify(const uint16 indexMember, FFluxPrimeDataStore& dataStore)
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
-		//FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID));
+		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
+		
+		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			World,
+			VFXSystem,
+			entityDataLocation[indexMember] + FVector::UpVector * 150,
+			FRotator::ZeroRotator
+		);
 		
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
 		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: SPAWN VFX"));

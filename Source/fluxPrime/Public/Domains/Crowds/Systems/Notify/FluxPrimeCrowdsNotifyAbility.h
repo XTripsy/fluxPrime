@@ -40,23 +40,16 @@ public:
 	UPROPERTY(EditAnywhere)
 	FNotifyAbilityDataTagConfig DataTagConfig;
 
-	//int16 EntityDataRequestNotifyID, EntityDataRequestAbilityID;
 	TArray<int16> EntityDataRequestNotifyID, EntityDataRequestAbilityID;
 	
 public:
 	void Initialized(FFluxPrimeCrowdsNotifyAbilityContext context)
 	{
 		check(context.getNotifyID);
-		//check(context.dataStore);
 		check(context.dataStores);
 		
 		NotifyID = context.getNotifyID(NotifyTag);
 		
-		/*auto& dataStore = *context.dataStore;
-
-		EntityDataRequestNotifyID = dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag);
-		EntityDataRequestAbilityID = dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag);*/
-
 		for (auto& dataStore : *context.dataStores)
 		{
 			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
@@ -64,12 +57,8 @@ public:
 		}
 	}
 	
-	//void ExecuteNotify(const uint16 indexMember, FFluxPrimeDataStore& dataStore)
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
-		/*FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID));
-		FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID));*/
-		
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]));
 		

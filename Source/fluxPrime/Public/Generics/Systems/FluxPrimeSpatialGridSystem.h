@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeSpatialGridSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -46,7 +47,8 @@ private:
     UPROPERTY(EditAnywhere)
     int32 CellHeight = 200;
     
-    UPROPERTY(EditAnywhere)
+    //UPROPERTY(EditAnywhere)
+    UPROPERTY()
     int32 TotalCells = 100;
     
     UPROPERTY()

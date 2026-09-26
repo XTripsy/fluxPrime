@@ -18,7 +18,7 @@ private:
 	bool IsReplicated;
 		
 protected:
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Net", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UFluxPrimeNetManager> NetManager;
 		
 public:

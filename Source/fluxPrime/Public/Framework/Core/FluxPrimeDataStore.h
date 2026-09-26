@@ -14,19 +14,36 @@ private:
 	TArray<FGameplayTag> DataID;
 	
 public:
-	void SwapManualBuffer(int32 IndexA, int32 IndexB)
+	~FFluxPrimeArchetypeDataStore()
+	{
+		FreeManualBuffer();
+		RawDataBuffers.Reset();
+		RawElementSizes.Reset();
+		EntityLookup.Reset();
+		DataID.Reset();
+	}
+	
+	void FreeManualBuffer()
+	{
+		for (auto& pair : RawDataBuffers)
+		{
+			FMemory::Free(pair);
+		}
+	}
+	
+	void SwapManualBuffer(int32 indexA, int32 indexB)
 	{
 		for (int32 i = 0; i < RawDataBuffers.Num(); ++i)
 		{
-			uint8* Buffer = RawDataBuffers[i];
-			int32 ElementSize = RawElementSizes[i]; 
+			uint8* buffer = RawDataBuffers[i];
+			int32 elementSize = RawElementSizes[i]; 
         
-			if (!Buffer || ElementSize <= 0) continue;
+			if (!buffer || elementSize <= 0) continue;
 
-			void* PtrA = Buffer + (IndexA * ElementSize);
-			void* PtrB = Buffer + (IndexB * ElementSize);
+			void* ptrA = buffer + (indexA * elementSize);
+			void* ptrB = buffer + (indexB * elementSize);
 
-			FMemory::Memswap(PtrA, PtrB, ElementSize);
+			FMemory::Memswap(ptrA, ptrB, elementSize);
 		}
 	}
 	

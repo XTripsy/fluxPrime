@@ -1,11 +1,13 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Generics/Systems/Ability/FluxPrimeBaseAbilitySystem.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsMeleAbility.h"
 #include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsProjectileAbility.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeCrowdsAbilitySystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -45,8 +47,7 @@ struct FFluxPrimeCrowdsAbilitySystemsContext
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> niagaraCallback = nullptr;
 	
-	TArray<TObjectPtr<UScriptStruct>>* catalogFragment = nullptr;
-	TArray<FGuid>* catalogFragmentID = nullptr;
+	TArray<FGameplayTag>* catalogAbilityFragmentIdentity = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
@@ -64,27 +65,23 @@ public:
 private:
 	void RegisterAbilityExecutors(const FFluxPrimeCrowdsAbilitySystemsContext& context)
 	{
-		int32 count = context.catalogFragment->Num();
+		int32 count = context.catalogAbilityFragmentIdentity->Num();
 		
 		AbilityExecutors.Reset();
 		AbilityExecutors.Reserve(count);
 		
 		for (int i = 0; i < count; ++i)
 		{
-			TObjectPtr<UScriptStruct> abilityFragment = (*context.catalogFragment)[i];
-			FGuid abilityID = (*context.catalogFragmentID)[i];
+			FGameplayTag catalogIdentity = (*context.catalogAbilityFragmentIdentity)[i];
 			
 			int32 index = AbilityFragments.IndexOfByPredicate(
 			[&](const FInstancedStruct& fragment)
 				{
-					if (fragment.GetScriptStruct() != abilityFragment)
-						return false;
-
 					if (const FFluxPrimeCrowdsMeleAbility* Mele = fragment.GetPtr<FFluxPrimeCrowdsMeleAbility>())
-						return Mele->ID == abilityID;
+						return Mele->Identity == catalogIdentity;
 
 					if (const FFluxPrimeCrowdsProjectileAbility* Projectile = fragment.GetPtr<FFluxPrimeCrowdsProjectileAbility>())
-						return Projectile->ID == abilityID;
+						return Projectile->Identity == catalogIdentity;
 
 					return false;
 				}
@@ -97,8 +94,7 @@ private:
 			}
 			
 			if (AbilityFragments[index].GetPtr<FFluxPrimeCrowdsMeleAbility>() &&
-				AbilityFragments[index].GetPtr<FFluxPrimeCrowdsMeleAbility>()->ID == abilityID &&
-				abilityFragment == FFluxPrimeCrowdsMeleAbility::StaticStruct())
+				AbilityFragments[index].GetPtr<FFluxPrimeCrowdsMeleAbility>()->Identity == catalogIdentity)
 			{
 				const int32 executorIndex = RegisterAbility<FFluxPrimeCrowdsMeleAbility>(AbilityFragments[index]);
 				
@@ -112,8 +108,7 @@ private:
 			}
 			
 			if (AbilityFragments[index].GetPtr<FFluxPrimeCrowdsProjectileAbility>() &&
-				AbilityFragments[index].GetPtr<FFluxPrimeCrowdsProjectileAbility>()->ID == abilityID &&
-				abilityFragment == FFluxPrimeCrowdsProjectileAbility::StaticStruct())
+				AbilityFragments[index].GetPtr<FFluxPrimeCrowdsProjectileAbility>()->Identity == catalogIdentity)
 			{
 				const int32 executorIndex = RegisterAbility<FFluxPrimeCrowdsProjectileAbility>(AbilityFragments[index]);
 				
@@ -135,8 +130,7 @@ public:
 	void Initialized(FFluxPrimeCrowdsAbilitySystemsContext context)
 	{
 		check(context.world);
-		check(context.catalogFragment);
-		check(context.catalogFragmentID);
+		check(context.catalogAbilityFragmentIdentity);
 		check(context.niagaraCallback);
 		check(context.dataStores);
 
@@ -153,6 +147,8 @@ public:
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Ability_Systems);
+		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
 		{
@@ -165,17 +161,18 @@ public:
 			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
+				UE_LOG(LogTemp, Log, TEXT("ABILITY:: CEK REQUEST ABILITY"));
 				if (!entityDataRequestAbility[i].ValueBool) continue;
 				
 				entityDataRequestAbility[i].ValueBool = false;
 				
-				check(indexDataID >= 0);
 				check(indexDataID < AbilityExecutors.Num());
 				
 				FAbilityExecutor& executor = AbilityExecutors[indexDataID];
 
 				check(executor.Execute != nullptr);
 
+				UE_LOG(LogTemp, Log, TEXT("ABILITY:: EXECUTE ABILITY"));
 				rotationEntity = FRotator(0, entityDataRotation[i].Yaw, 0);
 				executor.Execute(
 					*executor.Data,

@@ -40,11 +40,9 @@ void UFluxPrimeCrowdsManager::PreLoading()
 	{
 		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
 		
-		if (!identity->Mesh.IsPending()) continue;
-		pathsToLoad.Add(identity->Mesh.ToSoftObjectPath());
-		
-		if (!identity->AnimationData.IsPending()) continue;
-		pathsToLoad.Add(identity->AnimationData.ToSoftObjectPath());
+		if (identity->Mesh.IsPending()) pathsToLoad.Add(identity->Mesh.ToSoftObjectPath());
+   
+		if (identity->AnimationData.IsPending()) pathsToLoad.Add(identity->AnimationData.ToSoftObjectPath());
 	}
 	
 	if (!pathsToLoad.IsEmpty())
@@ -93,30 +91,21 @@ void UFluxPrimeCrowdsManager::Initialize()
 			RegisterStateID(pairState.IdentityState);
 		}
 		
-		UFluxPrimeAnimationData* dataAnim = CrowdsAnimationSoftRef[identity->Identity].Get();
-
-		for (auto& pairAnimation : dataAnim->DataAnimations)
+		if (CrowdsAnimationSoftRef.Contains(identity->Identity))
 		{
-			for (auto& pairNotify : pairAnimation.AnimationNotifies)
+			UFluxPrimeAnimationData* dataAnim = CrowdsAnimationSoftRef[identity->Identity].Get();
+
+			for (auto& pairAnimation : dataAnim->DataAnimations)
 			{
-				RegisterNotifyID(pairNotify.AnimationNotifyTag);
+				for (auto& pairNotify : pairAnimation.AnimationNotifies)
+				{
+					RegisterNotifyID(pairNotify.AnimationNotifyTag);
+				}
 			}
 		}
 	}
 	
 	InitializedModules();
-	
-	FTimerHandle TimerHandle;
-
-	GetWorld()->GetTimerManager().SetTimer(
-		TimerHandle,
-		[this]()
-		{
-			InitializedPlayer();
-		},
-		1.0f,
-		false
-	);
 }
 
 void UFluxPrimeCrowdsManager::InitializedModules()
@@ -233,16 +222,21 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 	{
 		return A.GetPlayerId() < B.GetPlayerId();
 	});
+	
+	CrowdsTarget.Reset();
 
 	for (APlayerState* pair : playerStates)
 	{
+		UE_LOG(LogTemp, Log, TEXT("TARGET:: CEK STATE"));
 		if (!pair) continue;
 
 		uint16 priorityPawn = 0;
 		APawn* pawn = pair->GetPawn();
 		if (UFluxPrimeCrowdsTargetManager* component = pawn->FindComponentByClass<UFluxPrimeCrowdsTargetManager>())
 			priorityPawn = component->GetPriorityTarget();
-
+		
+		UE_LOG(LogTemp, Log, TEXT("TARGET:: GET PRIORITY"));
+		
 		if (!pawn) continue;
 
 		FFluxPrimeTargetCatalog catalog;
@@ -250,7 +244,14 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		catalog.CrowdsTargetPriority = priorityPawn;
 		
 		CrowdsTarget.Add(catalog);
+		
+		UE_LOG(LogTemp, Log, TEXT("TARGET:: ADD NEW TARGET"));
 	}
+	
+	FFluxPrimeRegisterTargetActionPayload data;
+	FInstancedStruct payload = FInstancedStruct::Make(data);
+		
+	OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 }
 
 void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -333,5 +334,11 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		if (indexData == INDEX_NONE) return;
 		
 		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[typeIndex], typeIndex, indexData, data.CrowdDamageTaken);
+	}
+	
+	if (payload.GetScriptStruct() == FFluxPrimeRegisterTargetActionPayload::StaticStruct())
+	{
+		const FFluxPrimeRegisterTargetActionPayload& data = payload.Get<FFluxPrimeRegisterTargetActionPayload>();
+		InitializedPlayer();
 	}
 }

@@ -96,6 +96,6 @@ struct FFluxPrimeRegisterTargetActionPayload
 {
 	GENERATED_BODY()
 	
-	UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> NewCrowdsTarget;
+	/*UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> NewCrowdsTarget;*/
 };

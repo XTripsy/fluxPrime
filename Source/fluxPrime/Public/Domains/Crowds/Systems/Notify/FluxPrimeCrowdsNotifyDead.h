@@ -70,9 +70,10 @@ public:
 		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
-		entityDataRequestBackToPool[indexMember].ValueBool = true;
 		entityDataLocation[indexMember] = FVector::DownVector * 1000.0f;
+		entityDataRequestBackToPool[indexMember].ValueBool = true;
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
+		UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d [NOTIFY]"), indexMember, indexDataID);
 		UE_LOG(LogTemp, Log, TEXT("NOFITY:: DEAD"));
 	}
 };

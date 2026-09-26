@@ -4,9 +4,7 @@
 #include "GameplayTagContainer.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 #include "FluxPrimeMovementSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -70,13 +68,11 @@ public:
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Movement_Systems);
-#endif
 
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
-		{		
+		{
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
 			FVector* entityDataAcceleration = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataAccelerationID[indexDataID]));

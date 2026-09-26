@@ -23,8 +23,10 @@ struct FFluxPrimeCrowdsNotifySpawnSFXContext
 {
 	GENERATED_BODY()
 	
+	UPROPERTY()
+	TObjectPtr<UWorld> world = nullptr;
+	
 	FGetNotifyID getNotifyID = nullptr;
-	//FFluxPrimeDataStore* dataStore = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
@@ -36,22 +38,24 @@ struct FFluxPrimeCrowdsNotifySpawnSFX : public FFluxPrimeNotifyBase
 public:
 	UPROPERTY(EditAnywhere)
 	FNotifySpawnSfxDataTagConfig DataTagConfig;
+	
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<USoundBase> SFXSystem = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<UWorld> World = nullptr;
 
-	//int16 EntityDataRequestNotifyID;
 	TArray<int16> EntityDataRequestNotifyID;
 	
 public:
 	void Initialized(FFluxPrimeCrowdsNotifySpawnSFXContext context)
 	{
+		check(context.world);
 		check(context.getNotifyID);
-		//check(context.dataStore);
 		check(context.dataStores);
 		
+		World = context.world;
 		NotifyID = context.getNotifyID(NotifyTag);
-		
-		/*auto& dataStore = *context.dataStore;
-
-		EntityDataRequestNotifyID = dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag);*/
 
 		for (auto& dataStore : *context.dataStores)
 		{
@@ -59,10 +63,8 @@ public:
 		}
 	}
 	
-	//void ExecuteNotify(const uint16 indexMember, FFluxPrimeDataStore& dataStore)
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
-		//FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID));
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		

@@ -11,9 +11,7 @@
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 #include "FluxPrimeAnimationSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -174,9 +172,7 @@ private:
 	void PlayAnimation(int8& animationState, float& startTimeAnimation, 
 		int8& crowdType, float& previousFrameAnimation, int32& requestAnimationNotify, float realTime)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_PlayAnimation);
-#endif
 		
 		float startFrame = RuntimeAnimationMapping[crowdType].AnimationStart[animationState];
 		float endFrame = RuntimeAnimationMapping[crowdType].AnimationEnd[animationState];
@@ -235,7 +231,7 @@ private:
 		}
 	}
 	
-	void SyncAnimation(int16& instanceIndexEntity, int8& type, int8& animationState, 
+	void SyncAnimation(const int16 instanceIndexEntity, const int8 type, const int8 animationState, 
 		float& startTimeAnimation, float& previousFrameAnimation, float realTime)
 	{
 #if IF_WITH_EDITOR
@@ -250,6 +246,8 @@ private:
 		// current
 		uint16 currentStartFrame = RuntimeAnimationMapping[type].AnimationStart[animationState];
 		uint16 currentEndFrame = RuntimeAnimationMapping[type].AnimationEnd[animationState];
+		
+		UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: type %d | state %d | startFrame %d | endFrame %d [ANIMATION FRAME]"), type, animationState, currentStartFrame, currentEndFrame);
 			
 		SwitchAnimation(instanceIndexEntity, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime, realTime);
 		
@@ -350,6 +348,8 @@ public:
 #if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Update);
 #endif
+		
+		float realTime = World->GetRealTimeSeconds();
 
 		int8 indexDataID = 0;
 		for (auto& dataStore : dataStores)
@@ -365,22 +365,28 @@ public:
 			FVector* entityDataTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataRequestAnimationNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestSyncNotify = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]));
-			float realTime = World->GetRealTimeSeconds();
 
-			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+			for (int16 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				if (entityDataRequestSyncNotify[i].ValueBool)
 				{
+					UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d | state %d [ANIMATION]"), i, indexDataID, entityDataAnimState[i].ValueInt8);
 					entityDataRequestSyncNotify[i].ValueBool = false;
-					SyncAnimation(entityDataId[i].ValueInt16, indexDataID,  
+					/*SyncAnimation(entityDataId[i].ValueInt16, indexDataID,  
+					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);*/
+					SyncAnimation(i, indexDataID,  
 					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				}
 				
-				UpdateAnimation(entityDataId[i].ValueInt16, indexDataID, entityDataState[i].ValueInt8, 
+				/*UpdateAnimation(entityDataId[i].ValueInt16, indexDataID, entityDataState[i].ValueInt8, 
+					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);*/
+				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8, 
 					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				
 				int32 targetCellId = SpatialGridSystems.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
-			
+				
+				UE_LOG(LogTemp, Log, TEXT("NOTIFY ID:: CELL ID %d | TARGET CELL ID %d"), entityDataCellId[i].ValueInt32, targetCellId);
+				
 				if (entityDataCellId[i].ValueInt32 != targetCellId && !RuntimeAnimationMapping[indexDataID].AnimationForceNotify[entityDataState[i].ValueInt8]) continue;
 			
 				PlayAnimation(entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, indexDataID,

@@ -2,10 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 #include "FluxPrimeCrowdsCompactSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -83,9 +80,7 @@ public:
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Compact_Systems);
-#endif
 
 		int32 indexDataID = 0;
 		for (auto& dataStore : dataStores)
@@ -100,10 +95,11 @@ public:
 			{
 				if (!entityDataConditionAlive[index].ValueBool && entityDataRequestBackToPool[index].ValueBool)
 				{
-					entityDataRequestSyncAnimation[lastIndex].ValueBool = true;
 					SwapCrowdsData(dataStore, index, lastIndex);
 					UpdateLookUpData(dataStore, index, lastIndex);
 					UpdateLookUpData(dataStore, lastIndex, index);
+					entityDataRequestSyncAnimation[index].ValueBool = true;
+					UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d | alive %d [COMPACT]"), index, indexDataID, entityDataConditionAlive[index].ValueBool);
 					--lastIndex;
 				}
 				else ++index;

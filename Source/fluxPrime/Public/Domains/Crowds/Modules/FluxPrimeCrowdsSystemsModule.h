@@ -9,15 +9,15 @@
 #include "Generics/Systems/FluxPrimeMovementSystem.h"
 #include "Generics/Systems/FluxPrimeNavigationSystem.h"
 #include "Generics/Systems/Animation/FluxPrimeAnimationSystem.h"
-#include "Domains/Crowds/Systems/FluxPrimeCrowdsCompactSystem.h"
 #include "Generics/Systems/FluxPrimeRenderSystem.h"
-#include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsAbilitySystem.h"
 #include "Generics/Systems/FluxPrimeHealthSystem.h"
+#include "Domains/Crowds/Systems/FluxPrimeCrowdsCompactSystem.h"
+#include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsAbilitySystem.h"
+#include "Domains/Crowds/Systems/Notify/FluxPrimeCrwodsAnimationNotifySystem.h"
+#include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Domains/Crowds/Systems/Notify/FluxPrimeCrwodsAnimationNotifySystem.h"
-#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
-#include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
 
 USTRUCT()
@@ -65,13 +65,23 @@ public:
 	void SyncNewTarget(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, 
 		int16 newTargetID, FVector newTargetLocation, bool newRequestNeedReplan)
 	{
-		FSystemExecutor& Executor = GetSystemExecutor(CrowdsTargetSystemIndex);
-		FFluxPrimeCrowdsTargetSystem& targetSystem = Executor.Data->GetMutable<FFluxPrimeCrowdsTargetSystem>();
-		targetSystem.SyncNewTarget(dataStore, indexDataID, indexData, newTargetID, newTargetLocation);
+		FSystemExecutor& ExecutorTarget = GetSystemExecutor(CrowdsTargetSystemIndex);
+		if (ExecutorTarget.Data->IsValid())
+		{
+			FString StructName = ExecutorTarget.Data->GetScriptStruct()->GetName();
+			UE_LOG(LogTemp, Warning, TEXT("FRAGMENT:: Get target system: %s | index %d"), *StructName, CrowdsTargetSystemIndex);
+			FFluxPrimeCrowdsTargetSystem& targetSystem = ExecutorTarget.Data->GetMutable<FFluxPrimeCrowdsTargetSystem>();
+			targetSystem.SyncNewTarget(dataStore, indexDataID, indexData, newTargetID, newTargetLocation);
+		}
 		
-		Executor = GetSystemExecutor(CrowdsNavigationSystemIndex);
-		FFluxPrimeNavigationSystem& navigationSystem = Executor.Data->GetMutable<FFluxPrimeNavigationSystem>();
-		navigationSystem.SyncNewTarget(dataStore, indexDataID, indexData, newRequestNeedReplan);
+		FSystemExecutor& ExecutorNavigation = GetSystemExecutor(CrowdsNavigationSystemIndex);
+		if (ExecutorNavigation.Data->IsValid())
+		{
+			FString StructName = ExecutorNavigation.Data->GetScriptStruct()->GetName();
+			UE_LOG(LogTemp, Warning, TEXT("FRAGMENT:: Get navigation system: %s | index %d"), *StructName, CrowdsNavigationSystemIndex);
+			FFluxPrimeNavigationSystem& navigationSystem = ExecutorNavigation.Data->GetMutable<FFluxPrimeNavigationSystem>();
+			navigationSystem.SyncNewTarget(dataStore, indexDataID, indexData, newRequestNeedReplan);
+		}
 	}
 	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
@@ -96,21 +106,18 @@ public:
 			{
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsAbilitySystem>(fragment);
 				
-				TArray<TObjectPtr<UScriptStruct>> crowdsCatalogFragment;
-				TArray<FGuid> crowdsCatalogFragmentID;
+				TArray<FGameplayTag> crowdsCatalogAbilityFragmentIdentity;
 
 				for (auto& pair : catalog)
 				{
-					FAbilityFragment temp = Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity)->AbilityFragment;
-				
-					crowdsCatalogFragment.Add(temp.AbilityFragment);
-					crowdsCatalogFragmentID.Add(temp.ID);
+					auto* identity = Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity);
+					
+					crowdsCatalogAbilityFragmentIdentity.Add(identity->AbilityIdentity);
 				}
 			
 				FFluxPrimeCrowdsAbilitySystemsContext tempContext;
 				tempContext.world = context.world;
-				tempContext.catalogFragment = &crowdsCatalogFragment;
-				tempContext.catalogFragmentID = &crowdsCatalogFragmentID;
+				tempContext.catalogAbilityFragmentIdentity = &crowdsCatalogAbilityFragmentIdentity;
 				tempContext.niagaraCallback = NiagaraCallback;
 				tempContext.dataStores = context.dataStores;
 				
@@ -170,6 +177,7 @@ public:
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrwodsAnimationNotifySystem>(fragment);
 				
 				FFluxPrimeAnimationNotifySystemsContext tempContext;
+				tempContext.world = context.world;
 				tempContext.getNotifyID = context.getNotifyID;
 				tempContext.dataStores = context.dataStores;
 				
@@ -216,6 +224,7 @@ public:
 			{
 				const int32 executorIndex = RegisterSystem<FFluxPrimeNavigationSystem>(fragment);
 	            CrowdsNavigationSystemIndex = executorIndex;
+				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: navigation index %d"), CrowdsNavigationSystemIndex);
 				
 				FFluxPrimeNavigationSystemsContext tempContext;
 				tempContext.world = context.world;
@@ -265,6 +274,7 @@ public:
 			{
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsTargetSystem>(fragment);
 				CrowdsTargetSystemIndex = executorIndex;
+				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: target index %d"), CrowdsTargetSystemIndex);
 				
 				TArray<float> aggroDistance;
 

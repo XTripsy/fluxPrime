@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeRenderSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -85,6 +86,8 @@ public:
 
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Render_Systems);
+		
 		auto& componentsISMC = *ComponentsISMC;
 		int32 totalComponents = componentsISMC.Num();
 		
@@ -93,6 +96,14 @@ public:
 		{
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
+			
+			for (int32 i = 0; i < dataStore.GetTotalEntityCount(); ++i)
+			{
+				FTransform transform;
+				transform.SetLocation(FVector::DownVector * 10000);
+			
+				TransformsPerComponent[indexDataID][i] = transform;
+			}
 			
 			for (int32 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{

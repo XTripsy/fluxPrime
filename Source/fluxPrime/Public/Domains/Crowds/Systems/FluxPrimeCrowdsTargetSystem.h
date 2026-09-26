@@ -6,9 +6,7 @@
 #include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "GameplayTagContainer.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 #include "FluxPrimeCrowdsTargetSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -94,9 +92,9 @@ public:
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
-#endif
+		
+		check(OnManagerActionChange);
 
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
@@ -156,6 +154,8 @@ public:
 					}
 				}
 
+				if (!targetLocations.IsValidIndex(entityDataTargetID[i].ValueInt16)) continue;
+				
 				if (entityDataTargetID[i].ValueInt16 != bestTargetID && bestTargetID != INDEX_NONE)
 				{
 					entityDataTargetID[i].ValueInt16 = static_cast<uint16>(bestTargetID);
@@ -169,8 +169,6 @@ public:
 					
 					OnManagerActionChange->ExecuteIfBound(payload);
 				}
-				
-				if (!targetLocations.IsValidIndex(entityDataTargetID[i].ValueInt16)) continue;
 				
 				entityDataTargetLocation[i] = targetLocations[entityDataTargetID[i].ValueInt16];
 			}

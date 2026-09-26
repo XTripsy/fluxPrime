@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeGroundHeightSystem.generated.h"
 
 #define ECC_GroundHeight ECC_GameTraceChannel1
