@@ -17,6 +17,8 @@
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
+#include "Generics/Systems/FluxPrimeSnapshotSystem.h"
+#include "Generics/Systems/FluxPrimeVisualInterpolationSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
 
@@ -36,6 +38,8 @@ struct FFluxPrimeCrowdsSystemsModuleContext
 	TArray<FFluxPrimeTargetCatalog>* crowdsTarget = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 	
+	bool hasAuthority = false;
+	
 	FGetStateID getStateID = nullptr;
 	FGetNotifyID getNotifyID = nullptr;
 };
@@ -52,7 +56,16 @@ private:
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 	
-	int32 CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE;
+	int32 CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
+	
+private:
+	template <typename T>
+	bool CanRunInCurrentAuthority(const T* SystemConfig, bool bIsAuthority) 
+	{
+		if (!SystemConfig) return false;
+		return (bIsAuthority && SystemConfig->AvailableOnLocalServer) || 
+			   (!bIsAuthority && SystemConfig->AvailableOnLocalClient);
+	}
 	
 public:
 	void TakeDamage(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
@@ -84,6 +97,13 @@ public:
 		}
 	}
 	
+	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeSnapshotData>& dataSnapshots)
+	{
+		FSystemExecutor& Executor = GetSystemExecutor(CrowdsSnapshotSystemIndex);
+		FFluxPrimeSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeSnapshotSystem>();
+		system.SyncData(dataStores, dataSnapshots);
+	}
+	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
 	{
 		NiagaraCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>();
@@ -102,8 +122,10 @@ public:
 		{
 			FInstancedStruct& fragment = SystemFragments[i];
 			
-			if (fragment.GetPtr<FFluxPrimeCrowdsAbilitySystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsAbilitySystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsAbilitySystem>(fragment);
 				
 				TArray<FGameplayTag> crowdsCatalogAbilityFragmentIdentity;
@@ -126,8 +148,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeHealthSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeHealthSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeHealthSystem>(fragment);
 				CrowdsHealthSystemIndex = executorIndex;
 				
@@ -136,8 +160,10 @@ public:
 				system.Initialized(*context.dataStores);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeBoidsSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeBoidsSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeBoidsSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
@@ -145,8 +171,10 @@ public:
 				system.Initialized(*context.dataStores);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeAnimationSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeAnimationSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeAnimationSystem>(fragment);
 				
 				TArray<FName> catalogIdentity;
@@ -172,8 +200,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeCrwodsAnimationNotifySystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrwodsAnimationNotifySystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrwodsAnimationNotifySystem>(fragment);
 				
 				FFluxPrimeAnimationNotifySystemsContext tempContext;
@@ -186,8 +216,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeCrowdsCompactSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsCompactSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsCompactSystem>(fragment);
 				
 				FFluxPrimeCrowdsCompactSystemsContext tempContext;
@@ -198,8 +230,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeGroundHeightSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeGroundHeightSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeGroundHeightSystem>(fragment);
 				
 				FFluxPrimeGroundHeightSystemsContext tempContext;
@@ -211,8 +245,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeMovementSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeMovementSystem>())
 	        {
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 	            const int32 executorIndex = RegisterSystem<FFluxPrimeMovementSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
@@ -220,8 +256,10 @@ public:
 				system.Initialized(*context.dataStores);
 	        }
 			
-			if (fragment.GetPtr<FFluxPrimeNavigationSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeNavigationSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeNavigationSystem>(fragment);
 	            CrowdsNavigationSystemIndex = executorIndex;
 				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: navigation index %d"), CrowdsNavigationSystemIndex);
@@ -235,8 +273,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeRenderSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeRenderSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeRenderSystem>(fragment);
 	            
 				TArray<uint16> catalogTotal;
@@ -256,8 +296,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeCrowdsStateMachineSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsStateMachineSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsStateMachineSystem>(fragment);
 				
 				FFluxPrimeCrowdsStateMachineSystemContext tempContext;
@@ -270,8 +312,10 @@ public:
 				system.Initialized(tempContext);
 			}
 			
-			if (fragment.GetPtr<FFluxPrimeCrowdsTargetSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsTargetSystem>())
 			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsTargetSystem>(fragment);
 				CrowdsTargetSystemIndex = executorIndex;
 				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: target index %d"), CrowdsTargetSystemIndex);
@@ -286,11 +330,40 @@ public:
 				FFluxPrimeCrowdsTargetSystemsContext tempContext;
 				tempContext.targetCatalogs = context.crowdsTarget;
 				tempContext.aggroDistance = &aggroDistance;
-				tempContext.onManagerActionChange = context.onCrowdsManagerActionChange;
+				//tempContext.onManagerActionChange = context.onCrowdsManagerActionChange;
 				tempContext.dataStores = context.dataStores;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeCrowdsTargetSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsTargetSystem>();
+				system.Initialized(tempContext);
+			}
+			
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeVisualInterpolationSystem>())
+			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
+				const int32 executorIndex = RegisterSystem<FFluxPrimeVisualInterpolationSystem>(fragment);
+				
+				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
+				FFluxPrimeVisualInterpolationSystem& system = Executor.Data->GetMutable<FFluxPrimeVisualInterpolationSystem>();
+				system.Initialized(*context.dataStores);
+			}
+			
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeSnapshotSystem>())
+			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
+				const int32 executorIndex = RegisterSystem<FFluxPrimeSnapshotSystem>(fragment);
+				CrowdsSnapshotSystemIndex = executorIndex;
+				
+				FFluxPrimeSnapshotSystemContext tempContext;
+				tempContext.dataStores = context.dataStores;
+				tempContext.world = context.world;
+				tempContext.hasAuthority = context.hasAuthority;
+				tempContext.onManagerActionChange = context.onCrowdsManagerActionChange;
+				
+				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
+				FFluxPrimeSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeSnapshotSystem>();
 				system.Initialized(tempContext);
 			}
 		}

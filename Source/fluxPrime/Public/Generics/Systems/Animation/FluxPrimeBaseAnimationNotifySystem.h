@@ -66,7 +66,6 @@ public:
 			{
 				for (auto& pair : NotifyExecutors)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("UPDATE NOTIFY SYSTEM"));
 					pair.Execute(*pair.Data, indexDataID, indexEntity, dataStore);
 				}
 			}

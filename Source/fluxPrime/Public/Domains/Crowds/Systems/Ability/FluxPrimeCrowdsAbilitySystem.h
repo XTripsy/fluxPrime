@@ -157,11 +157,15 @@ public:
 			FFluxPrimeWrapperFloat* entityDataDamage = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataDamageID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]));
 			
+			check(entityDataLocation);
+			check(entityDataRotation);
+			check(entityDataDamage);
+			check(entityDataRequestAbility);
+			
 			FRotator rotationEntity = FRotator::ZeroRotator;
 			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
-				UE_LOG(LogTemp, Log, TEXT("ABILITY:: CEK REQUEST ABILITY"));
 				if (!entityDataRequestAbility[i].ValueBool) continue;
 				
 				entityDataRequestAbility[i].ValueBool = false;
@@ -172,7 +176,6 @@ public:
 
 				check(executor.Execute != nullptr);
 
-				UE_LOG(LogTemp, Log, TEXT("ABILITY:: EXECUTE ABILITY"));
 				rotationEntity = FRotator(0, entityDataRotation[i].Yaw, 0);
 				executor.Execute(
 					*executor.Data,

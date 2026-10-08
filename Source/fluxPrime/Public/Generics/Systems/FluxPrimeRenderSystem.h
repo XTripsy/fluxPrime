@@ -97,26 +97,28 @@ public:
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
 			
-			for (int32 i = 0; i < dataStore.GetTotalEntityCount(); ++i)
-			{
-				FTransform transform;
-				transform.SetLocation(FVector::DownVector * 10000);
-			
-				TransformsPerComponent[indexDataID][i] = transform;
-			}
-			
-			for (int32 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+			check(entityDataLocation);
+			check(entityDataRotation);
+
+			int32 activeCount = dataStore.GetActiveEntityCount();
+			int32 totalCount = dataStore.GetTotalEntityCount();
+
+			for (int32 i = 0; i < activeCount; ++i)
 			{
 				check(indexDataID >= 0);
 				check(indexDataID <= totalComponents);
 
 				FTransform transform;
 				transform.SetLocation(entityDataLocation[i]);
-				
-				float unpackedYaw = entityDataRotation[i].Yaw;
-				FRotator Rot(0.0f, unpackedYaw, 0.0f);
+				FRotator Rot(0.0f, entityDataRotation[i].Yaw, 0.0f);
 				transform.SetRotation(Rot.Quaternion());
-			
+				TransformsPerComponent[indexDataID][i] = transform;
+			}
+
+			for (int32 i = activeCount; i < totalCount; ++i)
+			{
+				FTransform transform;
+				transform.SetLocation(FVector::DownVector * 10000);
 				TransformsPerComponent[indexDataID][i] = transform;
 			}
 			
@@ -125,7 +127,7 @@ public:
 		
 		for (int32 i = 0; i < totalComponents; ++i)
 		{
-			componentsISMC[i]->BatchUpdateInstancesTransforms(0, TransformsPerComponent[i], true, true, true);
+			componentsISMC[i]->BatchUpdateInstancesTransforms(0, TransformsPerComponent[i], false, false, false);
 		}
 	}
 };

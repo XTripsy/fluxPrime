@@ -11,6 +11,7 @@
 #include "Framework/Core/FluxPrimeBaseManager.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsSpawnerModule.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsSystemsModule.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), HideCategories=(Tags, Activation, Cooking, AssetUserData, Navigation))
@@ -90,28 +91,37 @@ public:
 	void OnActionChange(FInstancedStruct payload);
 	
 	UFUNCTION(BlueprintCallable)
-	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, FGameplayTag newState)
+	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, 
+		FVector randomBoundingBox, FGameplayTag newState, int32 totalEntityToSpawn)
 	{
 		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
 		auto& moduleFragments = *ModuleFragments;
+
+		TArray<FVector_NetQuantize10> listSpawnLocation;
 		
-		FFluxPrimeCrowdsSpawnerComponentContext context;
-		context.crowdsTypes = &CrowdsTypes;
-		context.dataStores = &DataStores;
-		context.identity = identity;
-		context.location = location;
-		context.rotation = rotation;
-		context.newState = newState;
-		context.getStateID = [this](FGameplayTag Identity)
+		for (int i = 0; i < totalEntityToSpawn; ++i)
 		{
-			return GetStateID(Identity);
-		};
+			FVector resultLocation = UKismetMathLibrary::RandomPointInBoundingBox(location, randomBoundingBox);
+			listSpawnLocation.Add(resultLocation);
+			
+			FFluxPrimeCrowdsSpawnerComponentContext context;
+			context.crowdsTypes = &CrowdsTypes;
+			context.dataStores = &DataStores;
+			context.identity = identity;
+			context.location = location;
+			context.rotation = rotation;
+			context.newState = newState;
+			context.getStateID = [this](FGameplayTag Identity)
+			{
+				return GetStateID(Identity);
+			};
 		
-		moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnCrowd(context);
+			moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnCrowd(context);
+		}
 		
 		FFluxPrimeSpawnActionPayload data;
 		data.Identity = identity;
-		data.Location = location;
+		data.Locations = listSpawnLocation;
 		data.Rotation = rotation;
 		data.NewState = newState;
 		FInstancedStruct payload = FInstancedStruct::Make(data);

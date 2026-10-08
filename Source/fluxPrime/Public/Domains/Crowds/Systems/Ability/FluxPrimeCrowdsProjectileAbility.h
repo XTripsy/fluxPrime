@@ -48,8 +48,6 @@ public:
 	
 	void Execute(FVector location, FRotator rotation, float damage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ABILITY:: PROJECTILE ATTACK"));
-		
 		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
 			NiagaraSystem,

@@ -19,7 +19,7 @@ void UFluxPrimeCrowdsWorldSubsystem::ExecuteSpawnAction(const FInstancedStruct& 
 	if (!pair) return;
 	
 	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
-	manager->SpawnCrowd(pair->Identity, pair->Location, pair->Rotation, pair->NewState);
+	manager->SpawnCrowd(pair->Identity, pair->Location, pair->Rotation, pair->RandomBoundingBox, pair->NewState, pair->TotalEntityToSpawn);
 }
 
 void UFluxPrimeCrowdsWorldSubsystem::ExecuteDamageAction(const FInstancedStruct& payload)

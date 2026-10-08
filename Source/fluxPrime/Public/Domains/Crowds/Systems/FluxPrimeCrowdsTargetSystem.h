@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
-#include "Domains/Crowds/Event/FluxPrimeCrowdsEvent.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "GameplayTagContainer.h"
@@ -42,7 +41,6 @@ struct FFluxPrimeCrowdsTargetSystemsContext
 	
 	TArray<FFluxPrimeTargetCatalog>* targetCatalogs = nullptr;
 	TArray<float>* aggroDistance = nullptr;
-	FOnCrowdsManagerActionChange* onManagerActionChange = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
@@ -53,7 +51,6 @@ struct FFluxPrimeCrowdsTargetSystem : public FFluxPrimeBaseSystem
 	
 private:
 	TArray<FFluxPrimeTargetCatalog>* TargetCatalogs = nullptr;
-	FOnCrowdsManagerActionChange* OnManagerActionChange = nullptr;
 	
 	UPROPERTY()
 	TArray<float> AggroDistance;
@@ -68,12 +65,10 @@ public:
 	void Initialized(FFluxPrimeCrowdsTargetSystemsContext context)
 	{
 		check(context.targetCatalogs);
-		check(context.onManagerActionChange);
 		check(context.dataStores);
 		
 		TargetCatalogs = context.targetCatalogs;
 		AggroDistance = *context.aggroDistance;
-		OnManagerActionChange = context.onManagerActionChange;
 		
 		for (auto& dataStore : *context.dataStores)
 		{
@@ -94,8 +89,6 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
 		
-		check(OnManagerActionChange);
-
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
 		{
@@ -104,6 +97,12 @@ public:
 			FFluxPrimeWrapperInt16* entityDataTargetID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataTargetIdID[indexDataID]));
 			FFluxPrimeWrapperInt16* entityDataID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
 			auto& targetCatalogs = *TargetCatalogs;
+			
+			check(entityDataLocation);
+			check(entityDataTargetLocation);
+			check(entityDataTargetID);
+			check(entityDataID);
+			check(TargetCatalogs);
 			
 			TArray<FVector> targetLocations;
 			TArray<uint16> targetPriority;
@@ -159,15 +158,6 @@ public:
 				if (entityDataTargetID[i].ValueInt16 != bestTargetID && bestTargetID != INDEX_NONE)
 				{
 					entityDataTargetID[i].ValueInt16 = static_cast<uint16>(bestTargetID);
-					
-					FFluxPrimeChangeTargetActionPayload data;
-					data.CrowdID = entityDataID[i].ValueInt16;
-					data.CrowdType = indexDataID;
-					data.TargetID = static_cast<uint16>(bestTargetID);
-					data.NewTargetLocation = targetLocations[bestTargetID];
-					FInstancedStruct payload = FInstancedStruct::Make(data);
-					
-					OnManagerActionChange->ExecuteIfBound(payload);
 				}
 				
 				entityDataTargetLocation[i] = targetLocations[entityDataTargetID[i].ValueInt16];

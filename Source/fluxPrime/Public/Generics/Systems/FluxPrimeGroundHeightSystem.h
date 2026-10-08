@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeGroundHeightSystem.generated.h"
 
@@ -139,6 +140,10 @@ public:
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
 			FFluxPrimeWrapperFloat* entityDataMaxSpeed = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]));
+			
+			check(entityDataLocation);
+			check(entityDataRotation);
+			check(entityDataMaxSpeed);
 			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{

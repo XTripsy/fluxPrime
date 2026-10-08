@@ -46,8 +46,5 @@ public:
 		FFluxPrimeWrapperFloat* entityDataMaxSpeed = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]));
 		
 		entityDataMaxSpeed[indexEntity].ValueFloat = 0;
-		UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d [STATE]"), indexEntity, indexDataID);
-		
-		UE_LOG(LogTemp, Log, TEXT("STATE:: DEAD LOGIC STATE"));
 	}
 };

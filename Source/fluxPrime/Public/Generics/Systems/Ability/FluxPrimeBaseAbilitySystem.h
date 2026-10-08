@@ -57,7 +57,7 @@ protected:
 	
 	static void ExecuteEmptyAbility(FInstancedStruct& Data, FVector Location, FRotator Rotation, float Damage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ABILITY SYSTEMS:: EMPTY ABILITY"));
+		
 	}
 	
 };

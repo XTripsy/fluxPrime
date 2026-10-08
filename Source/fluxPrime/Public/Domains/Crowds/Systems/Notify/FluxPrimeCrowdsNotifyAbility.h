@@ -62,10 +62,12 @@ public:
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]));
 		
+		check(entityDataRequestNotify);
+		check(entityDataRequestAbility);
+		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
 		entityDataRequestAbility[indexMember].ValueBool = true;
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
-		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: ATTACK"));
 	}
 };

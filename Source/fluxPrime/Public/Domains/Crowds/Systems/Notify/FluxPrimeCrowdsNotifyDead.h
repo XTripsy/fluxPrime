@@ -68,12 +68,14 @@ public:
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		FFluxPrimeWrapperBool* entityDataRequestBackToPool = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]));
 		
+		check(entityDataLocation);
+		check(entityDataRequestNotify);
+		check(entityDataRequestBackToPool);
+		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
 		entityDataLocation[indexMember] = FVector::DownVector * 1000.0f;
 		entityDataRequestBackToPool[indexMember].ValueBool = true;
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
-		UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d [NOTIFY]"), indexMember, indexDataID);
-		UE_LOG(LogTemp, Log, TEXT("NOFITY:: DEAD"));
 	}
 };

@@ -66,9 +66,11 @@ public:
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
+		
+		check(entityDataRequestNotify);
+		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
-		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: SPAWN SFX"));
 	}
 };

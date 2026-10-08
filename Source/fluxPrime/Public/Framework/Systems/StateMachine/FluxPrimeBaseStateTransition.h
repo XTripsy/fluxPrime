@@ -79,7 +79,7 @@ protected:
 	}
 	
 public:
-	void ExecuteStateTransition(int8& currentState,  int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
+	void ExecuteStateTransition(int8& currentState, int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_State_Transition_Systems);
 		

@@ -58,13 +58,13 @@ void UFluxPrimeCrowdsManager::PreLoading()
 
 void UFluxPrimeCrowdsManager::Initialize()
 {
-	int32 entityCatalogCount = EntityCatalogIdentity->ArchetypeEntityCatalog.Num(); 
+	int32 entityCatalogCount = EntityCatalogIdentity->ArchetypeEntityCatalog.Num();
 	
 	for (int i = 0; i < entityCatalogCount; ++i)
 	{
 		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
 		
-		if (UStaticMesh* meshCached =identity->Mesh.Get())
+		if (UStaticMesh* meshCached = identity->Mesh.Get())
 		{
 			CrowdsMeshSoftRef.Add(identity->Identity, meshCached);
 			UE_LOG(LogTemp, Error, TEXT("SUCESS MESH LOAD"));
@@ -127,6 +127,7 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 			context.crowdsComponents = &CrowdsComponents;
 			context.entityCatalog = &EntityCatalogIdentity->ArchetypeEntityCatalog;
 			context.dataStores = &DataStores;
+			context.hasAuthority = GetOwner()->HasAuthority();
 		
 			FModuleExecutor& Executor = GetModuleExecutor(executorIndex);
 			FFluxPrimeCrowdsDataModule& module = Executor.Data->GetMutable<FFluxPrimeCrowdsDataModule>();
@@ -145,6 +146,7 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 			context.crowdsComponents = &CrowdsComponents;
 			context.entityCatalog = &EntityCatalogIdentity->ArchetypeEntityCatalog;;
 			context.crowdsAnimationSoftRef = &CrowdsAnimationSoftRef;
+			context.hasAuthority = GetOwner()->HasAuthority();
 			
 			context.onCrowdsManagerActionChange = &OnCrowdsManagerActionChange;
 			context.crowdsTarget = &CrowdsTarget;
@@ -196,11 +198,12 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->SetIsReplicated(false);
 		tempISMC->SetStaticMesh(CrowdsMeshSoftRef[identity->Identity].Get());
 		tempISMC->AttachToComponent(GetOwner()->GetRootComponent(), AttachRules);
-		tempISMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		tempISMC->SetCollisionProfileName(ProfileNameCollisionCrowds);
+		tempISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		/*tempISMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		tempISMC->SetCollisionProfileName(ProfileNameCollisionCrowds);*/
 		tempISMC->ClearInstances();
 		tempISMC->UpdateBounds();
-		tempISMC->RecreatePhysicsState();
+		//tempISMC->RecreatePhysicsState();
 		tempISMC->NumCustomDataFloats = 6;
 		tempISMC->bReceivesDecals = false;
 		tempISMC->RegisterComponent();
@@ -264,13 +267,6 @@ void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType
 	
 	if (CrowdsComponents.IsEmpty()) return;
 	
-	int16 indexData = 0;
-	for (auto& dataStore : DataStores)
-	{
-		UE_LOG(LogTemp, Log, TEXT("ACTIVE %d | IndexData %d"), dataStore.GetActiveEntityCount(), indexData);
-		indexData++;
-	}
-	
 	ExecuteModules(DeltaTime, DataStores);
 }
 
@@ -285,6 +281,11 @@ void UFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CrowdsMeshSoftRef.Empty();
 	CrowdsAnimationSoftRef.Empty();
 	OnCrowdsManagerActionChange.Unbind();
+
+	for (auto& data : DataStores)
+	{
+		data.FreeManualBuffer();
+	}
 	
 	Super::EndPlay(EndPlayReason);
 }
@@ -297,48 +298,28 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 	{
 		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
 		const FFluxPrimeSpawnActionPayload& data = payload.Get<FFluxPrimeSpawnActionPayload>();
-		
-		FFluxPrimeCrowdsSpawnerComponentContext context;
-		context.crowdsTypes = &CrowdsTypes;
-		context.dataStores = &DataStores;
-		context.identity = data.Identity;
-		context.location = data.Location;
-		context.rotation = data.Rotation;
-		context.newState = data.NewState;
-		context.getStateID = [this](FGameplayTag Identity)
+
+		for (auto& pairLocation : data.Locations)
 		{
-			return GetStateID(Identity);
-		};
-		moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnCrowd(context);
+			FFluxPrimeCrowdsSpawnerComponentContext context;
+			context.crowdsTypes = &CrowdsTypes;
+			context.dataStores = &DataStores;
+			context.identity = data.Identity;
+			context.location = pairLocation;
+			context.rotation = data.Rotation;
+			context.newState = data.NewState;
+			context.getStateID = [this](FGameplayTag Identity)
+			{
+				return GetStateID(Identity);
+			};
+			moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnNetCrowd(context);
+		}
 	}
 	
-	if (payload.GetScriptStruct() == FFluxPrimeChangeTargetActionPayload::StaticStruct())
+	if (payload.GetScriptStruct() == FFluxPrimeSnapshotDataPayload::StaticStruct())
 	{
-		const FFluxPrimeChangeTargetActionPayload& data = payload.Get<FFluxPrimeChangeTargetActionPayload>();
+		const FFluxPrimeSnapshotDataPayload& data = payload.Get<FFluxPrimeSnapshotDataPayload>();
 		
-		int32 typeIndex = data.CrowdType;
-		int32 indexData = DataStores[typeIndex].GetIndexDataLookUp(data.CrowdID);
-		
-		if (indexData == INDEX_NONE) return;
-		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().SyncNewTarget(DataStores[typeIndex], typeIndex, indexData, data.TargetID, data.NewTargetLocation, true);
-	}
-	
-	if (payload.GetScriptStruct() == FFluxPrimeDamageActionPayload::StaticStruct())
-	{
-		const FFluxPrimeDamageActionPayload& data = payload.Get<FFluxPrimeDamageActionPayload>();
-		
-		int32 typeIndex = data.CrowdType;
-		int32 indexData = DataStores[typeIndex].GetIndexDataLookUp(data.CrowdID);
-		
-		if (indexData == INDEX_NONE) return;
-		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[typeIndex], typeIndex, indexData, data.CrowdDamageTaken);
-	}
-	
-	if (payload.GetScriptStruct() == FFluxPrimeRegisterTargetActionPayload::StaticStruct())
-	{
-		const FFluxPrimeRegisterTargetActionPayload& data = payload.Get<FFluxPrimeRegisterTargetActionPayload>();
-		InitializedPlayer();
+		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().SyncDataSnapshot(DataStores, data.SnapshotDatas);
 	}
 }

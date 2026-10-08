@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeHealthSystem.generated.h"
 
@@ -73,13 +75,15 @@ public:
 			FFluxPrimeWrapperInt16* entityDataHealth = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataHealthID[indexDataID]));
 			FFluxPrimeWrapperInt16* entityDataDamageTaken = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataDamageTakenID[indexDataID]));
 		
+			check(entityDataConditionAlive);
+			check(entityDataHealth);
+			check(entityDataDamageTaken);
+			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				entityDataHealth[i].ValueInt16 -= entityDataDamageTaken[i].ValueInt16;
 				entityDataConditionAlive[i].ValueBool = entityDataHealth[i].ValueInt16 > 0;
 				entityDataDamageTaken[i].ValueInt16 = 0;
-				
-				if (!entityDataConditionAlive[i].ValueBool) UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d [HEALTH]"), i, indexDataID);
 			}
 			
 			indexDataID++;

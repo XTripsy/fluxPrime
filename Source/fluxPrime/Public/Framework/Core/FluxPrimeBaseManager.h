@@ -8,12 +8,10 @@
 #include "Components/ActorComponent.h"
 #include "Framework/Data/FluxPrimeEntityCatalogIdentity.h"
 #include "StructUtils/InstancedStruct.h"
-#include "Framework/Data/FluxPrimeIdentityData.h"
 #include "FluxPrimeBaseManager.generated.h"
 
 class UManagerConfiguration;
 
-//using FModuleExecute = void(*)(FInstancedStruct&, const float, FFluxPrimeDataStore&);
 using FModuleExecute = void(*)(FInstancedStruct&, const float, TArray<FFluxPrimeArchetypeDataStore>&);
 
 USTRUCT()
@@ -36,7 +34,7 @@ private:
 	
 	UPROPERTY()
 	TArray<FGameplayTag> StateID;
-	
+
 protected:
 	UPROPERTY(EditAnywhere, Category = "Entity Manager | CollisionProfile", meta = (AllowPrivateAccess = true))
 	FName ProfileNameCollisionCrowds = "Pawn";
@@ -52,7 +50,8 @@ protected:
 
 private:
 	template<typename T>
-	static void ExecuteModule(FInstancedStruct& data, const float deltatime, TArray<FFluxPrimeArchetypeDataStore>& dataStore)
+	static void ExecuteModule(FInstancedStruct& data, const float deltatime,
+		TArray<FFluxPrimeArchetypeDataStore>& dataStore)
 	{
 		T& module = data.GetMutable<T>();
 		module.ExecuteModule(deltatime, dataStore);
@@ -60,6 +59,7 @@ private:
 	
 public:
 	UFluxPrimeBaseManager();
+	virtual void BeginPlay() override;
 
 protected:
 	template<typename T>

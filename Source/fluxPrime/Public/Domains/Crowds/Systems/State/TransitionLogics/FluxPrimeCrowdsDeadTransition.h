@@ -46,7 +46,6 @@ public:
 		
 		if (entityDataHealth[indexEntity].ValueInt16 > 0) return false;
 		
-		UE_LOG(LogTemp, Log, TEXT("TRANSITION:: DEAD LOGIC TRANSITION"));
 		return true;
 	}
 };

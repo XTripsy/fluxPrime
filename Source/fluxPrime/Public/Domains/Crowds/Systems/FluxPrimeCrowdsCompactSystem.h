@@ -88,6 +88,10 @@ public:
 			FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionAliveID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestBackToPool = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestSyncAnimation = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]));
+			
+			check(entityDataConditionAlive);
+			check(entityDataRequestBackToPool);
+			check(entityDataRequestSyncAnimation);
 		
 			int32 lastIndex = dataStore.GetActiveEntityCount() - 1;
 
@@ -99,7 +103,6 @@ public:
 					UpdateLookUpData(dataStore, index, lastIndex);
 					UpdateLookUpData(dataStore, lastIndex, index);
 					entityDataRequestSyncAnimation[index].ValueBool = true;
-					UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d | alive %d [COMPACT]"), index, indexDataID, entityDataConditionAlive[index].ValueBool);
 					--lastIndex;
 				}
 				else ++index;

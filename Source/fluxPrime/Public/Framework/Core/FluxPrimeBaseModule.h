@@ -26,7 +26,8 @@ private:
 	
 private:
 	template<typename T>
-	static void ExecuteSystem(FInstancedStruct& data, const float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStore)
+	static void ExecuteSystem(FInstancedStruct& data, const float deltaTime, 
+		TArray<FFluxPrimeArchetypeDataStore>& dataStore)
 	{
 		T& system = data.GetMutable<T>();
 
@@ -68,7 +69,7 @@ public:
 		{
 			for (auto& pair : SystemExecutors)
 			{
-				pair.Execute(*pair.Data, deltaTime, dataStores);
+				pair.Execute(*pair.Data, deltaTime ,dataStores);
 			}
 		}
 	}

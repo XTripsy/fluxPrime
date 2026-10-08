@@ -82,32 +82,34 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Boids_Systems);
 
-		for (int32 idx = 0; idx < dataStores.Num(); ++idx)
+		for (int32 i = 0; i < dataStores.Num(); ++i)
 		{
-			SpatialGridSystems[idx].UpdateSpatialGridSystem(dataStores[idx]);
+			SpatialGridSystems[i].UpdateSpatialGridSystem(dataStores[i]);
 		}
 
 		for (int32 currentDataIdx = 0; currentDataIdx < dataStores.Num(); ++currentDataIdx)
 		{
 			auto& currentDataStore = dataStores[currentDataIdx];
 
-			FVector* currentLocations = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataLocationID[currentDataIdx]));
-			FVector* currentAccelerations = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataAccelerationID[currentDataIdx]));
-			FFluxPrimeWrapperInt16* currentSizes = reinterpret_cast<FFluxPrimeWrapperInt16*>(currentDataStore.GetRawBufferData(EntityDataSizeID[currentDataIdx]));
+			FVector* entityDataLocation = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataLocationID[currentDataIdx]));
+			FVector* entityDataAcceleration = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataAccelerationID[currentDataIdx]));
+			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(currentDataStore.GetRawBufferData(EntityDataSizeID[currentDataIdx]));
 
+			check(entityDataLocation);
+			check(entityDataAcceleration);
+			check(entityDataSize);
+			
 			for (int32 i = 0; i < currentDataStore.GetActiveEntityCount(); ++i)
 			{
-				float separationRadius = FMath::Square(currentSizes[i].ValueInt16 * 1.2f);
+				float separationRadius = FMath::Square(entityDataSize[i].ValueInt16 * 1.2f);
 				separationRadius = FMath::Max(1.0f, separationRadius);
-				FVector tempLocation = currentLocations[i];
+				FVector tempLocation = entityDataLocation[i];
 				FVector force = FVector::Zero();
 				int32 overlapCount = 0;
 
 				int32 agentCellX = FMath::FloorToInt((tempLocation.X - Origin.X) / CellSize);
 				int32 agentCellY = FMath::FloorToInt((tempLocation.Y - Origin.Y) / CellSize);
 
-				//UE_LOG(LogTemp, Warning, TEXT("Loc: %s | Cell: X:%d Y:%d | Size: %d | SeparationRadius: %f"), *tempLocation.ToString(), agentCellX, agentCellY, currentSizes[i].ValueInt16, separationRadius);
-				
 				for (int8 x = -1; x <= 1; ++x)
 				{
 					for (int8 y = -1; y <= 1; ++y)
@@ -143,7 +145,7 @@ public:
 								if (distSq < separationRadius && distSq > 0.1f)
 								{
 									float dist = FMath::Sqrt(distSq);
-									float pushFactor = 1.0f - (dist / (currentSizes[i].ValueInt16 * 1.2f));
+									float pushFactor = 1.0f - (dist / (entityDataSize[i].ValueInt16 * 1.2f));
 
 									force += (diff / dist) * pushFactor;
 									overlapCount++;
@@ -153,10 +155,8 @@ public:
 					}
 				}
 
-				//if (overlapCount > 0) force /= overlapCount;
 				force *= SeparationWeight;
-				//UE_LOG(LogTemp, Warning, TEXT("Force: %s"), *force.ToString());
-				currentAccelerations[i] += force;
+				entityDataAcceleration[i] += force;
 			}
 		}
 	}

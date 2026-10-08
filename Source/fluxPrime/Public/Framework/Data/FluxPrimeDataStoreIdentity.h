@@ -14,9 +14,12 @@ struct FFluxPrimeDataConfigEditor
     
 	UPROPERTY(EditAnywhere)
 	FGameplayTag DataTag;
-    
+	
 	UPROPERTY(EditAnywhere)
 	UScriptStruct* StructType;
+	
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "Is system can run on local client"))
+	bool AvailableOnLocalClient;
 };
 
 UCLASS()

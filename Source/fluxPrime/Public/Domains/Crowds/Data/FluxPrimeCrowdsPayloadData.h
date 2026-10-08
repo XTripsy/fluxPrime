@@ -22,7 +22,13 @@ struct FFluxPrimeSpawnPayload
 	FRotator Rotation = FRotator::ZeroRotator;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector RandomBoundingBox = FVector::ZeroVector;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag NewState;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int32 TotalEntityToSpawn;
 };
 
 USTRUCT(BlueprintType)
@@ -49,10 +55,10 @@ struct FFluxPrimeSpawnActionPayload
 	TObjectPtr<UFluxPrimeCrowdsIdentity> Identity;
 	
 	UPROPERTY()
-	FVector Location;
+	TArray<FVector_NetQuantize10> Locations;
 	
 	UPROPERTY()
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 	
 	UPROPERTY()
 	FGameplayTag NewState;

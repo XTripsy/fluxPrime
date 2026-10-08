@@ -8,6 +8,11 @@ UFluxPrimeBaseManager::UFluxPrimeBaseManager()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
+void UFluxPrimeBaseManager::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
 void UFluxPrimeBaseManager::InitializedModule(uint32 count)
 {
 	ModuleExecutors.Reset();

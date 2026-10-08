@@ -72,6 +72,10 @@ public:
 	{
 		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
+		
+		check(entityDataLocation);
+		check(entityDataRequestNotify);
+		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
 		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
@@ -82,6 +86,5 @@ public:
 		);
 		
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
-		UE_LOG(LogTemp, Log, TEXT("NOTIFY:: SPAWN VFX"));
 	}
 };

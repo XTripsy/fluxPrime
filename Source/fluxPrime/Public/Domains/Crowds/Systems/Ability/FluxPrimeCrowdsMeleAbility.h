@@ -32,8 +32,6 @@ public:
 	
 	void Execute(FVector location, FRotator rotation, float damage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ABILITY:: START MELE ATTACK"));
-		
 		FCollisionQueryParams Params(SCENE_QUERY_STAT(AbilityMeleTrace), false);
 
 		FHitResult Hit;

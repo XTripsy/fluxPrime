@@ -16,12 +16,6 @@ void UFluxPrimeNetManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UFluxPrimeNetManager::ServerActionChange_Implementation(const FInstancedStruct& payload)
-{
-	OnCrowdsNetManagerActionChange.ExecuteIfBound(payload);
-	MulticastActionChange(payload);
-}
-
 void UFluxPrimeNetManager::MulticastActionChange_Implementation(const FInstancedStruct& payload)
 {
 	OnCrowdsNetManagerActionChange.ExecuteIfBound(payload);
@@ -29,11 +23,5 @@ void UFluxPrimeNetManager::MulticastActionChange_Implementation(const FInstanced
 
 void UFluxPrimeNetManager::OnActionChange(FInstancedStruct payload)
 {
-	if (!GetOwner()->HasAuthority())
-	{
-		ServerActionChange(payload);
-		return;
-	}
-	
 	MulticastActionChange(payload);
 }

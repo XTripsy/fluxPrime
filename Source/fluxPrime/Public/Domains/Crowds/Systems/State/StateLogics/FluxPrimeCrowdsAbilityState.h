@@ -49,6 +49,5 @@ public:
 		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		
 		entityDataCurrentWaypointLocation[indexEntity] = entityDataLocation[indexEntity]; 
-		UE_LOG(LogTemp, Log, TEXT("STATE:: ABILITY LOGIC STATE"));
 	}
 };

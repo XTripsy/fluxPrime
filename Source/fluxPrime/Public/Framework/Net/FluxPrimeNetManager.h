@@ -25,10 +25,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
-	UFUNCTION(Server, Reliable)
-	void ServerActionChange(const FInstancedStruct& payload);
-	
-	UFUNCTION(NetMulticast, Reliable)
+	//UFUNCTION(NetMulticast, Reliable)
+	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastActionChange(const FInstancedStruct& payload);
 	
 	void OnActionChange(FInstancedStruct payload);

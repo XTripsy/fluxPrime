@@ -47,7 +47,6 @@ private:
     UPROPERTY(EditAnywhere)
     int32 CellHeight = 200;
     
-    //UPROPERTY(EditAnywhere)
     UPROPERTY()
     int32 TotalCells = 100;
     
@@ -75,12 +74,15 @@ public:
         }
     }
 	
+    //void UpdateSpatialGridSystem(const FFluxPrimeArchetypeDataStore& dataStore, const int16 indexDataID)
     void UpdateSpatialGridSystem(const FFluxPrimeArchetypeDataStore& dataStore)
     {
         TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_Systems);
         
-        FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[0]));
-        FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[0]));
+        int16 indexDataID = 0;
+        
+        FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
+        FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 
         GridCounts.Init(0, TotalCells);
         GridOffsets.SetNumUninitialized(TotalCells);
@@ -117,9 +119,29 @@ public:
         return (CellY * CellWidth) + CellX;
     }
     
+    FVector GetOrigin() const
+    {
+        return Origin;
+    }
+    
     int32 GetTotalCells() const
     {
         return TotalCells;
+    }
+    
+    float GetCellSize() const
+    {
+        return CellSize;
+    }
+    
+    float GetCellWidth() const
+    {
+        return CellWidth;
+    }
+    
+    float GetCellHeight() const
+    {
+        return CellHeight;
     }
     
     TArray<int32>& GetGridOffsets()

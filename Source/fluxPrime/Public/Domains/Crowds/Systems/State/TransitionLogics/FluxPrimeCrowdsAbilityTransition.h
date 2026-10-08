@@ -12,7 +12,6 @@ struct FFluxPrimeCrowdsAbilityTransition : public FFluxPrimeBaseTransition
 	
 	bool ExecuteTransition(int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
-		UE_LOG(LogTemp, Log, TEXT("TRANSITION:: LOGIC TRANSITION"));
 		return true;
 	}
 };

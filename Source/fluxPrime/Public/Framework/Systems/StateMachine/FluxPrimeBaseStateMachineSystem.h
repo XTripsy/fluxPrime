@@ -111,6 +111,8 @@ public:
 		{
 			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]));
 			
+			check(entityDataState);
+			
 			int8 currentState = -1;
 			for (int indexEntity = 0; indexEntity < dataStore.GetActiveEntityCount(); ++indexEntity)
 			{
@@ -128,12 +130,6 @@ public:
 					FStateTransitionExecutor& pairTransition = pairData.Transition[currentState];
 					pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);
 				}
-				
-				/*FStateExecutor& pairState = pairData.State[currentState];
-				FStateTransitionExecutor& pairTransition = pairData.Transition[currentState];
-				
-				pairState.Execute(*pairState.Data, deltaTime, indexDataID, indexEntity, dataStore);
-				pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);*/
 			}
 			
 			indexDataID++;

@@ -246,8 +246,6 @@ private:
 		// current
 		uint16 currentStartFrame = RuntimeAnimationMapping[type].AnimationStart[animationState];
 		uint16 currentEndFrame = RuntimeAnimationMapping[type].AnimationEnd[animationState];
-		
-		UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: type %d | state %d | startFrame %d | endFrame %d [ANIMATION FRAME]"), type, animationState, currentStartFrame, currentEndFrame);
 			
 		SwitchAnimation(instanceIndexEntity, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime, realTime);
 		
@@ -365,27 +363,30 @@ public:
 			FVector* entityDataTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataRequestAnimationNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestSyncNotify = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]));
+			
+			check(entityDataId);
+			check(entityDataState);
+			check(entityDataAnimState);
+			check(entityDataStartTimeAnim);
+			check(entityDataPreviousFrameAnim);
+			check(entityDataCellId);
+			check(entityDataTargetLocation);
+			check(entityDataRequestAnimationNotify);
+			check(entityDataRequestSyncNotify);
 
 			for (int16 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				if (entityDataRequestSyncNotify[i].ValueBool)
 				{
-					UE_LOG(LogTemp, Log, TEXT("SYNC ENTITY:: index %d | type %d | state %d [ANIMATION]"), i, indexDataID, entityDataAnimState[i].ValueInt8);
 					entityDataRequestSyncNotify[i].ValueBool = false;
-					/*SyncAnimation(entityDataId[i].ValueInt16, indexDataID,  
-					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);*/
 					SyncAnimation(i, indexDataID,  
 					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				}
 				
-				/*UpdateAnimation(entityDataId[i].ValueInt16, indexDataID, entityDataState[i].ValueInt8, 
-					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);*/
 				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8, 
 					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				
 				int32 targetCellId = SpatialGridSystems.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
-				
-				UE_LOG(LogTemp, Log, TEXT("NOTIFY ID:: CELL ID %d | TARGET CELL ID %d"), entityDataCellId[i].ValueInt32, targetCellId);
 				
 				if (entityDataCellId[i].ValueInt32 != targetCellId && !RuntimeAnimationMapping[indexDataID].AnimationForceNotify[entityDataState[i].ValueInt8]) continue;
 			

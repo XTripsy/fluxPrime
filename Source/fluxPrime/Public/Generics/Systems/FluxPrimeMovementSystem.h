@@ -80,6 +80,13 @@ public:
 			FVector* entityDataCurrentWaypoint = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointID[indexDataID]));
 			FFluxPrimeWrapperFloat* entityDataMaxSpeed = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]));
 			
+			check(entityDataLocation);
+			check(entityDataRotation);
+			check(entityDataAcceleration);
+			check(entityDataVelocity);
+			check(entityDataCurrentWaypoint);
+			check(entityDataMaxSpeed);
+			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				FVector currentLocation = entityDataLocation[i];

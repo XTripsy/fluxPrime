@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Framework/Core/FluxPrimeBaseDataModule.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "FluxPrimeCrowdsDataModule.generated.h"
@@ -38,8 +37,9 @@ struct FFluxPrimeCrowdsDataModuleContext
 {
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
 	TArray<FFluxPrimeArchetypeEntityCatalog>* entityCatalog = nullptr;
-	
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
+	
+	bool hasAuthority = false;
 };
 
 USTRUCT()
@@ -73,7 +73,7 @@ public:
 		{
 			auto& dataStore = dataStores[i];
 			
-			InitializedData(entityCatalog[i], dataStore);
+			InitializedData(entityCatalog[i], dataStore, context.hasAuthority);
 		
 			dataStore.InitializedLookUp(dataStore.GetTotalEntityCount());
 		
@@ -86,6 +86,11 @@ public:
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[i]));
 			FFluxPrimeWrapperInt16* entityDataID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[i]));
 			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[i]));
+			
+			check(entityDataLocation);
+			check(entityDataRotation);
+			check(entityDataID);
+			check(entityDataSize);
 			
 			int16 size = entityCatalog[i].EntityIdentity->Size;
 			
