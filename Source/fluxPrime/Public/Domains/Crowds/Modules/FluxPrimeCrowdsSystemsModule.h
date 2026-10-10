@@ -17,6 +17,7 @@
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
+#include "Generics/Systems/FluxPrimeRaycastSystem.h"
 #include "Generics/Systems/FluxPrimeSnapshotSystem.h"
 #include "Generics/Systems/FluxPrimeVisualInterpolationSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -56,7 +57,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 	
-	int32 CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
+	int32 CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
 	
 private:
 	template <typename T>
@@ -75,26 +76,12 @@ public:
 		system.TakeDamage(dataStore, indexDataID, indexData, damageTaken);
 	}
 	
-	void SyncNewTarget(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, 
-		int16 newTargetID, FVector newTargetLocation, bool newRequestNeedReplan)
+	void ShootRay(TArray<FFluxPrimeArchetypeDataStore>& dataStores, FVector startRay, FVector endRay, 
+		int32& outEntityType, int32& outEntityIndex)
 	{
-		FSystemExecutor& ExecutorTarget = GetSystemExecutor(CrowdsTargetSystemIndex);
-		if (ExecutorTarget.Data->IsValid())
-		{
-			FString StructName = ExecutorTarget.Data->GetScriptStruct()->GetName();
-			UE_LOG(LogTemp, Warning, TEXT("FRAGMENT:: Get target system: %s | index %d"), *StructName, CrowdsTargetSystemIndex);
-			FFluxPrimeCrowdsTargetSystem& targetSystem = ExecutorTarget.Data->GetMutable<FFluxPrimeCrowdsTargetSystem>();
-			targetSystem.SyncNewTarget(dataStore, indexDataID, indexData, newTargetID, newTargetLocation);
-		}
-		
-		FSystemExecutor& ExecutorNavigation = GetSystemExecutor(CrowdsNavigationSystemIndex);
-		if (ExecutorNavigation.Data->IsValid())
-		{
-			FString StructName = ExecutorNavigation.Data->GetScriptStruct()->GetName();
-			UE_LOG(LogTemp, Warning, TEXT("FRAGMENT:: Get navigation system: %s | index %d"), *StructName, CrowdsNavigationSystemIndex);
-			FFluxPrimeNavigationSystem& navigationSystem = ExecutorNavigation.Data->GetMutable<FFluxPrimeNavigationSystem>();
-			navigationSystem.SyncNewTarget(dataStore, indexDataID, indexData, newRequestNeedReplan);
-		}
+		FSystemExecutor& Executor = GetSystemExecutor(CrowdsRaycastSystemIndex);
+		FFluxPrimeRaycastSystem& system = Executor.Data->GetMutable<FFluxPrimeRaycastSystem>();
+		system.ShootRay(dataStores, startRay, endRay, outEntityType, outEntityIndex);
 	}
 	
 	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeSnapshotData>& dataSnapshots)
@@ -365,6 +352,18 @@ public:
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeSnapshotSystem>();
 				system.Initialized(tempContext);
+			}
+			
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeRaycastSystem>())
+			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
+				const int32 executorIndex = RegisterSystem<FFluxPrimeRaycastSystem>(fragment);
+				CrowdsRaycastSystemIndex = executorIndex;
+				
+				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
+				FFluxPrimeRaycastSystem& system = Executor.Data->GetMutable<FFluxPrimeRaycastSystem>();
+				system.Initialized(*context.dataStores);
 			}
 		}
 		

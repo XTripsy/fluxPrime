@@ -90,7 +90,6 @@ protected:
 public:
 	void OnActionChange(FInstancedStruct payload);
 	
-	UFUNCTION(BlueprintCallable)
 	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, 
 		FVector randomBoundingBox, FGameplayTag newState, int32 totalEntityToSpawn)
 	{
@@ -108,7 +107,7 @@ public:
 			context.crowdsTypes = &CrowdsTypes;
 			context.dataStores = &DataStores;
 			context.identity = identity;
-			context.location = location;
+			context.location = resultLocation;
 			context.rotation = rotation;
 			context.newState = newState;
 			context.getStateID = [this](FGameplayTag Identity)
@@ -129,22 +128,19 @@ public:
 		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 	};
 	
-	UFUNCTION(BlueprintCallable)
-	inline void TakeDamage(int32 id, FName type, int32 damage)
+	inline void ShootRay(FVector startRay, FVector endRay, int32 damage)
 	{
 		auto& moduleFragments = *ModuleFragments;
 		
-		int8 typeIndex = *CrowdsTypes.Find(type);
-		int32 indexData = DataStores[typeIndex].GetIndexDataLookUp(id);
+		int32 entityType = INDEX_NONE;
+		int32 entityIndex = INDEX_NONE;
 		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[typeIndex], typeIndex, indexData, damage);
+		UE_LOG(LogTemp, Log, TEXT("RAYCAST:: SHOOT"));
 		
-		FFluxPrimeDamageActionPayload data;
-		data.CrowdID = id;
-		data.CrowdType = typeIndex;
-		data.CrowdDamageTaken = damage;
-		FInstancedStruct payload = FInstancedStruct::Make(data);
+		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().ShootRay(DataStores, startRay, endRay, entityType, entityIndex);
 		
-		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
+		if (entityType == INDEX_NONE || entityIndex == INDEX_NONE) return;
+		
+		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[entityType], entityType, entityIndex, damage);
 	};
 };

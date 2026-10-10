@@ -471,6 +471,8 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Navigation_Systems);
 
+		SpatialGridSystems.UpdateSpatialGridSystem(dataStores);
+		
 		EntityPathQueue.Reset();
 		EntityCorridorQueue.Reset();
 		float currentTime = World->GetTimeSeconds();
@@ -479,8 +481,6 @@ public:
 		int32 lastReplanTargetCellId = 0, targetCellId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			SpatialGridSystems.UpdateSpatialGridSystem(dataStore);
-			
 			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 			FVector* entityDataCurrentTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]));

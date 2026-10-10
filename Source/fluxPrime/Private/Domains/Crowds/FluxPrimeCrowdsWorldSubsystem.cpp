@@ -22,13 +22,13 @@ void UFluxPrimeCrowdsWorldSubsystem::ExecuteSpawnAction(const FInstancedStruct& 
 	manager->SpawnCrowd(pair->Identity, pair->Location, pair->Rotation, pair->RandomBoundingBox, pair->NewState, pair->TotalEntityToSpawn);
 }
 
-void UFluxPrimeCrowdsWorldSubsystem::ExecuteDamageAction(const FInstancedStruct& payload)
+void UFluxPrimeCrowdsWorldSubsystem::ExecuteShootRayAction(const FInstancedStruct& payload)
 {
-	const FFluxPrimeDamagePayload* pair = payload.GetPtr<FFluxPrimeDamagePayload>();
+	const FFluxPrimeShootRayPayload* pair = payload.GetPtr<FFluxPrimeShootRayPayload>();
 	if (!pair) return;
 	
 	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
-	manager->TakeDamage(pair->InstanceID, pair->ISMC, pair->CrowdDamageTaken);
+	manager->ShootRay(pair->StartRayLocation, pair->EndRayLocation, pair->CrowdDamageTaken);
 }
 
 void UFluxPrimeCrowdsWorldSubsystem::HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params)
@@ -43,5 +43,5 @@ void UFluxPrimeCrowdsWorldSubsystem::RequestAction(const FInstancedStruct& paylo
 	check(CrowdsController.IsValid());
 	
 	if (payload.GetScriptStruct() == FFluxPrimeSpawnPayload::StaticStruct()) ExecuteSpawnAction(payload);
-	if (payload.GetScriptStruct() == FFluxPrimeDamagePayload::StaticStruct()) ExecuteDamageAction(payload);
+	if (payload.GetScriptStruct() == FFluxPrimeShootRayPayload::StaticStruct()) ExecuteShootRayAction(payload);
 }

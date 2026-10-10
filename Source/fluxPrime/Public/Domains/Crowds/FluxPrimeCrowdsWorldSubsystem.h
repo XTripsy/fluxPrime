@@ -22,7 +22,7 @@ private:
 private:
 	AFluxPrimeCrowdsController* GetCrowdsController() const;
 	void ExecuteSpawnAction(const FInstancedStruct& payload);
-	void ExecuteDamageAction(const FInstancedStruct& payload);
+	void ExecuteShootRayAction(const FInstancedStruct& payload);
 	
 protected:
 	virtual void HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params) override;

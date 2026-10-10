@@ -172,6 +172,8 @@ public:
     
 		if (CurrentTime < CycleFrequencyBuffer) return;
 		
+		SpatialGridSystems.UpdateSpatialGridSystem(dataStores);
+		
 		CurrentTime = 0.0f;
 		NetworkTickCounter++;
 		
@@ -187,9 +189,7 @@ public:
 		const FVector origin = SpatialGridSystems.GetOrigin();
 		
 		for (auto& dataStore : dataStores)
-		{
-			SpatialGridSystems.UpdateSpatialGridSystem(dataStore);
-			
+		{	
 			FFluxPrimeWrapperInt16* entityDataId = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]));

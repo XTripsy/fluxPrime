@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Generics/Data/FluxPrimeSpatialGridData.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeSpatialGridSystem.generated.h"
 
@@ -34,6 +35,7 @@ private:
     FSpatialGridSystemDataTagConfig DataTagConfig;
 
     TArray<int16> EntityDataLocationID, EntityDataCellIdID;
+    int32 TotalEntity = 0;
     
     UPROPERTY(EditAnywhere)
     float CellSize = 100.0f;
@@ -57,7 +59,7 @@ private:
     TArray<int32> GridCounts;
     
     UPROPERTY()
-    TArray<int32> GridMembers;
+    TArray<FFluxPrimeGridMemberData> GridMembers;
     
 public:
     void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
@@ -71,40 +73,58 @@ public:
         {
             EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
             EntityDataCellIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCellIdTag));
+            
+            TotalEntity += dataStore.GetTotalEntityCount();
         }
     }
 	
-    //void UpdateSpatialGridSystem(const FFluxPrimeArchetypeDataStore& dataStore, const int16 indexDataID)
-    void UpdateSpatialGridSystem(const FFluxPrimeArchetypeDataStore& dataStore)
+    void UpdateSpatialGridSystem(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
     {
         TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_Systems);
         
-        int16 indexDataID = 0;
-        
-        FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
-        FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
-
         GridCounts.Init(0, TotalCells);
         GridOffsets.SetNumUninitialized(TotalCells);
-        GridMembers.SetNumUninitialized(dataStore.GetTotalEntityCount());
+        GridMembers.SetNumUninitialized(TotalEntity);
         
-        int32 offsets = 0;
-        for (int i = 0; i < TotalCells; ++i)
+        int16 indexDataID = 0;
+        for (auto& dataStore : dataStores)
         {
-            GridOffsets[i] = offsets;
-            offsets += GridCounts[i];
+            FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
+            FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
+            
+            for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+            {
+                entityDataCellId[i].ValueInt32 = GetSpatialGridSystemsCellID(entityDataLocation[i]);
+                GridCounts[entityDataCellId[i].ValueInt32]++;
+            }
+            
+            indexDataID++;
         }
         
-        TArray<int32> memberOffsets = GridOffsets;
-        for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+        int32 currentOffset = 0;
+        for (int i = 0; i < TotalCells; ++i)
         {
-            entityDataCellId[i].ValueInt32 = GetSpatialGridSystemsCellID(entityDataLocation[i]);
-            int32 cellId = entityDataCellId[i].ValueInt32;
+            GridOffsets[i] = currentOffset;
+            currentOffset += GridCounts[i];
+        }
+
+        TArray<int32> currentCellOffsets = GridOffsets; 
+    
+        indexDataID = 0;
+        for (auto& dataStore : dataStores)
+        {
+            FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
+
+            for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+            {
+                int32 cellId = entityDataCellId[i].ValueInt32;
+                int32 memberIndex = currentCellOffsets[cellId]++;
+                
+                GridMembers[memberIndex].EntityType = indexDataID;
+                GridMembers[memberIndex].EntityIndex = i;
+            }
             
-            GridCounts[cellId]++;
-            
-            int32 memberIndex = memberOffsets[cellId]++;
-            GridMembers[memberIndex] = i;
+            indexDataID++;
         }
     }
     
@@ -154,7 +174,7 @@ public:
         return GridCounts;
     }
     
-    TArray<int32>& GetGridMembers()
+    TArray<FFluxPrimeGridMemberData>& GetGridMembers()
     {
         return GridMembers;
     }

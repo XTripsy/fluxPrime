@@ -343,17 +343,15 @@ public:
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Update);
-#endif
+		
+		SpatialGridSystems.UpdateSpatialGridSystem(dataStores);
 		
 		float realTime = World->GetRealTimeSeconds();
 
 		int8 indexDataID = 0;
 		for (auto& dataStore : dataStores)
 		{
-			SpatialGridSystems.UpdateSpatialGridSystem(dataStore);
-			
 			FFluxPrimeWrapperInt16* entityDataId = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
 			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]));
 			FFluxPrimeWrapperInt8* entityDataAnimState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataAnimStateID[indexDataID]));

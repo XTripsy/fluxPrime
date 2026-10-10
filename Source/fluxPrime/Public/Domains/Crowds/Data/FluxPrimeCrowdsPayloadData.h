@@ -32,15 +32,15 @@ struct FFluxPrimeSpawnPayload
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeDamagePayload
+struct FFluxPrimeShootRayPayload
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	int32 InstanceID;
+	FVector StartRayLocation;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FName ISMC;
+	FVector EndRayLocation;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 CrowdDamageTaken;

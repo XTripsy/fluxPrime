@@ -43,121 +43,112 @@ private:
 	UPROPERTY(EditAnywhere)
 	float SeparationWeight = 0.0f;
 	
-	UPROPERTY(EditAnywhere)
 	float CellSize = 100.0f;
-
-	UPROPERTY(EditAnywhere)
-	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f); 
-
-	UPROPERTY(EditAnywhere)
 	int32 CellWidth = 200;
-	
-	UPROPERTY(EditAnywhere)
 	int32 CellHeight = 200;
-    
-	UPROPERTY(EditAnywhere)
 	int32 TotalCells = 100;
+	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f);
 	
 	UPROPERTY(EditAnywhere)
-	TArray<FFluxPrimeSpatialGridSystem> SpatialGridSystems = TArray<FFluxPrimeSpatialGridSystem>();
+	FFluxPrimeSpatialGridSystem SpatialGridSystem = FFluxPrimeSpatialGridSystem();
 	
 	//FVector playerLocation;
 	
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-		int16 indexData = 0;
 		for (auto& dataStore : dataStores)
 		{
 			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
 			EntityDataAccelerationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataAccelerationTag));
 			EntityDataSizeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataSizeTag));
-		
-			SpatialGridSystems[indexData].Initialized(dataStores);
-			indexData++;
 		}
+		
+		SpatialGridSystem.Initialized(dataStores);
+		
+		CellSize = SpatialGridSystem.GetCellSize();
+		CellWidth = SpatialGridSystem.GetCellWidth();
+		CellHeight = SpatialGridSystem.GetCellHeight();
+		TotalCells = SpatialGridSystem.GetTotalCells();
+		Origin = SpatialGridSystem.GetOrigin();
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Boids_Systems);
+	    TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Boids_Systems);
 
-		for (int32 i = 0; i < dataStores.Num(); ++i)
-		{
-			SpatialGridSystems[i].UpdateSpatialGridSystem(dataStores[i]);
-		}
+	    SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 
-		for (int32 currentDataIdx = 0; currentDataIdx < dataStores.Num(); ++currentDataIdx)
-		{
-			auto& currentDataStore = dataStores[currentDataIdx];
+	    for (int32 currentDataIdx = 0; currentDataIdx < dataStores.Num(); ++currentDataIdx)
+	    {
+	       auto& currentDataStore = dataStores[currentDataIdx];
 
-			FVector* entityDataLocation = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataLocationID[currentDataIdx]));
-			FVector* entityDataAcceleration = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataAccelerationID[currentDataIdx]));
-			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(currentDataStore.GetRawBufferData(EntityDataSizeID[currentDataIdx]));
+	       FVector* entityDataLocation = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataLocationID[currentDataIdx]));
+	       FVector* entityDataAcceleration = reinterpret_cast<FVector*>(currentDataStore.GetRawBufferData(EntityDataAccelerationID[currentDataIdx]));
+	       FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(currentDataStore.GetRawBufferData(EntityDataSizeID[currentDataIdx]));
 
-			check(entityDataLocation);
-			check(entityDataAcceleration);
-			check(entityDataSize);
-			
-			for (int32 i = 0; i < currentDataStore.GetActiveEntityCount(); ++i)
-			{
-				float separationRadius = FMath::Square(entityDataSize[i].ValueInt16 * 1.2f);
-				separationRadius = FMath::Max(1.0f, separationRadius);
-				FVector tempLocation = entityDataLocation[i];
-				FVector force = FVector::Zero();
-				int32 overlapCount = 0;
+	       check(entityDataLocation);
+	       check(entityDataAcceleration);
+	       check(entityDataSize);
+	       
+	       for (int32 i = 0; i < currentDataStore.GetActiveEntityCount(); ++i)
+	       {
+	          float separationRadius = FMath::Square(entityDataSize[i].ValueInt16 * 1.2f);
+	          separationRadius = FMath::Max(1.0f, separationRadius);
+	          FVector tempLocation = entityDataLocation[i];
+	          FVector force = FVector::Zero();
+	          int32 overlapCount = 0;
 
-				int32 agentCellX = FMath::FloorToInt((tempLocation.X - Origin.X) / CellSize);
-				int32 agentCellY = FMath::FloorToInt((tempLocation.Y - Origin.Y) / CellSize);
+	          int32 agentCellX = FMath::FloorToInt((tempLocation.X - Origin.X) / CellSize);
+	          int32 agentCellY = FMath::FloorToInt((tempLocation.Y - Origin.Y) / CellSize);
 
-				for (int8 x = -1; x <= 1; ++x)
-				{
-					for (int8 y = -1; y <= 1; ++y)
-					{
-						int32 neighborX = agentCellX + x;
-						int32 neighborY = agentCellY + y;
-						
-						if (neighborX < 0 || neighborX >= CellWidth || neighborY < 0 || neighborY >= CellHeight) continue;
+	          for (int8 x = -1; x <= 1; ++x)
+	          {
+	             for (int8 y = -1; y <= 1; ++y)
+	             {
+	                int32 neighborX = agentCellX + x;
+	                int32 neighborY = agentCellY + y;
+	                
+	                if (neighborX < 0 || neighborX >= CellWidth || neighborY < 0 || neighborY >= CellHeight) continue;
 
-						int32 neighborCellId = (neighborY * CellWidth) + neighborX;
+	                int32 neighborCellId = (neighborY * CellWidth) + neighborX;
 
-						for (int32 otherDataIdx = 0; otherDataIdx < SpatialGridSystems.Num(); ++otherDataIdx)
-						{
-							TArray<int32>& gridOffsets = SpatialGridSystems[otherDataIdx].GetGridOffsets();
-							TArray<int32>& gridCounts = SpatialGridSystems[otherDataIdx].GetGridCounts();
-							TArray<int32>& gridMembers = SpatialGridSystems[otherDataIdx].GetGridMembers();
+	                TArray<int32>& gridOffsets = SpatialGridSystem.GetGridOffsets();
+	                TArray<int32>& gridCounts = SpatialGridSystem.GetGridCounts();
+	                
+	                TArray<FFluxPrimeGridMemberData>& gridMembers = SpatialGridSystem.GetGridMembers();
 
-							int32 start = gridOffsets[neighborCellId];
-							int32 end   = start + gridCounts[neighborCellId];
+	                int32 start = gridOffsets[neighborCellId];
+	                int32 count = gridCounts[neighborCellId];
 
-							FVector* otherLocations = reinterpret_cast<FVector*>(dataStores[otherDataIdx].GetRawBufferData(EntityDataLocationID[otherDataIdx]));
+	                for(int32 k = 0; k < count; ++k)
+	                {
+	                   int16 otherChunk = gridMembers[start + k].EntityType;
+	                   int32 otherAgent = gridMembers[start + k].EntityIndex;
 
-							for(int32 j = start; j < end; ++j)
-							{
-								int32 otherAgent = gridMembers[j];
+	                   if (currentDataIdx == otherChunk && i == otherAgent) continue;
 
-								if (currentDataIdx == otherDataIdx && i == otherAgent) continue;
+	                   FVector* otherLocations = reinterpret_cast<FVector*>(dataStores[otherChunk].GetRawBufferData(EntityDataLocationID[otherChunk]));
 
-								FVector diff = tempLocation - otherLocations[otherAgent];
-								diff.Z = 0;
-								float distSq = diff.SizeSquared();
+	                   FVector diff = tempLocation - otherLocations[otherAgent];
+	                   diff.Z = 0;
+	                   float distSq = diff.SizeSquared();
 
-								if (distSq < separationRadius && distSq > 0.1f)
-								{
-									float dist = FMath::Sqrt(distSq);
-									float pushFactor = 1.0f - (dist / (entityDataSize[i].ValueInt16 * 1.2f));
+	                   if (distSq < separationRadius && distSq > 0.1f)
+	                   {
+	                      float dist = FMath::Sqrt(distSq);
+	                      float pushFactor = 1.0f - (dist / (entityDataSize[i].ValueInt16 * 1.2f));
 
-									force += (diff / dist) * pushFactor;
-									overlapCount++;
-								}
-							}
-						}
-					}
-				}
+	                      force += (diff / dist) * pushFactor;
+	                      overlapCount++;
+	                   }
+	                }
+	             }
+	          }
 
-				force *= SeparationWeight;
-				entityDataAcceleration[i] += force;
-			}
-		}
+	          force *= SeparationWeight;
+	          entityDataAcceleration[i] += force;
+	       }
+	    }
 	}
 };
