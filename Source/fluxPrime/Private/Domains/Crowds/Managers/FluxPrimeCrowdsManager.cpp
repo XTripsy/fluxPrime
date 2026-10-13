@@ -199,11 +199,8 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->SetStaticMesh(CrowdsMeshSoftRef[identity->Identity].Get());
 		tempISMC->AttachToComponent(GetOwner()->GetRootComponent(), AttachRules);
 		tempISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		/*tempISMC->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-		tempISMC->SetCollisionProfileName(ProfileNameCollisionCrowds);*/
 		tempISMC->ClearInstances();
 		tempISMC->UpdateBounds();
-		//tempISMC->RecreatePhysicsState();
 		tempISMC->NumCustomDataFloats = 6;
 		tempISMC->bReceivesDecals = false;
 		tempISMC->RegisterComponent();
@@ -250,11 +247,6 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		
 		UE_LOG(LogTemp, Log, TEXT("TARGET:: ADD NEW TARGET"));
 	}
-	
-	FFluxPrimeRegisterTargetActionPayload data;
-	FInstancedStruct payload = FInstancedStruct::Make(data);
-		
-	OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 }
 
 void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -294,10 +286,10 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 {
 	auto& moduleFragments = *ModuleFragments;
 	
-	if (payload.GetScriptStruct() == FFluxPrimeSpawnActionPayload::StaticStruct())
+	if (payload.GetScriptStruct() == FFluxPrimeCrwodsSpawnActionPayload::StaticStruct())
 	{
 		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
-		const FFluxPrimeSpawnActionPayload& data = payload.Get<FFluxPrimeSpawnActionPayload>();
+		const FFluxPrimeCrwodsSpawnActionPayload& data = payload.Get<FFluxPrimeCrwodsSpawnActionPayload>();
 
 		for (auto& pairLocation : data.Locations)
 		{

@@ -100,7 +100,7 @@ private:
 	TObjectPtr<UWorld> World;
 	
 	UPROPERTY(EditAnywhere)
-	FFluxPrimeSpatialGridSystem SpatialGridSystems;
+	FFluxPrimeSpatialGridSystem SpatialGridSystem = FFluxPrimeSpatialGridSystem();
 	
 	UPROPERTY(EditAnywhere)
 	FAnimationSystemDataTagConfig DataTagConfig;
@@ -188,9 +188,7 @@ private:
 	
 	void PlayAnimationNotify(FFluxPrimeRuntimeAnimationNotify& notify, int32& requestAnimationNotify, uint8 indexAnimation,float currentFrame, float previousFrame)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_PlayNotifyAnimation);
-#endif
 		
 		for (int i = 0; i < notify.RuntimeAnimationNotifyData[indexAnimation].AnimationNotifyCount; ++i)
 		{	
@@ -203,9 +201,7 @@ private:
 	void UpdateAnimation(int16& instanceIndexEntity, int8& type, int8& state, 
 		int8& animationState, float& startTimeAnimation, float& previousFrameAnimation, float realTime)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_UpdateAnimation);
-#endif
 		
 		if (animationState != state)
 		{
@@ -234,9 +230,7 @@ private:
 	void SyncAnimation(const int16 instanceIndexEntity, const int8 type, const int8 animationState, 
 		float& startTimeAnimation, float& previousFrameAnimation, float realTime)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_UpdateAnimation);
-#endif
 		
 		// previous
 		uint16 previousStartFrame = RuntimeAnimationMapping[type].AnimationStart[animationState];
@@ -256,9 +250,7 @@ private:
 	
 	void SwitchAnimation(uint16 instanceIndexEntity, int8 type, uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame,uint16 previousStartTime, float realTime)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Switch);
-#endif
 		
 		check(ComponentsISMC->IsValidIndex(type));
 	
@@ -325,7 +317,7 @@ public:
 		
 		InitializeAnimationMapping(context.countCatalog, *context.nameCatalog, *context.animationSoftRef);
 		
-		SpatialGridSystems.Initialized(*context.dataStores);
+		SpatialGridSystem.Initialized(*context.dataStores);
 		
 		for (auto& dataStore : *context.dataStores)
 		{
@@ -345,7 +337,7 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Update);
 		
-		SpatialGridSystems.UpdateSpatialGridSystem(dataStores);
+		SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 		
 		float realTime = World->GetRealTimeSeconds();
 
@@ -384,7 +376,7 @@ public:
 				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8, 
 					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				
-				int32 targetCellId = SpatialGridSystems.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
+				int32 targetCellId = SpatialGridSystem.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
 				
 				if (entityDataCellId[i].ValueInt32 != targetCellId && !RuntimeAnimationMapping[indexDataID].AnimationForceNotify[entityDataState[i].ValueInt8]) continue;
 			

@@ -167,10 +167,19 @@ public:
 		if (dataStore.GetActiveEntityCount() >= dataStore.GetTotalEntityCount()) return;
 		
 		int32 indexSelected = dataStore.GetActiveEntityCount();
+		
 		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]))[indexSelected] = context.location;
 		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexSelected] = context.location;
 		reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]))[indexSelected] = FRotator(0, context.rotation.Yaw, 0);
 		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
+		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionID[indexDataID]))[indexSelected].ValueBool = true;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]))[indexSelected].ValueBool = false;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]))[indexSelected].ValueBool = false;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]))[indexSelected].ValueBool = false;
+		reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]))[indexSelected].ValueInt32 = INDEX_NONE;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataStartTimeAnimationID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataPreviousAnimationFrameID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
 		
 		int32 activeEntityCount = dataStore.GetActiveEntityCount();
 		dataStore.SetActiveEntityCount(++activeEntityCount);
@@ -189,7 +198,7 @@ public:
 		
 		const float baseSpeed = identity.Speed;
 		
-		int8 health = identity.Health;
+		int16 health = identity.Health;
 		int32 indexSelected = dataStore.GetActiveEntityCount();
 		
 		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]))[indexSelected] = context.location;

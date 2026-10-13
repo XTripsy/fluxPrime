@@ -118,7 +118,7 @@ public:
 			moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnCrowd(context);
 		}
 		
-		FFluxPrimeSpawnActionPayload data;
+		FFluxPrimeCrwodsSpawnActionPayload data;
 		data.Identity = identity;
 		data.Locations = listSpawnLocation;
 		data.Rotation = rotation;
@@ -134,8 +134,6 @@ public:
 		
 		int32 entityType = INDEX_NONE;
 		int32 entityIndex = INDEX_NONE;
-		
-		UE_LOG(LogTemp, Log, TEXT("RAYCAST:: SHOOT"));
 		
 		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().ShootRay(DataStores, startRay, endRay, entityType, entityIndex);
 		

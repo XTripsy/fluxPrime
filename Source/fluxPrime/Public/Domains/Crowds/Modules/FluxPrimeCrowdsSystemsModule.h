@@ -7,7 +7,7 @@
 #include "Generics/Systems/FluxPrimeBoidsSystem.h"
 #include "Generics/Systems/FluxPrimeGroundHeightSystem.h"
 #include "Generics/Systems/FluxPrimeMovementSystem.h"
-#include "Generics/Systems/FluxPrimeNavigationSystem.h"
+#include "Generics/Systems/Navigation/FluxPrimeNavigationSystem.h"
 #include "Generics/Systems/Animation/FluxPrimeAnimationSystem.h"
 #include "Generics/Systems/FluxPrimeRenderSystem.h"
 #include "Generics/Systems/FluxPrimeHealthSystem.h"
@@ -57,7 +57,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 	
-	int32 CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
+	int32 CrowdsAnimationSystemIndex = INDEX_NONE, CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
 	
 private:
 	template <typename T>
@@ -163,6 +163,7 @@ public:
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeAnimationSystem>(fragment);
+				CrowdsAnimationSystemIndex = executorIndex;
 				
 				TArray<FName> catalogIdentity;
 
@@ -305,7 +306,6 @@ public:
 				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsTargetSystem>(fragment);
 				CrowdsTargetSystemIndex = executorIndex;
-				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: target index %d"), CrowdsTargetSystemIndex);
 				
 				TArray<float> aggroDistance;
 
@@ -317,7 +317,6 @@ public:
 				FFluxPrimeCrowdsTargetSystemsContext tempContext;
 				tempContext.targetCatalogs = context.crowdsTarget;
 				tempContext.aggroDistance = &aggroDistance;
-				//tempContext.onManagerActionChange = context.onCrowdsManagerActionChange;
 				tempContext.dataStores = context.dataStores;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);

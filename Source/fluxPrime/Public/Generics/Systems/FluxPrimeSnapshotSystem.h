@@ -4,6 +4,7 @@
 #include "FluxPrimeSpatialGridSystem.h"
 #include "Generics/Data/FluxPrimePayloadData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
 #include "Domains/Crowds/Event/FluxPrimeCrowdsEvent.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "FluxPrimeSnapshotSystem.generated.h"
@@ -31,6 +32,9 @@ struct FSnapshotSystemDataTagConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FGameplayTag EntityDataTargetLocationTag;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FGameplayTag EntityDataConditionAliveTag;
+	
 	bool IsValid() const
 	{
 		return EntityDataIdTag.IsValid() 
@@ -38,7 +42,8 @@ struct FSnapshotSystemDataTagConfig
 		   && EntityDataStateTag.IsValid()
 		   && EntityDataLocationTag.IsValid()
 		   && EntityDataCurrentWaypointLocationTag.IsValid()
-		   && EntityDataTargetLocationTag.IsValid();
+		   && EntityDataTargetLocationTag.IsValid()
+		   && EntityDataConditionAliveTag.IsValid();
 	}
 };
 
@@ -74,7 +79,7 @@ private:
 	int32 MaxBandwidthBuffer = 128;
 	
 	FOnCrowdsManagerActionChange* OnManagerActionChange = nullptr;
-	TArray<int16> EntityDataIdID, EntityDataCellIdID, EntityDataStateID, EntityDataLocationID, EntityDataCurrentWaypointLocationID, EntityDataTargetLocationID;
+	TArray<int16> EntityDataIdID, EntityDataCellIdID, EntityDataStateID, EntityDataLocationID, EntityDataCurrentWaypointLocationID, EntityDataTargetLocationID, EntityDataConditionAliveID;
 	TArray<int32> NeighborCellID;
 	
 	FFluxPrimeSnapshotDataPayload SnapshotDataPayload;
@@ -110,11 +115,6 @@ private:
 	}
 	
 public:
-	/*~FFluxPrimeSnapshotSystem()
-	{
-		OnManagerActionChange->Unbind();
-	}*/
-	
 	void Initialized(FFluxPrimeSnapshotSystemContext context)
 	{
 		check(context.world);
@@ -136,6 +136,7 @@ public:
 			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
 			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
 			EntityDataTargetLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetLocationTag));
+			EntityDataConditionAliveID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionAliveTag));
 		}
 		
 		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeSnapshotData(), MaxBandwidthBuffer);
@@ -147,16 +148,19 @@ public:
 		
 		for (auto& pair : dataSnapshots)
 		{
-			if (pair.CrowdType < 0 || pair.CrowdID < 0) continue;
+			if (pair.CrowdType < 0 || pair.CrowdIndex < 0) continue;
 			
-			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
+			FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
 			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
+			FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
 			
-			check(entityDataLocation);
+			check(entityDataCurrentWaypointLocation);
 			check(entityDataState);
+			check(entityDataConditionAlive);
 			
-			entityDataLocation[pair.CrowdID] = pair.CrowdNewWaypointLocation;
-			entityDataState[pair.CrowdID].ValueInt8 = pair.CrowdState;
+			entityDataCurrentWaypointLocation[pair.CrowdIndex] = pair.CrowdNewWaypointLocation;
+			entityDataState[pair.CrowdIndex].ValueInt8 = pair.CrowdState;
+			entityDataConditionAlive[pair.CrowdIndex].ValueBool = pair.CrowdConditionAlive;
 		}
 	}
 	
@@ -189,20 +193,22 @@ public:
 		const FVector origin = SpatialGridSystems.GetOrigin();
 		
 		for (auto& dataStore : dataStores)
-		{	
+		{
 			FFluxPrimeWrapperInt16* entityDataId = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]));
+			FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionAliveID[indexDataID]));
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FVector* entityDataTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]));
 			
 			check(entityDataId);
 			check(entityDataCellId);
 			check(entityDataState);
+			check(entityDataConditionAlive);
 			check(entityDataLocation);
 			check(entityDataTargetLocation);
 			
-			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+			for (int i = 0; i < dataStore.GetTotalEntityCount(); ++i)
 			{
 				UpdateNeighborCellID(cellSize, cellWidth, cellHeight, origin, entityDataTargetLocation[i]);
 				
@@ -222,9 +228,10 @@ public:
 				if (!bSendData) continue;
 				
 				indexEntityData++;
-				snapshotData[indexEntityData].CrowdID = entityDataId[i].ValueInt16;
+				snapshotData[indexEntityData].CrowdIndex = i;
 				snapshotData[indexEntityData].CrowdType = indexDataID;
 				snapshotData[indexEntityData].CrowdState = entityDataState[i].ValueInt8;
+				snapshotData[indexEntityData].CrowdConditionAlive = entityDataConditionAlive[i].ValueBool;
 				snapshotData[indexEntityData].CrowdNewWaypointLocation = entityDataLocation[i];
 				
 				if (indexEntityData >= MaxBandwidthBuffer-1)

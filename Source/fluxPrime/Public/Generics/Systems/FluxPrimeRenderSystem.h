@@ -59,7 +59,7 @@ private:
 	{
 		TransformsPerComponent.Init(TArray<FTransform>(), catalogTotal->Num());
 		FTransform transform;
-		transform.SetLocation(FVector::DownVector * 10000);
+		transform.SetLocation(FVector::One() * -100000.0f);
 	
 		for (int i = 0; i < TransformsPerComponent.Num(); ++i)
 		{
@@ -118,7 +118,7 @@ public:
 			for (int32 i = activeCount; i < totalCount; ++i)
 			{
 				FTransform transform;
-				transform.SetLocation(FVector::DownVector * 10000);
+				transform.SetLocation(FVector::One() * -100000.0f);
 				TransformsPerComponent[indexDataID][i] = transform;
 			}
 			

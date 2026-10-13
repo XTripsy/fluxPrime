@@ -8,7 +8,7 @@
 #include "FluxPrimeCrowdsPayloadData.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeSpawnPayload
+struct FFluxPrimeCrowdsSpawnPayload
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct FFluxPrimeSpawnPayload
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeShootRayPayload
+struct FFluxPrimeCrowdsShootRayPayload
 {
 	GENERATED_BODY()
 
@@ -47,7 +47,7 @@ struct FFluxPrimeShootRayPayload
 };
 
 USTRUCT()
-struct FFluxPrimeSpawnActionPayload
+struct FFluxPrimeCrwodsSpawnActionPayload
 {
 	GENERATED_BODY()
 	
@@ -64,44 +64,3 @@ struct FFluxPrimeSpawnActionPayload
 	FGameplayTag NewState;
 };
 
-USTRUCT()
-struct FFluxPrimeDamageActionPayload
-{
-	GENERATED_BODY()
-	
-	UPROPERTY()
-	int16 CrowdID;
-	
-	UPROPERTY()
-	int8 CrowdType;
-	
-	UPROPERTY()
-	int16 CrowdDamageTaken;
-};
-
-USTRUCT()
-struct FFluxPrimeChangeTargetActionPayload
-{
-	GENERATED_BODY()
-	
-	UPROPERTY()
-	int16 CrowdID;
-	
-	UPROPERTY()
-	int8 CrowdType;
-	
-	UPROPERTY()
-	uint16 TargetID;
-	
-	UPROPERTY()
-	FVector NewTargetLocation;
-};
-
-USTRUCT()
-struct FFluxPrimeRegisterTargetActionPayload
-{
-	GENERATED_BODY()
-	
-	/*UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> NewCrowdsTarget;*/
-};

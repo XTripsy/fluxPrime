@@ -15,7 +15,7 @@ AFluxPrimeCrowdsController* UFluxPrimeCrowdsWorldSubsystem::GetCrowdsController(
 
 void UFluxPrimeCrowdsWorldSubsystem::ExecuteSpawnAction(const FInstancedStruct& payload)
 {
-	const FFluxPrimeSpawnPayload* pair = payload.GetPtr<FFluxPrimeSpawnPayload>();
+	const FFluxPrimeCrowdsSpawnPayload* pair = payload.GetPtr<FFluxPrimeCrowdsSpawnPayload>();
 	if (!pair) return;
 	
 	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
@@ -24,7 +24,7 @@ void UFluxPrimeCrowdsWorldSubsystem::ExecuteSpawnAction(const FInstancedStruct& 
 
 void UFluxPrimeCrowdsWorldSubsystem::ExecuteShootRayAction(const FInstancedStruct& payload)
 {
-	const FFluxPrimeShootRayPayload* pair = payload.GetPtr<FFluxPrimeShootRayPayload>();
+	const FFluxPrimeCrowdsShootRayPayload* pair = payload.GetPtr<FFluxPrimeCrowdsShootRayPayload>();
 	if (!pair) return;
 	
 	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
@@ -40,8 +40,11 @@ void UFluxPrimeCrowdsWorldSubsystem::HandleWorldInitializedActors(const UWorld::
 
 void UFluxPrimeCrowdsWorldSubsystem::RequestAction(const FInstancedStruct& payload)
 {
-	check(CrowdsController.IsValid());
-	
-	if (payload.GetScriptStruct() == FFluxPrimeSpawnPayload::StaticStruct()) ExecuteSpawnAction(payload);
-	if (payload.GetScriptStruct() == FFluxPrimeShootRayPayload::StaticStruct()) ExecuteShootRayAction(payload);
+	if (!CrowdsController.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("CROWDS SUBSYSTEM:: CROWDS CONTROLLER NULL"));
+		return;
+	}
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct()) ExecuteSpawnAction(payload);
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsShootRayPayload::StaticStruct()) ExecuteShootRayAction(payload);
 }

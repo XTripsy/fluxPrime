@@ -11,13 +11,16 @@ struct FFluxPrimeSnapshotData
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	int16 CrowdID = INDEX_NONE;
+	int16 CrowdIndex = INDEX_NONE;
 	
 	UPROPERTY()
 	int8 CrowdType = INDEX_NONE;
 	
 	UPROPERTY()
 	int8 CrowdState = INDEX_NONE;
+	
+	UPROPERTY()
+	bool CrowdConditionAlive = false;
 	
 	UPROPERTY()
 	FVector_NetQuantize10 CrowdNewWaypointLocation = FVector::ZeroVector;
