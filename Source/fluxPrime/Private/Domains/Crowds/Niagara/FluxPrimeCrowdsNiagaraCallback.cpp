@@ -3,6 +3,8 @@
 
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 
+#include "Kismet/GameplayStatics.h"
+
 void UFluxPrimeCrowdsNiagaraCallback::InitializedNiagaraCallback(FFluxPrimeCrowdsNiagaraCallbackContext context)
 {
 	check(context.world);
@@ -22,23 +24,23 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 	FVector start = FVector::Zero();
 	FVector end = FVector::Zero();
 	
-	for (const FBasicParticleData& Particle : Data)
+	for (const FBasicParticleData& particle : Data)
 	{
 		UE_LOG(
 			LogTemp,
 			Log,
 			TEXT("HIT POSITION: %s"),
-			*Particle.Position.ToString()
+			*particle.Position.ToString()
 		);
 		
 		UE_LOG(
 			LogTemp,
 			Log,
 			TEXT("HIT DAMAGE: %f"),
-			Particle.Size
+			particle.Size
 		);
 		
-		start = Particle.Position;
+		start = particle.Position;
 		end = start;
 		
 		const bool bHit = World->SweepSingleByChannel(
@@ -62,6 +64,13 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 			false,
 			1.0f
 		);
+		
+		UGameplayStatics::ApplyDamage(
+				Hit.GetActor(),
+				particle.Size,
+				nullptr,
+				nullptr,
+				nullptr);
 		
 		UE_LOG(LogTemp, Log, TEXT("ABILITY:: END PROJECTILE ATTACK"));
 	}

@@ -14,14 +14,10 @@ private:
 	TArray<FGameplayTag> DataID;
 	
 public:
-	/*~FFluxPrimeArchetypeDataStore()
+	~FFluxPrimeArchetypeDataStore()
 	{
 		FreeManualBuffer();
-		RawDataBuffers.Reset();
-		RawElementSizes.Reset();
-		EntityLookup.Reset();
-		DataID.Reset();
-	}*/
+	}
 	
 	void FreeManualBuffer()
 	{

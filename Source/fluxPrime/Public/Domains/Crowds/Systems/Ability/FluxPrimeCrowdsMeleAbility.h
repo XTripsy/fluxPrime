@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Generics/Systems/Ability/FluxPrimeBaseAbility.h"
+#include "Kismet/GameplayStatics.h"
 #include "FluxPrimeCrowdsMeleAbility.generated.h"
 
 USTRUCT(BlueprintType)
@@ -37,7 +38,7 @@ public:
 		FHitResult Hit;
 		const FVector forward = rotation.Vector();
 
-		const FVector start = location;
+		const FVector start = location + FVector::UpVector * 75;
 		const FVector end   = start + forward * 200.0f;
 
 		const bool bHit = World->SweepSingleByChannel(
@@ -62,6 +63,13 @@ public:
 			1.0f
 		);
 		
-		UE_LOG(LogTemp, Log, TEXT("ABILITY:: END MELE ATTACK"));
+		UGameplayStatics::ApplyDamage(
+				Hit.GetActor(),
+				damage,
+				nullptr,
+				nullptr,
+				nullptr);
+		
+		UE_LOG(LogTemp, Log, TEXT("ABILITY:: END MELE ATTACK | DAMAGE %f"), damage);
 	}
 };

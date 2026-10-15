@@ -176,7 +176,7 @@ public:
 
 				check(executor.Execute != nullptr);
 
-				rotationEntity = FRotator(0, entityDataRotation[i].Yaw, 0);
+				rotationEntity = FRotator(0, entityDataRotation[i].Yaw + 85.0f, 0);
 				executor.Execute(
 					*executor.Data,
 					entityDataLocation[i],

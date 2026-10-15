@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
-#include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Framework/Core/FluxPrimeDataStore.h"
 #include "Generics/Data/FluxPrimeSpatialGridData.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeSpatialGridSystem.generated.h"
@@ -26,7 +26,7 @@ struct FSpatialGridSystemDataTagConfig
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeSpatialGridSystem : public FFluxPrimeBaseSystem
+struct FFluxPrimeSpatialGridSystem
 {
     GENERATED_BODY()
     
