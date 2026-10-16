@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Domains/Crowds/Configurations/SystemsConfiguration.h"
 #include "Framework/Core/FluxPrimeBaseModule.h"
 #include "Generics/Systems/FluxPrimeBoidsSystem.h"
 #include "Generics/Systems/FluxPrimeGroundHeightSystem.h"
@@ -52,7 +53,7 @@ struct FFluxPrimeCrowdsSystemsModule : public FFluxPrimeBaseModule
 	
 private:
 	UPROPERTY(EditAnywhere, meta = (BaseStruct="FluxPrimeBaseSystem", ExcludeBaseStruct, AllowPrivateAccess = true))
-	TArray<FInstancedStruct> SystemFragments;
+	TObjectPtr<USystemsConfiguration> SystemsConfiguration;
 	
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
@@ -101,13 +102,14 @@ public:
 			NiagaraCallback->InitializedNiagaraCallback(contextCallback);
 		}
 		
+		auto& systemFragments = SystemsConfiguration->SystemFragments;
 		auto& catalog = *context.entityCatalog;
 		
-		StartInitializedSystem(SystemFragments.Num());
+		StartInitializedSystem(systemFragments.Num());
 		
-		for (int i = 0; i < SystemFragments.Num(); ++i)
+		for (int i = 0; i < systemFragments.Num(); ++i)
 		{
-			FInstancedStruct& fragment = SystemFragments[i];
+			FInstancedStruct& fragment = systemFragments[i];
 			
 			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsAbilitySystem>())
 			{

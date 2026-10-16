@@ -5,15 +5,13 @@
 
 #include "Generics/Data/FluxPrimeAnimationIdentity.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsIdentity.h"
-#include "Domains/Crowds/Managers/ManagerConfiguration/ManagerConfiguration.h"
+#include "Domains/Crowds/Configurations/ManagerConfiguration.h"
 #include "Domains/Crowds/Managers/FluxPrimeCrowdsTargetManager.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsDataModule.h"
 #include "Engine/AssetManager.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 
 UFluxPrimeCrowdsManager::UFluxPrimeCrowdsManager()
 {

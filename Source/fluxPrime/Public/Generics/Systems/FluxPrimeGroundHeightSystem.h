@@ -64,52 +64,128 @@ private:
 	UPROPERTY(EditAnywhere)
 	int32 CellHeight = 200;
 	
+	UPROPERTY(EditAnywhere)
+	float MaxStepHeight = 100.0f;
+
+	UPROPERTY(EditAnywhere)
+	float MinFloorSeparation = 120.0f;
+
+	UPROPERTY(EditAnywhere)
+	float GroundZOffset = 10.0f;
+	
+	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "16"))
+	int32 MaxFloorsPerCell = 1;
+	
 	UPROPERTY()
 	TArray<float> GroundHeightMap;
+
+	UPROPERTY()
+	TArray<uint8> CellFloorCounts;
 	
 private:
 	void BakeGroundHeightSystems(TObjectPtr<UWorld> world)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_GroundHeight_Systems);
-#endif
 		
-		int32 TotalCells = CellWidth * CellHeight;
-		GroundHeightMap.Init(0.0f, TotalCells);
+		MaxFloorsPerCell = FMath::Max(1, MaxFloorsPerCell);
+		int32 totalCells = CellWidth * CellHeight;
 
-		FCollisionQueryParams TraceParams;
-		TraceParams.bTraceComplex = false;
+		GroundHeightMap.Init(0.0f, totalCells * MaxFloorsPerCell);
+		CellFloorCounts.Init(0, totalCells);
+
+		FCollisionQueryParams traceParams;
+		traceParams.bTraceComplex = false;
+
+		const float maxWorldZ = 10000.0f;
+		const float minWorldZ = -10000.0f;
+		const float penetrationStepZ = 30.0f;
 
 		for (int32 y = 0; y < CellHeight; y++)
 		{
 			for (int32 x = 0; x < CellWidth; x++)
 			{
-				float WorldX = Origin.X + (x * CellSize) + (CellSize * 0.5f);
-				float WorldY = Origin.Y + (y * CellSize) + (CellSize * 0.5f);
+				float worldX = Origin.X + (x * CellSize) + (CellSize * 0.5f);
+				float worldY = Origin.Y + (y * CellSize) + (CellSize * 0.5f);
 
-				FVector RayStart(WorldX, WorldY, 10000.0f);
-				FVector RayEnd(WorldX, WorldY, -10000.0f);
+				int32 cellIndex = (y * CellWidth) + x;
+				int32 baseDataIndex = cellIndex * MaxFloorsPerCell;
+				uint8 currentFloorCount = 0;
 
-				FHitResult HitResult;
-				bool bHit = world->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_GroundHeight, TraceParams);
-				int32 IndexID = (y * CellWidth) + x;
+				float currentRayStartZ = maxWorldZ;
 
-				GroundHeightMap[IndexID] = (bHit) ? HitResult.ImpactPoint.Z : 0.0f;
+				while (currentRayStartZ > minWorldZ && currentFloorCount < MaxFloorsPerCell)
+				{
+					FVector rayStart(worldX, worldY, currentRayStartZ);
+					FVector rayEnd(worldX, worldY, minWorldZ);
+
+					FHitResult hitResult;
+					bool bHit = world->LineTraceSingleByChannel(hitResult, rayStart, rayEnd, ECC_GroundHeight, traceParams);
+
+					if (!bHit) break;
+
+					if (hitResult.bStartPenetrating)
+					{
+						currentRayStartZ -= penetrationStepZ;
+						continue;
+					}
+
+					if (hitResult.ImpactNormal.Z >= 0.7f)
+					{
+						bool bTooCloseToUpperFloor = false;
+						if (currentFloorCount > 0)
+						{
+							float prevFloorZ = GroundHeightMap[baseDataIndex + currentFloorCount - 1];
+							if (FMath::Abs(prevFloorZ - hitResult.ImpactPoint.Z) < MinFloorSeparation) 
+								bTooCloseToUpperFloor = true;
+						}
+
+						if (!bTooCloseToUpperFloor)
+						{
+							GroundHeightMap[baseDataIndex + currentFloorCount] = hitResult.ImpactPoint.Z;
+							currentFloorCount++;
+						}
+					}
+
+					currentRayStartZ = hitResult.ImpactPoint.Z - penetrationStepZ;
+				}
+
+				CellFloorCounts[cellIndex] = currentFloorCount;
 			}
 		}
 	}
 	
-	float GetGroundHeight(FVector location)
+	float GetGroundHeight(const FVector& location) const
 	{
-		int32 CellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
-		int32 CellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
+		int32 cellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
+		int32 cellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
 
-		CellX = FMath::Clamp(CellX, 0, CellWidth - 1);
-		CellY = FMath::Clamp(CellY, 0, CellHeight - 1);
+		cellX = FMath::Clamp(cellX, 0, CellWidth - 1);
+		cellY = FMath::Clamp(cellY, 0, CellHeight - 1);
 
-		int32 IndexID = (CellY * CellWidth) + CellX;
+		int32 cellIndex = (cellY * CellWidth) + cellX;
+		uint8 floorCount = CellFloorCounts[cellIndex];
 
-		return GroundHeightMap[IndexID];
+		if (floorCount == 0) return location.Z - GroundZOffset;
+
+		int32 baseDataIndex = cellIndex * MaxFloorsPerCell;
+		float bestHeight = location.Z - GroundZOffset;
+		float closestVerticalDist = TNumericLimits<float>::Max();
+
+		for (uint8 i = 0; i < floorCount; ++i)
+		{
+			float candidateZ = GroundHeightMap[baseDataIndex + i];
+			float verticalDist = FMath::Abs(candidateZ - location.Z);
+			
+			if (verticalDist < closestVerticalDist)
+			{
+				closestVerticalDist = verticalDist;
+				bestHeight = candidateZ;
+			}
+		}
+
+		if (closestVerticalDist > MaxStepHeight) return location.Z - GroundZOffset;
+
+		return bestHeight;
 	}
 	
 public:
@@ -131,29 +207,25 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Ground_Height_Systems);
 		
-		FVector2D inputRange(75.0f, 300.0f);
-		FVector2D outputRange(1.75f, 6.0f);
+		const FVector2D inputRange(75.0f, 300.0f);
+		const FVector2D outputRange(1.75f, 6.0f);
 		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
 		{
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
-			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
 			FFluxPrimeWrapperFloat* entityDataMaxSpeed = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]));
 			
 			check(entityDataLocation);
-			check(entityDataRotation);
 			check(entityDataMaxSpeed);
 			
-			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
+			int32 activeCount = dataStore.GetActiveEntityCount();
+			for (int32 i = 0; i < activeCount; ++i)
 			{
-				float unpackedYaw = entityDataRotation[i].Yaw + 65;
-				FVector forwardVector = FRotator(0.0f, unpackedYaw, 0.0f).Vector();
-				FVector tempLocation = entityDataLocation[i] + (forwardVector * 75);
-				float value = FMath::GetMappedRangeValueClamped(inputRange, outputRange, entityDataMaxSpeed[i].ValueFloat);
-				float target = GetGroundHeight(tempLocation);
-				target += 10;
-				entityDataLocation[i].Z = FMath::Lerp(entityDataLocation[i].Z, target, deltaTime * value);
+				float interpMultiplier = FMath::GetMappedRangeValueClamped(inputRange, outputRange, entityDataMaxSpeed[i].ValueFloat);
+				float targetZ = GetGroundHeight(entityDataLocation[i]) + GroundZOffset;
+				
+				entityDataLocation[i].Z = FMath::Lerp(entityDataLocation[i].Z, targetZ, deltaTime * interpMultiplier);
 			}
 			
 			indexDataID++;
