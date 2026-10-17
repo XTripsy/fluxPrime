@@ -49,9 +49,6 @@ protected:
 	float MoveTargetTimeDifferenceCellID = 1.5f;
 	
 	UPROPERTY(EditAnywhere)
-	float RandomCircleRadius = 150.0f;
-	
-	UPROPERTY(EditAnywhere)
 	FFluxPrimeSpatialGridSystem SpatialGridSystem = FFluxPrimeSpatialGridSystem();
 	
 protected:
@@ -233,10 +230,9 @@ protected:
 		NavNodeRef startPoly, targetPoly;
 		FVector3d startNearestPoint, targetNearestPoint;
 		FVector searchExtent( size, size, size * 2.f);
-		FVector currentTargetLocation = targetLocation + FVector(FMath::RandPointInCircle(RandomCircleRadius), 0.0f);
 		
 		bool bFindNearestPoly = FindNearestPoly(location, searchExtent, startPoly, startNearestPoint) 
-			&& FindNearestPoly(currentTargetLocation, searchExtent, targetPoly, targetNearestPoint);
+			&& FindNearestPoly(targetLocation, searchExtent, targetPoly, targetNearestPoint);
 		
 		if (!bFindNearestPoly) return;
 		
@@ -246,7 +242,7 @@ protected:
 			return;
 		}
 		
-		lastReplanLocation = currentTargetLocation;
+		lastReplanLocation = targetLocation;
 		lastMoveLocation = lastReplanLocation;
 		
 		Load(outCorridor, outCorridorCount, lastReplanLocation);

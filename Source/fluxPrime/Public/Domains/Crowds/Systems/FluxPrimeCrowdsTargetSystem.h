@@ -55,9 +55,25 @@ private:
 	UPROPERTY()
 	TArray<float> AggroDistance;
 	
-public:
 	UPROPERTY(EditAnywhere)
 	FTargetSystemDataTagConfig DataTagConfig;
+	
+	float CurrentTime = 0;
+	
+	UPROPERTY(EditAnywhere)
+	float RandomCircleRadius = 150.0f;
+	
+	UPROPERTY(EditAnywhere, meta = (ToolTip = "1s is equal 1Hz, so its mean 0.1s is equal 10Hz"))
+	float CycleFrequencyBuffer = 0.1f;
+	
+	UPROPERTY(EditAnywhere)
+	int32 MaxAttackersPerTarget = 25;
+
+	UPROPERTY(EditAnywhere)
+	float CrowdLoadPenaltyDistance = 250.0f;
+
+	UPROPERTY(EditAnywhere)
+	float TargetStickinessDistance = 300.0f;
 	
 	TArray<int16> EntityDataLocationID, EntityDataTargetLocationID, EntityDataTargetIdID, EntityDataIdID;
 	
@@ -89,78 +105,100 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
 		
+		check(TargetCatalogs);
+		
+		CurrentTime += deltaTime;
+		
+		if (CurrentTime < CycleFrequencyBuffer) return;
+		CurrentTime = 0.0f;
+		
+		auto& targetCatalogs = *TargetCatalogs;
+		const int32 numTargets = targetCatalogs.Num();
+
+		TArray<FVector> targetLocations;
+		TArray<uint16> targetPriority;
+		TArray<int32> targetAttackerCounts;
+		
+		float bestEffectiveDistanceSquared = TNumericLimits<float>::Max();
+		int32 bestPriority = TNumericLimits<int32>::Lowest();
+		int16 bestTargetID = INDEX_NONE;
+		
+		targetLocations.SetNumUninitialized(numTargets);
+		targetPriority.SetNumUninitialized(numTargets);
+		targetAttackerCounts.Init(0, numTargets);
+
+		for (int32 i = 0; i < numTargets; ++i)
+		{
+			if (!targetCatalogs[i].CrowdsTarget.IsValid()) continue;
+
+			targetLocations[i] = targetCatalogs[i].CrowdsTarget->GetActorLocation();
+			targetPriority[i] = targetCatalogs[i].CrowdsTargetPriority;
+		}
+
+		const float crowdPenaltyPerAttackerSq = FMath::Square(CrowdLoadPenaltyDistance);
+		const float stickinessBonusSq = FMath::Square(TargetStickinessDistance);
+		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)
 		{
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FVector* entityDataTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]));
 			FFluxPrimeWrapperInt16* entityDataTargetID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataTargetIdID[indexDataID]));
-			FFluxPrimeWrapperInt16* entityDataID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
-			auto& targetCatalogs = *TargetCatalogs;
 			
 			check(entityDataLocation);
 			check(entityDataTargetLocation);
 			check(entityDataTargetID);
-			check(entityDataID);
-			check(TargetCatalogs);
-			
-			TArray<FVector> targetLocations;
-			TArray<uint16> targetPriority;
-			targetLocations.SetNumUninitialized(targetCatalogs.Num());
-			targetPriority.SetNumUninitialized(targetCatalogs.Num());
-
-			for (int32 i = 0; i < targetCatalogs.Num(); ++i)
-			{
-				if (!targetCatalogs[i].CrowdsTarget.IsValid()) continue;
-
-				targetLocations[i] = targetCatalogs[i].CrowdsTarget->GetActorLocation();
-				targetPriority[i] = targetCatalogs[i].CrowdsTargetPriority;
-			}
-			
-			float bestDistanceSquared = TNumericLimits<float>::Max();
-			int32 bestPriority = TNumericLimits<int32>::Lowest();
-			int16 bestTargetID = INDEX_NONE;
 			
 			for (int32 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
-				bestDistanceSquared = TNumericLimits<float>::Max();
+				bestEffectiveDistanceSquared = TNumericLimits<float>::Max();
 				bestPriority = TNumericLimits<int32>::Lowest();
 				bestTargetID = INDEX_NONE;
 
-				for (int j = 0; j < targetCatalogs.Num(); ++j)
+				const int16 currentTargetID = entityDataTargetID[i].ValueInt16;
+
+				for (int32 j = 0; j < numTargets; ++j)
 				{
-					const float distanceSquared = FVector::DistSquaredXY(entityDataLocation[i], targetLocations[j]);
-					const float aggroDistanceSquared = FMath::Square(AggroDistance[indexDataID]);
-					
-					if (distanceSquared > aggroDistanceSquared) continue;
-					
+					if (!targetCatalogs[j].CrowdsTarget.IsValid()) continue;
+
+					if (MaxAttackersPerTarget > 0 && targetAttackerCounts[j] >= MaxAttackersPerTarget) continue;
+
+					const float rawDistanceSquared = FVector::DistSquaredXY(entityDataLocation[i], targetLocations[j]);
+					const float loadPenalty = targetAttackerCounts[j] * crowdPenaltyPerAttackerSq;
+					const float stickinessBonus = (currentTargetID == j) ? stickinessBonusSq : 0.0f;
+					const float effectiveDistanceSquared = rawDistanceSquared + loadPenalty - stickinessBonus;
+
 					const int32 priority = targetPriority[j];
 					
 					if (priority > bestPriority)
 					{
 						bestPriority = priority;
-						bestDistanceSquared = distanceSquared;
+						bestEffectiveDistanceSquared = effectiveDistanceSquared;
 						bestTargetID = j;
-
 						continue;
 					}
 
 					if (priority == bestPriority &&
-						distanceSquared < bestDistanceSquared)
+						effectiveDistanceSquared < bestEffectiveDistanceSquared)
 					{
-						bestDistanceSquared = distanceSquared;
+						bestEffectiveDistanceSquared = effectiveDistanceSquared;
 						bestTargetID = j;
 					}
 				}
 
-				if (!targetLocations.IsValidIndex(entityDataTargetID[i].ValueInt16)) continue;
-				
-				if (entityDataTargetID[i].ValueInt16 != bestTargetID && bestTargetID != INDEX_NONE)
+				if (bestTargetID != INDEX_NONE)
 				{
-					entityDataTargetID[i].ValueInt16 = static_cast<uint16>(bestTargetID);
+					targetAttackerCounts[bestTargetID]++;
+					entityDataTargetID[i].ValueInt16 = bestTargetID;
+
+					const FVector2D randomCircle = FMath::RandPointInCircle(RandomCircleRadius);
+					entityDataTargetLocation[i] = targetLocations[bestTargetID] + FVector(randomCircle.X, randomCircle.Y, 0.0f);
 				}
-				
-				entityDataTargetLocation[i] = targetLocations[entityDataTargetID[i].ValueInt16];
+				else
+				{
+					entityDataTargetID[i].ValueInt16 = INDEX_NONE;
+					entityDataTargetLocation[i] = entityDataLocation[i];
+				}
 			}
 			
 			indexDataID++;
