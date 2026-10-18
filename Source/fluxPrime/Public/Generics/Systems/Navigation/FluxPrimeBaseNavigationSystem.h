@@ -67,7 +67,7 @@ protected:
 	bool FindStraightPath(const FVector3d& startPos, const FVector3d& endPos,
 		FFluxPrimeCrowdsWaypoint& outPath, uint8& outCountPath, const int options = DT_STRAIGHTPATH_AREA_CROSSINGS)
 	{
-		if ( GetPathCount() <= 0)return false;
+		if (GetPathCount() <= 0) return false;
 
 		dtQueryResult result;
 
@@ -223,13 +223,15 @@ protected:
 		}
 	}
 	
-	void QueueFindPath(bool& needReplan, FVector& location, FVector& targetLocation, 
-		FVector& lastReplanLocation, FVector& lastMoveLocation, int16& size, FFluxPrimeCrowdsCorridor& outCorridor, uint8& outCorridorCount)
+	void QueueFindPath(bool& needReplan, FVector& location, FVector& previousLocation, FVector& targetLocation, 
+		FVector& lastReplanLocation, FVector& lastMoveLocation, int16& size, 
+		FFluxPrimeCrowdsCorridor& outCorridor, uint8& outCorridorCount,
+		FFluxPrimeCrowdsWaypoint& outWaypoints, uint8& outCountWaypoints)
 	{
-		size = FMath::Max(.1f, size);
+		size = FMath::Max(1, size);
 		NavNodeRef startPoly, targetPoly;
 		FVector3d startNearestPoint, targetNearestPoint;
-		FVector searchExtent( size, size, size * 2.f);
+		FVector searchExtent(size, size, size * 2.f);
 		
 		bool bFindNearestPoly = FindNearestPoly(location, searchExtent, startPoly, startNearestPoint) 
 			&& FindNearestPoly(targetLocation, searchExtent, targetPoly, targetNearestPoint);
@@ -239,19 +241,26 @@ protected:
 		if (!FindPath(startNearestPoint, targetNearestPoint, outCorridor, outCorridorCount))
 		{
 			outCorridorCount = 0;
+			outCountWaypoints = 0;
 			return;
 		}
 		
 		lastReplanLocation = targetLocation;
 		lastMoveLocation = lastReplanLocation;
 		
-		Load(outCorridor, outCorridorCount, lastReplanLocation);
-		Save(outCorridor, outCorridorCount);
+		previousLocation = startNearestPoint;
 		
+		Reset(outCorridor, previousLocation);
+		Load(outCorridor, outCorridorCount, lastReplanLocation);
+		
+		if (!FindStraightPath(startNearestPoint, targetNearestPoint, outWaypoints, outCountWaypoints))
+			outCountWaypoints = 0;
+		
+		Save(outCorridor, outCorridorCount);
 		needReplan = false;
 	}
 	
-	void QueueCorridor(FFluxPrimeCrowdsCorridor& corridors, uint8& countCorridor, FVector& location, FVector& previousLocation,
+	void QueueCorridor(bool& needReplan, FFluxPrimeCrowdsCorridor& corridors, uint8& countCorridor, FVector& location, FVector& previousLocation,
 		FVector& targetLocation, FVector& lastMoveTargetLocation, FFluxPrimeCrowdsWaypoint& waypoints, uint8& countWaypoints, 
 		int32& cellID, float& currentTime, float& lastOptimizeTime, float& lastMoveTargetTime)
 	{
@@ -260,17 +269,22 @@ protected:
 		if (countCorridor == 0)
 		{
 			countWaypoints = 0;
+			needReplan = true;
 			return;
 		}
 		
 		Reset(corridors, previousLocation);
 		Load(corridors, countCorridor, lastMoveTargetLocation);
 		
-		if (!MovePosition(location)) return;
+		if (!MovePosition(location))
+		{
+			needReplan = true;
+			return;
+		}
 		
 		if (currentTime - lastOptimizeTime > SelectFloat(cellID == targetCellID, OptimizeTimeSameCellID, OptimizeTimeDifferenceCellID))
 		{
-			if (!OptimizePathTopology()) return;
+			OptimizePathTopology();
 			lastOptimizeTime = currentTime;
 		}
 		
@@ -278,13 +292,13 @@ protected:
 		{
 			lastMoveTargetTime = currentTime;
 			lastMoveTargetLocation = targetLocation;
+			MoveTargetPosition(lastMoveTargetLocation);
 		}
 		
-		if (!FindStraightPath(location, lastMoveTargetLocation, 
-			waypoints,countWaypoints)) countWaypoints = 0;
+		if (!FindStraightPath(location, lastMoveTargetLocation, waypoints, countWaypoints))
+			countWaypoints = 0;
 		
 		Save(corridors, countCorridor);
-		
 		previousLocation = location;
 	}
 };

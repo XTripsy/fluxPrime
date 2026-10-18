@@ -195,9 +195,9 @@ public:
 		float currentTime = World->GetTimeSeconds();
 		
 		int32 indexDataID = 0;
-		int32 indexData = 0;
 		int32 countPathQueue = 0, countCorridorQueue = 0;
 		int32 lastReplanTargetCellId = 0, targetCellId = 0;
+
 		for (auto& dataStore : dataStores)
 		{
 			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[indexDataID]));
@@ -211,104 +211,87 @@ public:
 			FFluxPrimeWrapperFloat* entityDataWaitTime = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataWaitTimeID[indexDataID]));
 			FFluxPrimeWrapperFloat* entityDataLastOptimizeTime = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataLastOptimizeTimeID[indexDataID]));
 			FFluxPrimeWrapperFloat* entityDataLastMoveTargetTime = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataLastMoveTargetTimeID[indexDataID]));
-			/*-> ini*/FFluxPrimeCrowdsCorridor* entityDataCorridors = reinterpret_cast<FFluxPrimeCrowdsCorridor*>(dataStore.GetRawBufferData(EntityDataCorridorsID[indexDataID]));
+			FFluxPrimeCrowdsCorridor* entityDataCorridors = reinterpret_cast<FFluxPrimeCrowdsCorridor*>(dataStore.GetRawBufferData(EntityDataCorridorsID[indexDataID]));
 			FFluxPrimeWrapperUint8* entityDataCountCorridor = reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountCorridorID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataNeedReplan = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataNeedReplanID[indexDataID]));
-			/*-> ini*/FFluxPrimeCrowdsWaypoint* entityDataWaypoints = reinterpret_cast<FFluxPrimeCrowdsWaypoint*>(dataStore.GetRawBufferData(EntityDataWaypointsID[indexDataID]));
+			FFluxPrimeCrowdsWaypoint* entityDataWaypoints = reinterpret_cast<FFluxPrimeCrowdsWaypoint*>(dataStore.GetRawBufferData(EntityDataWaypointsID[indexDataID]));
 			FFluxPrimeWrapperUint8* entityDataCountWaypoints = reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountWaypointsID[indexDataID]));
 			
-			check(entityDataSize);
-			check(entityDataCellId);
-			check(entityDataCurrentTargetLocation);
-			check(entityDataCurrentLocation);
-			check(entityDataPreviousLocation);
-			check(entityDataTargetLocation);
-			check(entityDataLastReplanLocation);
-			check(entityDataLastMoveLocation);
-			check(entityDataWaitTime);
-			check(entityDataLastOptimizeTime);
-			check(entityDataLastMoveTargetTime);
-			check(entityDataCorridors);
-			check(entityDataCountCorridor);
-			check(entityDataNeedReplan);
-			check(entityDataWaypoints);
-			check(entityDataCountWaypoints);
+			check(entityDataSize && entityDataCellId && entityDataCurrentTargetLocation && entityDataCurrentLocation);
+			check(entityDataPreviousLocation && entityDataTargetLocation && entityDataLastReplanLocation && entityDataLastMoveLocation);
+			check(entityDataWaitTime && entityDataLastOptimizeTime && entityDataLastMoveTargetTime && entityDataCorridors);
+			check(entityDataCountCorridor && entityDataNeedReplan && entityDataWaypoints && entityDataCountWaypoints);
 			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				targetCellId = SpatialGridSystem.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
 				lastReplanTargetCellId = SpatialGridSystem.GetSpatialGridSystemsCellID(entityDataLastReplanLocation[i]);
 				
-				entityDataNeedReplan[i].ValueBool = targetCellId != lastReplanTargetCellId || entityDataNeedReplan[i].ValueBool;
+				entityDataNeedReplan[i].ValueBool = (targetCellId != lastReplanTargetCellId) || entityDataNeedReplan[i].ValueBool;
 				
+				entityDataWaitTime[i].ValueFloat += deltaTime;
+
+				const float arrivalRadiusSq = FMath::Square(FMath::Max(60.0f, entityDataSize[i].ValueInt16 * 1.5f));
+				const float distToWaypointSq = FVector::DistSquaredXY(entityDataCurrentLocation[i], entityDataCurrentTargetLocation[i]);
+				const bool bReachedCurrentWaypoint = (distToWaypointSq <= arrivalRadiusSq);
+
+				if (bReachedCurrentWaypoint && !entityDataNeedReplan[i].ValueBool)
+				{
+					if (entityDataCountWaypoints[i].ValueUint8 > 2 &&
+						FVector::DistSquaredXY(entityDataCurrentTargetLocation[i], entityDataWaypoints[i].Waypoints[1]) <= 1.0f)
+						entityDataCurrentTargetLocation[i] = entityDataWaypoints[i].Waypoints[2];
+					else
+						entityDataCurrentTargetLocation[i] = entityDataCurrentLocation[i];
+				}
+
+				FFluxPrimeNavigationTask tempPathTask;
+				tempPathTask.EntityDataCurrentTargetLocation = entityDataCurrentTargetLocation[i];
+				tempPathTask.EntityDataCellId = entityDataCellId[i].ValueInt32;
+				tempPathTask.EntityDataCurrentLocation = entityDataCurrentLocation[i];
+				tempPathTask.EntityDataSize = entityDataSize[i].ValueInt16;
+				tempPathTask.EntityDataWaitTime = entityDataWaitTime[i].ValueFloat;
+				tempPathTask.EntityDataPreviousLocation = entityDataPreviousLocation[i];
+				tempPathTask.EntityDataCorridors = entityDataCorridors[i];
+				tempPathTask.EntityDataTargetLocation = entityDataTargetLocation[i]; 
+				tempPathTask.EntityDataLastReplanLocation = entityDataLastReplanLocation[i];
+				tempPathTask.EntityDataLastMoveLocation = entityDataLastMoveLocation[i];
+				tempPathTask.EntityDataLastOptimizeTime = entityDataLastOptimizeTime[i].ValueFloat;
+				tempPathTask.EntityDataLastMoveTargetTime = entityDataLastMoveTargetTime[i].ValueFloat;
+				tempPathTask.EntityDataCountCorridor = entityDataCountCorridor[i].ValueUint8;
+				tempPathTask.EntityDataNeedReplan = entityDataNeedReplan[i].ValueBool;
+				tempPathTask.EntityDataWaypoints = entityDataWaypoints[i];
+				tempPathTask.EntityDataCountWaypoints = entityDataCountWaypoints[i].ValueUint8;
+
+				float baseScore = (targetCellId == entityDataCellId[i].ValueInt32) ? 5.0f : 0.0f;
+				float timeScore = entityDataWaitTime[i].ValueFloat * 10.0f;
+
 				if (entityDataNeedReplan[i].ValueBool)
 				{
-					entityDataWaitTime[i].ValueFloat += currentTime;
-					
-					float baseScore = (targetCellId == entityDataCellId[i].ValueInt32) ? 5.0f : 0.0f;
-					float timeScore = entityDataWaitTime[i].ValueFloat * 10.0f;
-					
-					FFluxPrimeNavigationTask tempPathTask;
-					tempPathTask.EntityDataCurrentTargetLocation = entityDataCurrentTargetLocation[i];
-					tempPathTask.EntityDataCellId = entityDataCellId[i].ValueInt32;
-					tempPathTask.EntityDataCurrentLocation = entityDataCurrentLocation[i];
-					tempPathTask.EntityDataSize = entityDataSize[i].ValueInt16;
-					tempPathTask.EntityDataWaitTime = entityDataWaitTime[i].ValueFloat;
-					tempPathTask.EntityDataPreviousLocation = entityDataPreviousLocation[i];
-					tempPathTask.EntityDataCorridors = entityDataCorridors[i];
-					tempPathTask.EntityDataTargetLocation = entityDataTargetLocation[i]; 
-					tempPathTask.EntityDataLastReplanLocation = entityDataLastReplanLocation[i];
-					tempPathTask.EntityDataLastMoveLocation = entityDataLastMoveLocation[i];
-					tempPathTask.EntityDataLastOptimizeTime = entityDataLastOptimizeTime[i].ValueFloat;
-					tempPathTask.EntityDataLastMoveTargetTime = entityDataLastMoveTargetTime[i].ValueFloat;
-					tempPathTask.EntityDataCountCorridor = entityDataCountCorridor[i].ValueUint8;
-					tempPathTask.EntityDataNeedReplan = entityDataNeedReplan[i].ValueBool;
-					tempPathTask.EntityDataWaypoints = entityDataWaypoints[i];
-					tempPathTask.EntityDataCountWaypoints = entityDataCountWaypoints[i].ValueUint8;
-					
+					if (entityDataCountWaypoints[i].ValueUint8 <= 1)
+						entityDataCurrentTargetLocation[i] = entityDataCurrentLocation[i];
+
 					FFluxPrimeNavigationDataRequest tempPathRequest;
 					tempPathRequest.PriorityScore = baseScore + timeScore;
 					tempPathRequest.DataStoreIndex = indexDataID;
 					tempPathRequest.InternalIndex = i;
 					tempPathRequest.DataTask = tempPathTask;
-					EntityPathQueue[indexData] = tempPathRequest;
-					
+
+					EntityPathQueue[countPathQueue] = tempPathRequest;
 					countPathQueue++;
 				}
 				else
 				{
-					float baseScore = (targetCellId == entityDataCellId[i].ValueInt32) ? 5.0f : 0.0f;
-					float timeScore = entityDataWaitTime[i].ValueFloat * 10.0f;
-					
-					FFluxPrimeNavigationTask tempPathTask;
-					tempPathTask.EntityDataCurrentTargetLocation = entityDataCurrentTargetLocation[i];
-					tempPathTask.EntityDataCellId = entityDataCellId[i].ValueInt32;
-					tempPathTask.EntityDataCurrentLocation = entityDataCurrentLocation[i];
-					tempPathTask.EntityDataSize = entityDataSize[i].ValueInt16;
-					tempPathTask.EntityDataWaitTime = entityDataWaitTime[i].ValueFloat;
-					tempPathTask.EntityDataPreviousLocation = entityDataPreviousLocation[i];
-					tempPathTask.EntityDataCorridors = entityDataCorridors[i];
-					tempPathTask.EntityDataTargetLocation = entityDataTargetLocation[i]; 
-					tempPathTask.EntityDataLastReplanLocation = entityDataLastReplanLocation[i];
-					tempPathTask.EntityDataLastMoveLocation = entityDataLastMoveLocation[i];
-					tempPathTask.EntityDataLastOptimizeTime = entityDataLastOptimizeTime[i].ValueFloat;
-					tempPathTask.EntityDataLastMoveTargetTime = entityDataLastMoveTargetTime[i].ValueFloat;
-					tempPathTask.EntityDataCountCorridor = entityDataCountCorridor[i].ValueUint8;
-					tempPathTask.EntityDataNeedReplan = entityDataNeedReplan[i].ValueBool;
-					tempPathTask.EntityDataWaypoints = entityDataWaypoints[i];
-					tempPathTask.EntityDataCountWaypoints = entityDataCountWaypoints[i].ValueUint8;
-					
-					FFluxPrimeNavigationDataRequest tempPathRequest;
-					tempPathRequest.PriorityScore = baseScore + timeScore;
-					tempPathRequest.DataStoreIndex = indexDataID;
-					tempPathRequest.InternalIndex = i;
-					tempPathRequest.DataTask = tempPathTask;
-					EntityCorridorQueue[indexData] = tempPathRequest;
-					
+					float arrivalBoost = bReachedCurrentWaypoint ? 50.0f : 0.0f;
+
+					FFluxPrimeNavigationDataRequest tempCorridorRequest;
+					tempCorridorRequest.PriorityScore = baseScore + timeScore + arrivalBoost;
+					tempCorridorRequest.DataStoreIndex = indexDataID;
+					tempCorridorRequest.InternalIndex = i;
+					tempCorridorRequest.DataTask = tempPathTask;
+
+					EntityCorridorQueue[countCorridorQueue] = tempCorridorRequest;
 					countCorridorQueue++;
 				}
-				
-				indexData++;
 			}
 			
 			indexDataID++;
@@ -316,7 +299,9 @@ public:
 		
 		int32 indexInternalData = 0;
 		
-		EntityPathQueue.Sort();
+		if (countPathQueue > 1)
+			Algo::Sort(TArrayView<FFluxPrimeNavigationDataRequest>(EntityPathQueue.GetData(), countPathQueue));
+
 		int32 queuePathLimit = FMath::Min(QueuePathCountPerFrame, countPathQueue);
 		for (int i = 0; i < queuePathLimit; ++i)
 		{
@@ -327,20 +312,28 @@ public:
 			indexInternalData = data.InternalIndex;
 			FFluxPrimeArchetypeDataStore& dataStore = dataStores[indexDataID];
 			
-			QueueFindPath(task.EntityDataNeedReplan, task.EntityDataCurrentLocation, task.EntityDataTargetLocation, 
-						task.EntityDataLastReplanLocation, task.EntityDataLastMoveLocation, task.EntityDataSize,task.EntityDataCorridors, task.EntityDataCountCorridor);
+			QueueFindPath(task.EntityDataNeedReplan, task.EntityDataCurrentLocation, task.EntityDataPreviousLocation,
+						task.EntityDataTargetLocation, task.EntityDataLastReplanLocation, task.EntityDataLastMoveLocation, 
+						task.EntityDataSize, task.EntityDataCorridors, task.EntityDataCountCorridor,
+						task.EntityDataWaypoints, task.EntityDataCountWaypoints);
         
 			reinterpret_cast<FFluxPrimeCrowdsCorridor*>(dataStore.GetRawBufferData(EntityDataCorridorsID[indexDataID]))[indexInternalData] = task.EntityDataCorridors;
+			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataPreviousLocationID[indexDataID]))[indexInternalData] = task.EntityDataPreviousLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]))[indexInternalData] = task.EntityDataTargetLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLastReplanLocationID[indexDataID]))[indexInternalData] = task.EntityDataLastReplanLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLastMoveLocationID[indexDataID]))[indexInternalData] = task.EntityDataLastMoveLocation;
 			reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountCorridorID[indexDataID]))[indexInternalData].ValueUint8 = task.EntityDataCountCorridor;
 			reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataNeedReplanID[indexDataID]))[indexInternalData].ValueBool = task.EntityDataNeedReplan;
-			
-			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexInternalData] = (task.EntityDataCountWaypoints > 1)? task.EntityDataWaypoints.Waypoints[1] : task.EntityDataTargetLocation;
+			reinterpret_cast<FFluxPrimeCrowdsWaypoint*>(dataStore.GetRawBufferData(EntityDataWaypointsID[indexDataID]))[indexInternalData] = task.EntityDataWaypoints;
+			reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountWaypointsID[indexDataID]))[indexInternalData].ValueUint8 = task.EntityDataCountWaypoints;
+		
+			reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataWaitTimeID[indexDataID]))[indexInternalData].ValueFloat = 0.0f;
+			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexInternalData] = (task.EntityDataCountWaypoints > 1) ? task.EntityDataWaypoints.Waypoints[1] : task.EntityDataCurrentLocation;
 		}
 		
-		EntityCorridorQueue.Sort();
+		if (countCorridorQueue > 1)
+			Algo::Sort(TArrayView<FFluxPrimeNavigationDataRequest>(EntityCorridorQueue.GetData(), countCorridorQueue));
+
 		int32 queueCorridorLimit = FMath::Min(QueueCorridorCountPerFrame, countCorridorQueue);
 		for (int i = 0; i < queueCorridorLimit; ++i)
 		{
@@ -351,10 +344,12 @@ public:
 			indexInternalData = data.InternalIndex;
 			FFluxPrimeArchetypeDataStore& dataStore = dataStores[indexDataID];
 			
-			QueueCorridor(task.EntityDataCorridors, task.EntityDataCountCorridor, task.EntityDataCurrentLocation, task.EntityDataPreviousLocation,
+			QueueCorridor(task.EntityDataNeedReplan, task.EntityDataCorridors, task.EntityDataCountCorridor, 
+						task.EntityDataCurrentLocation, task.EntityDataPreviousLocation,
 						task.EntityDataTargetLocation, task.EntityDataLastMoveLocation, task.EntityDataWaypoints, task.EntityDataCountWaypoints,
-					task.EntityDataCellId, currentTime, task.EntityDataLastOptimizeTime, task.EntityDataLastMoveTargetTime);
+						task.EntityDataCellId, currentTime, task.EntityDataLastOptimizeTime, task.EntityDataLastMoveTargetTime);
         
+			reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataNeedReplanID[indexDataID]))[indexInternalData].ValueBool = task.EntityDataNeedReplan;
 			reinterpret_cast<FFluxPrimeCrowdsCorridor*>(dataStore.GetRawBufferData(EntityDataCorridorsID[indexDataID]))[indexInternalData] = task.EntityDataCorridors;
 			reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountCorridorID[indexDataID]))[indexInternalData].ValueUint8 = task.EntityDataCountCorridor;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataPreviousLocationID[indexDataID]))[indexInternalData] = task.EntityDataPreviousLocation;
@@ -363,8 +358,9 @@ public:
 			reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataLastMoveTargetTimeID[indexDataID]))[indexInternalData].ValueFloat = task.EntityDataLastMoveTargetTime;
 			reinterpret_cast<FFluxPrimeCrowdsWaypoint*>(dataStore.GetRawBufferData(EntityDataWaypointsID[indexDataID]))[indexInternalData] = task.EntityDataWaypoints;
 			reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountWaypointsID[indexDataID]))[indexInternalData].ValueUint8 = task.EntityDataCountWaypoints;
-			
-			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexInternalData] = (task.EntityDataCountWaypoints > 1)? task.EntityDataWaypoints.Waypoints[1] : task.EntityDataTargetLocation;
+	
+			reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataWaitTimeID[indexDataID]))[indexInternalData].ValueFloat = 0.0f;
+			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexInternalData] = (task.EntityDataCountWaypoints > 1) ? task.EntityDataWaypoints.Waypoints[1] : task.EntityDataCurrentLocation;
 		}
 	}
 };
