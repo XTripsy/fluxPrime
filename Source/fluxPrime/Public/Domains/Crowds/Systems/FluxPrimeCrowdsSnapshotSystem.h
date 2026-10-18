@@ -1,13 +1,13 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "FluxPrimeSpatialGridSystem.h"
+#include "Generics/Systems/FluxPrimeSpatialGridSystem.h"
 #include "Generics/Data/FluxPrimePayloadData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
 #include "Domains/Crowds/Event/FluxPrimeCrowdsEvent.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
-#include "FluxPrimeSnapshotSystem.generated.h"
+#include "FluxPrimeCrowdsSnapshotSystem.generated.h"
 
 USTRUCT(BlueprintType)
 struct FSnapshotSystemDataTagConfig
@@ -61,7 +61,7 @@ struct FFluxPrimeSnapshotSystemContext
 };
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeSnapshotSystem : public FFluxPrimeBaseSystem
+struct FFluxPrimeCrowdsSnapshotSystem : public FFluxPrimeBaseSystem
 {
 	GENERATED_BODY()
 	

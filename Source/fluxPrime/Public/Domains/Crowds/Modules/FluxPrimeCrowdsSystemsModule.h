@@ -19,7 +19,7 @@
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
 #include "Generics/Systems/FluxPrimeRaycastSystem.h"
-#include "Generics/Systems/FluxPrimeSnapshotSystem.h"
+#include "Domains/Crowds/Systems/FluxPrimeCrowdsSnapshotSystem.h"
 #include "Generics/Systems/FluxPrimeVisualInterpolationSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeCrowdsSystemsModule.generated.h"
@@ -56,6 +56,9 @@ private:
 	TObjectPtr<USystemsConfiguration> SystemsConfiguration;
 	
 	UPROPERTY()
+	TArray<FInstancedStruct> SystemFragments;
+	
+	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 	
 	int32 CrowdsAnimationSystemIndex = INDEX_NONE, CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
@@ -88,7 +91,7 @@ public:
 	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeSnapshotData>& dataSnapshots)
 	{
 		FSystemExecutor& Executor = GetSystemExecutor(CrowdsSnapshotSystemIndex);
-		FFluxPrimeSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeSnapshotSystem>();
+		FFluxPrimeCrowdsSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsSnapshotSystem>();
 		system.SyncData(dataStores, dataSnapshots);
 	}
 	
@@ -102,14 +105,14 @@ public:
 			NiagaraCallback->InitializedNiagaraCallback(contextCallback);
 		}
 		
-		auto& systemFragments = SystemsConfiguration->SystemFragments;
+		SystemFragments = SystemsConfiguration->SystemFragments;
 		auto& catalog = *context.entityCatalog;
 		
-		StartInitializedSystem(systemFragments.Num());
+		StartInitializedSystem(SystemFragments.Num());
 		
-		for (int i = 0; i < systemFragments.Num(); ++i)
+		for (int i = 0; i < SystemFragments.Num(); ++i)
 		{
-			FInstancedStruct& fragment = systemFragments[i];
+			FInstancedStruct& fragment = SystemFragments[i];
 			
 			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsAbilitySystem>())
 			{
@@ -337,11 +340,11 @@ public:
 				system.Initialized(*context.dataStores);
 			}
 			
-			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeSnapshotSystem>())
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsSnapshotSystem>())
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeSnapshotSystem>(fragment);
+				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsSnapshotSystem>(fragment);
 				CrowdsSnapshotSystemIndex = executorIndex;
 				
 				FFluxPrimeSnapshotSystemContext tempContext;
@@ -351,7 +354,7 @@ public:
 				tempContext.onManagerActionChange = context.onCrowdsManagerActionChange;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
-				FFluxPrimeSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeSnapshotSystem>();
+				FFluxPrimeCrowdsSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsSnapshotSystem>();
 				system.Initialized(tempContext);
 			}
 			
