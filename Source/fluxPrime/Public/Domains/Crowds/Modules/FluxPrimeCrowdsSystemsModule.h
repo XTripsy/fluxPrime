@@ -120,6 +120,7 @@ public:
 				
 				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsAbilitySystem>(fragment);
 				
+				TArray<float> damageMapping;
 				TArray<FGameplayTag> crowdsCatalogAbilityFragmentIdentity;
 
 				for (auto& pair : catalog)
@@ -127,6 +128,7 @@ public:
 					auto* identity = Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity);
 					
 					crowdsCatalogAbilityFragmentIdentity.Add(identity->AbilityIdentity);
+					damageMapping.Add(identity->Damage);
 				}
 			
 				FFluxPrimeCrowdsAbilitySystemsContext tempContext;
@@ -134,6 +136,7 @@ public:
 				tempContext.catalogAbilityFragmentIdentity = &crowdsCatalogAbilityFragmentIdentity;
 				tempContext.niagaraCallback = NiagaraCallback;
 				tempContext.dataStores = context.dataStores;
+				tempContext.damageMapping = damageMapping;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeCrowdsAbilitySystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsAbilitySystem>();

@@ -208,7 +208,9 @@ public:
 			check(entityDataLocation);
 			check(entityDataTargetLocation);
 			
-			for (int i = 0; i < dataStore.GetTotalEntityCount(); ++i)
+			int32 activeEntityCount = FMath::Min(dataStore.GetActiveEntityCount()+1, dataStore.GetTotalEntityCount());
+			
+			for (int i = 0; i < activeEntityCount; ++i)
 			{
 				UpdateNeighborCellID(cellSize, cellWidth, cellHeight, origin, entityDataTargetLocation[i]);
 				

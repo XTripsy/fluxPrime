@@ -25,17 +25,13 @@ struct FDataModuleDataTagConfig
 	
 	UPROPERTY(EditAnywhere)
 	FGameplayTag EntityDataSizeTag;
-	
-	UPROPERTY(EditAnywhere)
-	FGameplayTag EntityDataDamageTag;
 
 	bool IsValid() const
 	{
 		return EntityDataLocationTag.IsValid() 
 		   && EntityDataRotationTag.IsValid() 
 		   && EntityDataIdTag.IsValid()
-		   && EntityDataSizeTag.IsValid()
-		   && EntityDataDamageTag.IsValid();
+		   && EntityDataSizeTag.IsValid();
 	}
 };
 
@@ -57,7 +53,7 @@ public:
 	UPROPERTY(EditAnywhere)
 	FDataModuleDataTagConfig DataTagConfig;
 	
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataIdID, EntityDataSizeID, EntityDataDamageID;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataIdID, EntityDataSizeID;
 	
 public:
 	void Initialized(FFluxPrimeCrowdsDataModuleContext context)
@@ -87,13 +83,11 @@ public:
 			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
 			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
 			EntityDataSizeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataSizeTag));
-			EntityDataDamageID.Add(dataStore.GetDataID(DataTagConfig.EntityDataDamageTag));
 			
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[i]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[i]));
 			FFluxPrimeWrapperInt16* entityDataID = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[i]));
 			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[i]));
-			FFluxPrimeWrapperFloat* entityDataDamage = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataDamageID[i]));
 			
 			check(entityDataLocation);
 			check(entityDataRotation);
@@ -101,7 +95,6 @@ public:
 			check(entityDataSize);
 			
 			int16 size = entityCatalog[i].EntityIdentity->Size;
-			float damage = Cast<UFluxPrimeCrowdsIdentity>(entityCatalog[i].EntityIdentity)->Damage;
 			
 			for (int j = 0; j < entityCatalog[i].TotalEntityOnPool; ++j)
 			{
@@ -110,7 +103,6 @@ public:
 				entityDataRotation[i] = FRotator::ZeroRotator;
 				entityDataID[j].ValueInt16 = id;
 				entityDataSize[j].ValueInt16 = size;
-				entityDataDamage[j].ValueFloat = damage;
 				
 				dataStore.UpdateLookUpValue(id, j);
 			}

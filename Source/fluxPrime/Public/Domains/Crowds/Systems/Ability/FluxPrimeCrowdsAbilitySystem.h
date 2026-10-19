@@ -22,16 +22,12 @@ struct FAbilitySystemDataTagConfig
 	FGameplayTag EntityDataRotationTag;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataDamageTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FGameplayTag EntityDataRequestAbilityTag;
 
 	bool IsValid() const
 	{
 		return EntityDataLocationTag.IsValid() 
-		   && EntityDataRotationTag.IsValid() 
-		   && EntityDataDamageTag.IsValid()
+		   && EntityDataRotationTag.IsValid()
 		   && EntityDataRequestAbilityTag.IsValid();
 	}
 };
@@ -49,6 +45,7 @@ struct FFluxPrimeCrowdsAbilitySystemsContext
 	
 	TArray<FGameplayTag>* catalogAbilityFragmentIdentity = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
+	TArray<float> damageMapping;
 };
 
 USTRUCT(BlueprintType)
@@ -60,7 +57,8 @@ public:
 	UPROPERTY(EditAnywhere)
 	FAbilitySystemDataTagConfig DataTagConfig;
 	
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataDamageID, EntityDataTypeID, EntityDataRequestAbilityID;
+	TArray<float> DamageMapping;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataTypeID, EntityDataRequestAbilityID;
 	
 private:
 	void RegisterAbilityExecutors(const FFluxPrimeCrowdsAbilitySystemsContext& context)
@@ -134,13 +132,16 @@ public:
 		check(context.niagaraCallback);
 		check(context.dataStores);
 
+		DamageMapping = context.damageMapping;
+		
 		for (auto& dataStore : *context.dataStores)
 		{
 			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
 			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataDamageID.Add(dataStore.GetDataID(DataTagConfig.EntityDataDamageTag));
 			EntityDataRequestAbilityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag));
 		}
+		
+		if (DamageMapping.IsEmpty()) DamageMapping.Init(0, context.dataStores->Num());
 		
 		RegisterAbilityExecutors(context);
 	}
@@ -154,12 +155,10 @@ public:
 		{
 			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 			FRotator* entityDataRotation = reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]));
-			FFluxPrimeWrapperFloat* entityDataDamage = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataDamageID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]));
 			
 			check(entityDataLocation);
 			check(entityDataRotation);
-			check(entityDataDamage);
 			check(entityDataRequestAbility);
 			
 			FRotator rotationEntity = FRotator::ZeroRotator;
@@ -181,7 +180,7 @@ public:
 					*executor.Data,
 					entityDataLocation[i],
 					rotationEntity,
-					entityDataDamage[i].ValueFloat
+					DamageMapping[indexDataID]
 				);
 			}
 			
