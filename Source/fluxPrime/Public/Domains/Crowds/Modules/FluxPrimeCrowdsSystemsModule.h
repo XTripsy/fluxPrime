@@ -58,12 +58,11 @@ private:
 	
 	UPROPERTY()
 	TArray<FInstancedStruct> SystemFragments;
+	TMap<const UScriptStruct*, int32> SystemFragmentsIndex;
 	
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
-	
-	int32 CrowdsAnimationSystemIndex = INDEX_NONE, CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE, CrowdsKillEventSystemIndex = INDEX_NONE;
-	
+		
 private:
 	template <typename T>
 	bool CanRunInCurrentAuthority(const T* SystemConfig, bool bIsAuthority) 
@@ -73,34 +72,25 @@ private:
 			   (!bIsAuthority && SystemConfig->AvailableOnLocalClient);
 	}
 	
+	template<typename T>
+	int32 RegisterSystemFragment(FInstancedStruct& fragment)
+	{
+		const int32 executorIndex = RegisterSystem<T>(fragment);
+		SystemFragmentsIndex.Add(T::StaticStruct(), executorIndex);
+		return executorIndex;
+	}
+	
 public:
-	void TakeDamage(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
+	template<typename T>
+	T* GetSystem()
 	{
-		FSystemExecutor& Executor = GetSystemExecutor(CrowdsHealthSystemIndex);
-		FFluxPrimeHealthSystem& system = Executor.Data->GetMutable<FFluxPrimeHealthSystem>();
-		system.TakeDamage(dataStore, indexDataID, indexData, damageTaken);
-	}
-	
-	void ShootRay(TArray<FFluxPrimeArchetypeDataStore>& dataStores, FVector startRay, FVector endRay, 
-		int32& outEntityType, int32& outEntityIndex)
-	{
-		FSystemExecutor& Executor = GetSystemExecutor(CrowdsRaycastSystemIndex);
-		FFluxPrimeRaycastSystem& system = Executor.Data->GetMutable<FFluxPrimeRaycastSystem>();
-		system.ShootRay(dataStores, startRay, endRay, outEntityType, outEntityIndex);
-	}
-	
-	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeCrowdsSnapshotData>& dataSnapshots)
-	{
-		FSystemExecutor& Executor = GetSystemExecutor(CrowdsSnapshotSystemIndex);
-		FFluxPrimeCrowdsSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsSnapshotSystem>();
-		system.SyncData(dataStores, dataSnapshots);
-	}
-	
-	bool CekKillEvent(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
-	{
-		FSystemExecutor& Executor = GetSystemExecutor(CrowdsKillEventSystemIndex);
-		FFluxPrimeCrowdsKillEventSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsKillEventSystem>();
-		return system.CekKillEvent(dataStore, indexDataID, indexData, damageTaken);
+		if (const int32* executorIndex = SystemFragmentsIndex.Find(T::StaticStruct()))
+		{
+			FSystemExecutor& executor = GetSystemExecutor(*executorIndex);
+			return executor.Data->GetMutablePtr<T>();
+		}
+		
+		return nullptr;
 	}
 	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
@@ -126,7 +116,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsAbilitySystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsAbilitySystem>(fragment);
 				
 				TArray<float> damageMapping;
 				TArray<FGameplayTag> crowdsCatalogAbilityFragmentIdentity;
@@ -155,8 +145,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeHealthSystem>(fragment);
-				CrowdsHealthSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeHealthSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeHealthSystem& system = Executor.Data->GetMutable<FFluxPrimeHealthSystem>();
@@ -167,7 +156,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeBoidsSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeBoidsSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeBoidsSystem& system = Executor.Data->GetMutable<FFluxPrimeBoidsSystem>();
@@ -178,8 +167,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeAnimationSystem>(fragment);
-				CrowdsAnimationSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeAnimationSystem>(fragment);
 				
 				TArray<FName> catalogIdentity;
 
@@ -208,7 +196,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrwodsAnimationNotifySystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrwodsAnimationNotifySystem>(fragment);
 				
 				FFluxPrimeAnimationNotifySystemsContext tempContext;
 				tempContext.world = context.world;
@@ -224,7 +212,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsCompactSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsCompactSystem>(fragment);
 				
 				FFluxPrimeCrowdsCompactSystemsContext tempContext;
 				tempContext.dataStores = context.dataStores;
@@ -238,7 +226,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeGroundHeightSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeGroundHeightSystem>(fragment);
 				
 				FFluxPrimeGroundHeightSystemsContext tempContext;
 				tempContext.world = context.world;
@@ -253,7 +241,7 @@ public:
 	        {
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-	            const int32 executorIndex = RegisterSystem<FFluxPrimeMovementSystem>(fragment);
+	            const int32 executorIndex = RegisterSystemFragment<FFluxPrimeMovementSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeMovementSystem& system = Executor.Data->GetMutable<FFluxPrimeMovementSystem>();
@@ -264,9 +252,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeNavigationSystem>(fragment);
-	            CrowdsNavigationSystemIndex = executorIndex;
-				UE_LOG(LogTemp, Log, TEXT("FRAGMENT:: navigation index %d"), CrowdsNavigationSystemIndex);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeNavigationSystem>(fragment);
 				
 				FFluxPrimeNavigationSystemsContext tempContext;
 				tempContext.world = context.world;
@@ -281,7 +267,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeRenderSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeRenderSystem>(fragment);
 	            
 				TArray<uint16> catalogTotal;
 
@@ -304,7 +290,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsStateMachineSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsStateMachineSystem>(fragment);
 				
 				FFluxPrimeCrowdsStateMachineSystemContext tempContext;
 				tempContext.getStateID = context.getStateID;
@@ -320,8 +306,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsTargetSystem>(fragment);
-				CrowdsTargetSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsTargetSystem>(fragment);
 				
 				TArray<float> aggroDistance;
 
@@ -344,7 +329,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeVisualInterpolationSystem>(fragment);
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeVisualInterpolationSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeVisualInterpolationSystem& system = Executor.Data->GetMutable<FFluxPrimeVisualInterpolationSystem>();
@@ -355,8 +340,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsSnapshotSystem>(fragment);
-				CrowdsSnapshotSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsSnapshotSystem>(fragment);
 				
 				FFluxPrimeSnapshotSystemContext tempContext;
 				tempContext.dataStores = context.dataStores;
@@ -373,8 +357,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeRaycastSystem>(fragment);
-				CrowdsRaycastSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeRaycastSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeRaycastSystem& system = Executor.Data->GetMutable<FFluxPrimeRaycastSystem>();
@@ -385,8 +368,7 @@ public:
 			{
 				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
 				
-				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsKillEventSystem>(fragment);
-				CrowdsKillEventSystemIndex = executorIndex;
+				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsKillEventSystem>(fragment);
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeCrowdsKillEventSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsKillEventSystem>();

@@ -230,6 +230,8 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		
 		uint16 priorityPawn = 0;
 		APawn* pawn = pair->GetPawn();
+		if (!IsValid(pair)) continue;
+		
 		if (UFluxPrimeCrowdsTargetManager* component = pawn->FindComponentByClass<UFluxPrimeCrowdsTargetManager>())
 			priorityPawn = component->GetPriorityTarget();
 		
@@ -293,20 +295,23 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
 		const FFluxPrimeCrwodsSpawnActionPayload& data = payload.Get<FFluxPrimeCrwodsSpawnActionPayload>();
 
+		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
+
+		FFluxPrimeCrowdsSpawnerComponentContext context;
+		context.crowdsTypes = &CrowdsTypes;
+		context.dataStores = &DataStores;
+		context.identity = data.Identity;
+		context.rotation = data.Rotation;
+		context.newState = data.NewState;
+		context.getStateID = [this](FGameplayTag Identity)
+		{
+			return GetStateID(Identity);
+		};
+		
 		for (auto& pairLocation : data.Locations)
 		{
-			FFluxPrimeCrowdsSpawnerComponentContext context;
-			context.crowdsTypes = &CrowdsTypes;
-			context.dataStores = &DataStores;
-			context.identity = data.Identity;
 			context.location = pairLocation;
-			context.rotation = data.Rotation;
-			context.newState = data.NewState;
-			context.getStateID = [this](FGameplayTag Identity)
-			{
-				return GetStateID(Identity);
-			};
-			moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnNetCrowd(context);
+			spawnerModule.SpawnCrowd(context);
 		}
 	}
 	
@@ -314,7 +319,12 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 	{
 		const FFluxPrimeCrowdsSnapshotDataPayload& data = payload.Get<FFluxPrimeCrowdsSnapshotDataPayload>();
 		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().SyncDataSnapshot(DataStores, data.SnapshotDatas);
+		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
+
+		auto* snapshotSystem = systemsModule.GetSystem<FFluxPrimeCrowdsSnapshotSystem>();
+		if (!snapshotSystem) return;
+		
+		snapshotSystem->SyncData(DataStores, data.SnapshotDatas);
 	}
 	
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsKillDataPayload::StaticStruct())

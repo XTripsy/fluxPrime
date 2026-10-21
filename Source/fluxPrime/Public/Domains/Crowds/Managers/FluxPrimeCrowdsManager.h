@@ -90,65 +90,71 @@ public:
 	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, 
 		FVector randomBoundingBox, FGameplayTag newState, int32 totalEntityToSpawn)
 	{
-		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
-		auto& moduleFragments = *ModuleFragments;
+		if (!ModuleFragments || !ModuleFragments->IsValidIndex(CrowdsSpawnerModuleIndex)) return;
+
+		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
+
+		FFluxPrimeCrowdsSpawnerComponentContext context;
+		context.crowdsTypes = &CrowdsTypes;
+		context.dataStores = &DataStores;
+		context.identity = identity;
+		context.rotation = rotation;
+		context.newState = newState;
+		context.getStateID = [this](FGameplayTag Identity)
+		{
+			return GetStateID(Identity);
+		};
 
 		TArray<FVector_NetQuantize10> listSpawnLocation;
-		
+		listSpawnLocation.Reserve(totalEntityToSpawn);
+	
 		for (int i = 0; i < totalEntityToSpawn; ++i)
 		{
 			FVector resultLocation = UKismetMathLibrary::RandomPointInBoundingBox(location, randomBoundingBox);
 			listSpawnLocation.Add(resultLocation);
-			
-			FFluxPrimeCrowdsSpawnerComponentContext context;
-			context.crowdsTypes = &CrowdsTypes;
-			context.dataStores = &DataStores;
-			context.identity = identity;
+		
 			context.location = resultLocation;
-			context.rotation = rotation;
-			context.newState = newState;
-			context.getStateID = [this](FGameplayTag Identity)
-			{
-				return GetStateID(Identity);
-			};
-		
-			moduleFragments[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>().SpawnCrowd(context);
+			spawnerModule.SpawnCrowd(context);
 		}
-		
+	
 		FFluxPrimeCrwodsSpawnActionPayload data;
 		data.Identity = identity;
-		data.Locations = listSpawnLocation;
+		data.Locations = MoveTemp(listSpawnLocation);
 		data.Rotation = rotation;
 		data.NewState = newState;
-		FInstancedStruct payload = FInstancedStruct::Make(data);
-		
-		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
+	
+		OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
 	};
 	
 	inline void ShootRay(FVector startRay, FVector endRay, int32 damage, FUniqueNetIdRepl playerId)
 	{
-		auto& moduleFragments = *ModuleFragments;
+		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
+
+		auto* raycastSystem = systemsModule.GetSystem<FFluxPrimeRaycastSystem>();
+		auto* healthSystem = systemsModule.GetSystem<FFluxPrimeHealthSystem>();
+		if (!raycastSystem || !healthSystem) return;
 		
 		int32 entityType = INDEX_NONE;
 		int32 entityIndex = INDEX_NONE;
 		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().ShootRay(DataStores, startRay, endRay, entityType, entityIndex);
-		
+		raycastSystem->ShootRay(DataStores, startRay, endRay, entityType, entityIndex);
 		if (entityType == INDEX_NONE || entityIndex == INDEX_NONE) return;
+
+		healthSystem->TakeDamage(DataStores[entityType], entityType, entityIndex, damage);
+
+		auto* killEventSystem = systemsModule.GetSystem<FFluxPrimeCrowdsKillEventSystem>();
+		if (!killEventSystem) return;
 		
-		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[entityType], entityType, entityIndex, damage);
-		
-		if (moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().CekKillEvent(DataStores[entityType], entityType, entityIndex, damage))
+		if (killEventSystem->CekKillEvent(DataStores[entityType], entityType, entityIndex, damage))
 		{
 			int32& valueKill = PlayerKillsData.FindOrAdd(playerId);
 			valueKill++;
-			
+
 			FFluxPrimeCrowdsKillDataPayload data;
 			data.PlayerId = playerId;
 			data.PlayerKillCount = valueKill;
-			FInstancedStruct payload = FInstancedStruct::Make(data);
-		
-			OnCrowdsManagerActionChange.ExecuteIfBound(payload);
+            
+			OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
 		}
 	};
 };

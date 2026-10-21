@@ -95,12 +95,6 @@ public:
 		}
 	}
 	
-	void SyncNewTarget(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 newTargetID, FVector newTargetLocation)
-	{
-		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]))[indexData] = newTargetLocation;
-		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataTargetIdID[indexDataID]))[indexData].ValueInt16 = newTargetID;
-	}
-	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
