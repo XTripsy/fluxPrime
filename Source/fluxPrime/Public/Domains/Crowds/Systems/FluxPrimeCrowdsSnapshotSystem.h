@@ -82,7 +82,7 @@ private:
 	TArray<int16> EntityDataIdID, EntityDataCellIdID, EntityDataStateID, EntityDataLocationID, EntityDataCurrentWaypointLocationID, EntityDataTargetLocationID, EntityDataConditionAliveID;
 	TArray<int32> NeighborCellID;
 	
-	FFluxPrimeSnapshotDataPayload SnapshotDataPayload;
+	FFluxPrimeCrowdsSnapshotDataPayload SnapshotDataPayload;
 	
 	float CurrentTime = 0;
 	int32 NetworkTickCounter = 0;
@@ -139,10 +139,10 @@ public:
 			EntityDataConditionAliveID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionAliveTag));
 		}
 		
-		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeSnapshotData(), MaxBandwidthBuffer);
+		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeCrowdsSnapshotData(), MaxBandwidthBuffer);
 	}
 	
-	void SyncData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeSnapshotData>& dataSnapshots)
+	void SyncData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeCrowdsSnapshotData>& dataSnapshots)
 	{
 		if (dataStores.IsEmpty() || dataSnapshots.IsEmpty()) return;
 		
@@ -238,7 +238,7 @@ public:
 				
 				if (indexEntityData >= MaxBandwidthBuffer-1)
 				{
-					FFluxPrimeSnapshotDataPayload data;
+					FFluxPrimeCrowdsSnapshotDataPayload data;
 					data.SnapshotDatas.Append(snapshotData.GetData(), indexEntityData + 1);
 					FInstancedStruct payload = FInstancedStruct::Make(data);
 		
@@ -253,7 +253,7 @@ public:
 		
 		if (indexEntityData > INDEX_NONE)
 		{
-			FFluxPrimeSnapshotDataPayload data;
+			FFluxPrimeCrowdsSnapshotDataPayload data;
 			data.SnapshotDatas.Append(snapshotData.GetData(), indexEntityData + 1);
 			FInstancedStruct payload = FInstancedStruct::Make(data);
 		

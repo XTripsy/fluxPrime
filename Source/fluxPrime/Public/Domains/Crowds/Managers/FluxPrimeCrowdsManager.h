@@ -20,7 +20,7 @@ class FLUXPRIME_API UFluxPrimeCrowdsManager : public UFluxPrimeBaseManager
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Crowds | Crowds Manager | Targets", meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, Category = "Crowds | Crowds Manager | Targets", meta = (AllowPrivateAccess = true))
 	TArray<FFluxPrimeTargetCatalog> CrowdsTarget;
 	
 	FOnCrowdsManagerActionChange OnCrowdsManagerActionChange;
@@ -31,20 +31,15 @@ private:
 	
 #pragma region SoftRefrence
 	
-	UPROPERTY(EditDefaultsOnly, Category = "Crowds | Crowds Manager | Data")
 	TMap<FName, TSoftObjectPtr<UStaticMesh>> CrowdsMeshSoftRef;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Crowds | Crowds Manager | Data")
 	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>> CrowdsAnimationSoftRef;
-	
 	TSharedPtr<FStreamableHandle> StreamingHandle;
 	
 #pragma endregion 
 	
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere)
+	TMap<FUniqueNetIdRepl, int32> PlayerKillsData;
 	TMap<FName, int8> CrowdsTypes;
-	
-	UPROPERTY()
 	TArray<FGameplayTag> NotifyID;
 	
 	TArray<FInstancedStruct>* ModuleFragments;
@@ -90,6 +85,8 @@ protected:
 public:
 	void OnActionChange(FInstancedStruct payload);
 	
+	inline TMap<FUniqueNetIdRepl, int32> GetPlayerKillsData() const { return PlayerKillsData; }
+	
 	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, 
 		FVector randomBoundingBox, FGameplayTag newState, int32 totalEntityToSpawn)
 	{
@@ -128,7 +125,7 @@ public:
 		OnCrowdsManagerActionChange.ExecuteIfBound(payload);
 	};
 	
-	inline void ShootRay(FVector startRay, FVector endRay, int32 damage)
+	inline void ShootRay(FVector startRay, FVector endRay, int32 damage, FUniqueNetIdRepl playerId)
 	{
 		auto& moduleFragments = *ModuleFragments;
 		
@@ -140,5 +137,18 @@ public:
 		if (entityType == INDEX_NONE || entityIndex == INDEX_NONE) return;
 		
 		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().TakeDamage(DataStores[entityType], entityType, entityIndex, damage);
+		
+		if (moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().CekKillEvent(DataStores[entityType], entityType, entityIndex, damage))
+		{
+			int32& valueKill = PlayerKillsData.FindOrAdd(playerId);
+			valueKill++;
+			
+			FFluxPrimeCrowdsKillDataPayload data;
+			data.PlayerId = playerId;
+			data.PlayerKillCount = valueKill;
+			FInstancedStruct payload = FInstancedStruct::Make(data);
+		
+			OnCrowdsManagerActionChange.ExecuteIfBound(payload);
+		}
 	};
 };

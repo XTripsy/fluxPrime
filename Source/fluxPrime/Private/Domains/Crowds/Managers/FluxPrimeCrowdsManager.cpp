@@ -227,7 +227,7 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 	{
 		UE_LOG(LogTemp, Log, TEXT("TARGET:: CEK STATE"));
 		if (!pair) continue;
-
+		
 		uint16 priorityPawn = 0;
 		APawn* pawn = pair->GetPawn();
 		if (UFluxPrimeCrowdsTargetManager* component = pawn->FindComponentByClass<UFluxPrimeCrowdsTargetManager>())
@@ -243,6 +243,10 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		
 		CrowdsTarget.Add(catalog);
 		
+		FUniqueNetIdRepl id = pair->GetUniqueId();
+		PlayerKillsData.Add(id, 0);
+		
+		UE_LOG(LogTemp, Warning, TEXT("Init ID: %s"), *id.ToString());
 		UE_LOG(LogTemp, Log, TEXT("TARGET:: ADD NEW TARGET"));
 	}
 }
@@ -306,10 +310,17 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		}
 	}
 	
-	if (payload.GetScriptStruct() == FFluxPrimeSnapshotDataPayload::StaticStruct())
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotDataPayload::StaticStruct())
 	{
-		const FFluxPrimeSnapshotDataPayload& data = payload.Get<FFluxPrimeSnapshotDataPayload>();
+		const FFluxPrimeCrowdsSnapshotDataPayload& data = payload.Get<FFluxPrimeCrowdsSnapshotDataPayload>();
 		
 		moduleFragments[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>().SyncDataSnapshot(DataStores, data.SnapshotDatas);
+	}
+	
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsKillDataPayload::StaticStruct())
+	{
+		const FFluxPrimeCrowdsKillDataPayload& data = payload.Get<FFluxPrimeCrowdsKillDataPayload>();
+		
+		PlayerKillsData.Add(data.PlayerId, data.PlayerKillCount);
 	}
 }

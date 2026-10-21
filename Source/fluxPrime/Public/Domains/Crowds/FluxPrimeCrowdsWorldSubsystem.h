@@ -30,4 +30,7 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable)
 	void RequestAction(const FInstancedStruct& payload);
+	
+	UFUNCTION(BlueprintCallable)
+	TMap<FUniqueNetIdRepl, int32> GetPlayerKillsData() const;
 };

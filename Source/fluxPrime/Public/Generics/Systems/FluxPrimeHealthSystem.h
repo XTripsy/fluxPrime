@@ -29,14 +29,6 @@ struct FHealthSystemDataTagConfig
 	}
 };
 
-USTRUCT()
-struct FFluxPrimeHealthSystemContext
-{
-	GENERATED_BODY()
-	
-	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
-};
-
 USTRUCT(BlueprintType)
 struct FFluxPrimeHealthSystem : public FFluxPrimeBaseSystem
 {
@@ -61,7 +53,7 @@ public:
 	
 	void TakeDamage(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
 	{
-		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataDamageTakenID[indexDataID]))[indexData].ValueInt16 = damageTaken;
+		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataDamageTakenID[indexDataID]))[indexData].ValueInt16 += damageTaken;
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)

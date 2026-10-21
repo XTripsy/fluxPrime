@@ -44,6 +44,9 @@ struct FFluxPrimeCrowdsShootRayPayload
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	int32 CrowdDamageTaken;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FUniqueNetIdRepl UniqueId; 
 };
 
 USTRUCT()

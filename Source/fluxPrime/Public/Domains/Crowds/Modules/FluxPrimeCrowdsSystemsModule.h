@@ -17,6 +17,7 @@
 #include "Domains/Crowds/Systems/Notify/FluxPrimeCrwodsAnimationNotifySystem.h"
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
+#include "Domains/Crowds/Systems/FluxPrimeCrowdsKillEventSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
 #include "Generics/Systems/FluxPrimeRaycastSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsSnapshotSystem.h"
@@ -61,7 +62,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 	
-	int32 CrowdsAnimationSystemIndex = INDEX_NONE, CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE;
+	int32 CrowdsAnimationSystemIndex = INDEX_NONE, CrowdsHealthSystemIndex = INDEX_NONE, CrowdsTargetSystemIndex = INDEX_NONE, CrowdsNavigationSystemIndex = INDEX_NONE, CrowdsRaycastSystemIndex = INDEX_NONE, CrowdsSnapshotSystemIndex = INDEX_NONE, CrowdsKillEventSystemIndex = INDEX_NONE;
 	
 private:
 	template <typename T>
@@ -88,11 +89,18 @@ public:
 		system.ShootRay(dataStores, startRay, endRay, outEntityType, outEntityIndex);
 	}
 	
-	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeSnapshotData>& dataSnapshots)
+	void SyncDataSnapshot(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeCrowdsSnapshotData>& dataSnapshots)
 	{
 		FSystemExecutor& Executor = GetSystemExecutor(CrowdsSnapshotSystemIndex);
 		FFluxPrimeCrowdsSnapshotSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsSnapshotSystem>();
 		system.SyncData(dataStores, dataSnapshots);
+	}
+	
+	bool CekKillEvent(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
+	{
+		FSystemExecutor& Executor = GetSystemExecutor(CrowdsKillEventSystemIndex);
+		FFluxPrimeCrowdsKillEventSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsKillEventSystem>();
+		return system.CekKillEvent(dataStore, indexDataID, indexData, damageTaken);
 	}
 	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
@@ -370,6 +378,18 @@ public:
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeRaycastSystem& system = Executor.Data->GetMutable<FFluxPrimeRaycastSystem>();
+				system.Initialized(*context.dataStores);
+			}
+			
+			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsKillEventSystem>())
+			{
+				if (!CanRunInCurrentAuthority(pairSystem, context.hasAuthority)) continue;
+				
+				const int32 executorIndex = RegisterSystem<FFluxPrimeCrowdsKillEventSystem>(fragment);
+				CrowdsKillEventSystemIndex = executorIndex;
+				
+				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
+				FFluxPrimeCrowdsKillEventSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsKillEventSystem>();
 				system.Initialized(*context.dataStores);
 			}
 		}

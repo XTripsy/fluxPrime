@@ -16,6 +16,6 @@ class FLUXPRIME_API USystemsConfiguration : public UPrimaryDataAsset
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, meta=(BaseStruct="FluxPrimeBaseModule", ExcludeBaseStruct))
+	UPROPERTY(EditAnywhere, meta=(BaseStruct="FluxPrimeBaseSystem", ExcludeBaseStruct))
 	TArray<FInstancedStruct> SystemFragments;
 };

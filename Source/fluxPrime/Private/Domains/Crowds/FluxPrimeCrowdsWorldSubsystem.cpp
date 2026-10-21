@@ -28,7 +28,7 @@ void UFluxPrimeCrowdsWorldSubsystem::ExecuteShootRayAction(const FInstancedStruc
 	if (!pair) return;
 	
 	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
-	manager->ShootRay(pair->StartRayLocation, pair->EndRayLocation, pair->CrowdDamageTaken);
+	manager->ShootRay(pair->StartRayLocation, pair->EndRayLocation, pair->CrowdDamageTaken, pair->UniqueId);
 }
 
 void UFluxPrimeCrowdsWorldSubsystem::HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params)
@@ -47,4 +47,10 @@ void UFluxPrimeCrowdsWorldSubsystem::RequestAction(const FInstancedStruct& paylo
 	}
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct()) ExecuteSpawnAction(payload);
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsShootRayPayload::StaticStruct()) ExecuteShootRayAction(payload);
+}
+
+TMap<FUniqueNetIdRepl, int32> UFluxPrimeCrowdsWorldSubsystem::GetPlayerKillsData() const
+{
+	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
+	return manager->GetPlayerKillsData(); 
 }

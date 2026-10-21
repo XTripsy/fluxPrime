@@ -6,7 +6,7 @@
 #include "FluxPrimePayloadData.generated.h"
 
 USTRUCT()
-struct FFluxPrimeSnapshotData
+struct FFluxPrimeCrowdsSnapshotData
 {
 	GENERATED_BODY()
 	
@@ -27,10 +27,22 @@ struct FFluxPrimeSnapshotData
 };
 
 USTRUCT()
-struct FFluxPrimeSnapshotDataPayload
+struct FFluxPrimeCrowdsSnapshotDataPayload
 {
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	TArray<FFluxPrimeSnapshotData> SnapshotDatas;
+	TArray<FFluxPrimeCrowdsSnapshotData> SnapshotDatas;
+};
+
+USTRUCT()
+struct FFluxPrimeCrowdsKillDataPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FUniqueNetIdRepl PlayerId;
+	
+	UPROPERTY()
+	int32 PlayerKillCount = INDEX_NONE;
 };
