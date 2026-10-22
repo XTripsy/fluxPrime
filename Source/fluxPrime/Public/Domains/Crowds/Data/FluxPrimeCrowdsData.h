@@ -16,6 +16,9 @@ struct FFluxPrimeTargetCatalog
 	UPROPERTY(EditAnywhere)
 	TWeakObjectPtr<AActor> CrowdsTarget;
 	
+	UPROPERTY()
+	FUniqueNetIdRepl CrowdsTargetID;
+	
 	UPROPERTY(EditAnywhere)
 	uint16 CrowdsTargetPriority;
 };

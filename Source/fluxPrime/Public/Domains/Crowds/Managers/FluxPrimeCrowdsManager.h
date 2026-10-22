@@ -157,4 +157,14 @@ public:
 			OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
 		}
 	};
+	
+	inline void UpdatePrioriyTarget(FUniqueNetIdRepl playerID, int32 newPriority)
+	{
+		for (auto& pair : CrowdsTarget)
+		{
+			if (pair.CrowdsTargetID != playerID) continue;
+			
+			pair.CrowdsTargetPriority = newPriority;
+		}
+	}
 };

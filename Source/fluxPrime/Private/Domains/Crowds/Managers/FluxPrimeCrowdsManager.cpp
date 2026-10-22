@@ -238,14 +238,15 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		UE_LOG(LogTemp, Log, TEXT("TARGET:: GET PRIORITY"));
 		
 		if (!pawn) continue;
+		
+		FUniqueNetIdRepl id = pair->GetUniqueId();
 
 		FFluxPrimeTargetCatalog catalog;
 		catalog.CrowdsTarget = pawn;
+		catalog.CrowdsTargetID = id;
 		catalog.CrowdsTargetPriority = priorityPawn;
 		
 		CrowdsTarget.Add(catalog);
-		
-		FUniqueNetIdRepl id = pair->GetUniqueId();
 		PlayerKillsData.Add(id, 0);
 		
 		UE_LOG(LogTemp, Warning, TEXT("Init ID: %s"), *id.ToString());
@@ -311,7 +312,7 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		for (auto& pairLocation : data.Locations)
 		{
 			context.location = pairLocation;
-			spawnerModule.SpawnCrowd(context);
+			spawnerModule.SpawnNetCrowd(context);
 		}
 	}
 	

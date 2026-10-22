@@ -31,6 +31,15 @@ void UFluxPrimeCrowdsWorldSubsystem::ExecuteShootRayAction(const FInstancedStruc
 	manager->ShootRay(pair->StartRayLocation, pair->EndRayLocation, pair->CrowdDamageTaken, pair->UniqueId);
 }
 
+void UFluxPrimeCrowdsWorldSubsystem::ExecuteUpdatePriorityAction(const FInstancedStruct& payload)
+{
+	const FFluxPrimeCrwodsUpdatePriorityActionPayload* pair = payload.GetPtr<FFluxPrimeCrwodsUpdatePriorityActionPayload>();
+	if (!pair) return;
+	
+	UFluxPrimeCrowdsManager* manager = CrowdsController.Get()->GetCrowdsManager();
+	manager->UpdatePrioriyTarget(pair->PlayerID, pair->NewPriority);
+}
+
 void UFluxPrimeCrowdsWorldSubsystem::HandleWorldInitializedActors(const UWorld::FActorsInitializedParams& Params)
 {
 	Super::HandleWorldInitializedActors(Params);
@@ -47,6 +56,7 @@ void UFluxPrimeCrowdsWorldSubsystem::RequestAction(const FInstancedStruct& paylo
 	}
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct()) ExecuteSpawnAction(payload);
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsShootRayPayload::StaticStruct()) ExecuteShootRayAction(payload);
+	if (payload.GetScriptStruct() == FFluxPrimeCrwodsUpdatePriorityActionPayload::StaticStruct()) ExecuteUpdatePriorityAction(payload);
 }
 
 TMap<FUniqueNetIdRepl, int32> UFluxPrimeCrowdsWorldSubsystem::GetPlayerKillsData() const

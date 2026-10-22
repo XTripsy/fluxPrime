@@ -67,3 +67,15 @@ struct FFluxPrimeCrwodsSpawnActionPayload
 	FGameplayTag NewState;
 };
 
+USTRUCT()
+struct FFluxPrimeCrwodsUpdatePriorityActionPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FUniqueNetIdRepl PlayerID;
+	
+	UPROPERTY()
+	int32 NewPriority = INDEX_NONE;
+};
+

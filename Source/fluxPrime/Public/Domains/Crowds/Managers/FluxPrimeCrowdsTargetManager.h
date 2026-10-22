@@ -15,6 +15,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Priority Target", meta = (AllowPrivateAccess = true))
 	uint16 PriorityTarget = 0;
 	
+protected:
+	UFUNCTION(Server, Reliable, BlueprintCallable)
+	void ServerActionChange(const FInstancedStruct& payload);
+	
 public:
 	UFluxPrimeCrowdsTargetManager();
 	const uint16 GetPriorityTarget();
