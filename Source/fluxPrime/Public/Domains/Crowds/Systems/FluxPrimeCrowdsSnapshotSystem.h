@@ -81,6 +81,7 @@ private:
 	FOnCrowdsManagerActionChange* OnManagerActionChange = nullptr;
 	TArray<int16> EntityDataIdID, EntityDataCellIdID, EntityDataStateID, EntityDataLocationID, EntityDataCurrentWaypointLocationID, EntityDataTargetLocationID, EntityDataConditionAliveID;
 	TArray<int32> NeighborCellID;
+	TArray<int32> EntityActiveCount;
 	
 	FFluxPrimeCrowdsSnapshotDataPayload SnapshotDataPayload;
 	
@@ -140,28 +141,51 @@ public:
 		}
 		
 		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeCrowdsSnapshotData(), MaxBandwidthBuffer);
+		EntityActiveCount.Init(0, context.dataStores->Num());
 	}
 	
-	void SyncData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const TArray<FFluxPrimeCrowdsSnapshotData>& dataSnapshots)
+	void SyncData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FInstancedStruct& payload)
 	{
-		if (dataStores.IsEmpty() || dataSnapshots.IsEmpty()) return;
+		if (dataStores.IsEmpty()) return;
 		
-		for (auto& pair : dataSnapshots)
+		if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotDataPayload::StaticStruct())
 		{
-			if (pair.CrowdType < 0 || pair.CrowdIndex < 0) continue;
+			const FFluxPrimeCrowdsSnapshotDataPayload& data = payload.Get<FFluxPrimeCrowdsSnapshotDataPayload>();
+			auto& pairData = data.SnapshotDatas;
 			
-			FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
-			FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
-			FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
+			if (pairData.IsEmpty()) return;
 			
-			check(entityDataCurrentWaypointLocation);
-			check(entityDataState);
-			check(entityDataConditionAlive);
+			for (auto& pair : pairData)
+			{
+				if (pair.CrowdType < 0 || pair.CrowdIndex < 0) continue;
 			
-			entityDataCurrentWaypointLocation[pair.CrowdIndex] = pair.CrowdNewWaypointLocation;
-			entityDataState[pair.CrowdIndex].ValueInt8 = pair.CrowdState;
-			entityDataConditionAlive[pair.CrowdIndex].ValueBool = pair.CrowdConditionAlive;
+				FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
+				FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
+				FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
+			
+				check(entityDataCurrentWaypointLocation);
+				check(entityDataState);
+				check(entityDataConditionAlive);
+			
+				entityDataCurrentWaypointLocation[pair.CrowdIndex] = pair.CrowdNewWaypointLocation;
+				entityDataState[pair.CrowdIndex].ValueInt8 = pair.CrowdState;
+				entityDataConditionAlive[pair.CrowdIndex].ValueBool = pair.CrowdConditionAlive;
+			}
 		}
+		
+		if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotActiveEntityPayload::StaticStruct())
+		{
+			const FFluxPrimeCrowdsSnapshotActiveEntityPayload& data = payload.Get<FFluxPrimeCrowdsSnapshotActiveEntityPayload>();
+			auto& pairData = data.SnapshotActiveEntityCountDatas;
+
+			if (pairData.IsEmpty()) return;
+			
+			for (int i = 0; i < pairData.Num(); ++i)
+			{
+				dataStores[i].SetActiveEntityCount(pairData[i]);
+			}
+		}
+		
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
@@ -180,7 +204,7 @@ public:
 		
 		CurrentTime = 0.0f;
 		NetworkTickCounter++;
-		
+
 		auto& snapshotData = SnapshotDataPayload.SnapshotDatas;
 		
 		int16 indexDataID = 0;
@@ -209,6 +233,7 @@ public:
 			check(entityDataTargetLocation);
 			
 			int32 activeEntityCount = FMath::Min(dataStore.GetActiveEntityCount()+1, dataStore.GetTotalEntityCount());
+			EntityActiveCount[indexDataID] = activeEntityCount-1;
 			
 			for (int i = 0; i < activeEntityCount; ++i)
 			{
@@ -249,6 +274,15 @@ public:
 			}
 			
 			indexDataID++;
+		}
+		
+		if (!EntityActiveCount.IsEmpty())
+		{
+			FFluxPrimeCrowdsSnapshotActiveEntityPayload data;
+			data.SnapshotActiveEntityCountDatas = EntityActiveCount;
+			FInstancedStruct payload = FInstancedStruct::Make(data);
+		
+			OnManagerActionChange->ExecuteIfBound(payload);
 		}
 		
 		if (indexEntityData > INDEX_NONE)

@@ -3,14 +3,17 @@
 
 #include "Domains/Crowds/Managers/FluxPrimeCrowdsManager.h"
 
+#include "Engine/AssetManager.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Generics/Data/FluxPrimeAnimationIdentity.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsIdentity.h"
 #include "Domains/Crowds/Configurations/ManagerConfiguration.h"
 #include "Domains/Crowds/Managers/FluxPrimeCrowdsTargetManager.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsDataModule.h"
-#include "Engine/AssetManager.h"
-#include "GameFramework/GameStateBase.h"
-#include "GameFramework/PlayerState.h"
+#include "Domains/Crowds/Data/FluxPrimeCrowdsPayloadData.h"
+#include "Domains/Crowds/Modules/FluxPrimeCrowdsSpawnerModule.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
 UFluxPrimeCrowdsManager::UFluxPrimeCrowdsManager()
@@ -287,10 +290,97 @@ void UFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void UFluxPrimeCrowdsManager::RequestAction(FInstancedStruct payload)
+{
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct())
+	{
+		const FFluxPrimeCrowdsSpawnPayload* pair = payload.GetPtr<FFluxPrimeCrowdsSpawnPayload>();
+		
+		if (!ModuleFragments || !ModuleFragments->IsValidIndex(CrowdsSpawnerModuleIndex)) return;
+
+		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
+
+		FFluxPrimeCrowdsSpawnerComponentContext context;
+		context.crowdsTypes = &CrowdsTypes;
+		context.dataStores = &DataStores;
+		context.identity = pair->Identity;
+		context.rotation = pair->Rotation;
+		context.newState = pair->NewState;
+		context.getStateID = [this](FGameplayTag Identity)
+		{
+			return GetStateID(Identity);
+		};
+
+		TArray<FVector_NetQuantize10> listSpawnLocation;
+		listSpawnLocation.Reserve(pair->TotalEntityToSpawn);
+	
+		for (int i = 0; i < pair->TotalEntityToSpawn; ++i)
+		{
+			FVector resultLocation = UKismetMathLibrary::RandomPointInBoundingBox(pair->Location, pair->RandomBoundingBox);
+			listSpawnLocation.Add(resultLocation);
+		
+			context.location = resultLocation;
+			spawnerModule.SpawnCrowd(context);
+		}
+	
+		FFluxPrimeCrwodsSpawnActionPayload data;
+		data.Identity = pair->Identity;
+		data.Locations = MoveTemp(listSpawnLocation);
+		data.Rotation = pair->Rotation;
+		data.NewState = pair->NewState;
+	
+		OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
+	}
+	
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsShootRayPayload::StaticStruct())
+	{
+		const FFluxPrimeCrowdsShootRayPayload* pair = payload.GetPtr<FFluxPrimeCrowdsShootRayPayload>();
+		
+		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
+
+		auto* raycastSystem = systemsModule.GetSystem<FFluxPrimeRaycastSystem>();
+		auto* healthSystem = systemsModule.GetSystem<FFluxPrimeHealthSystem>();
+		if (!raycastSystem || !healthSystem) return;
+		
+		int32 entityType = INDEX_NONE;
+		int32 entityIndex = INDEX_NONE;
+		
+		raycastSystem->ShootRay(DataStores, pair->StartRayLocation, pair->EndRayLocation, entityType, entityIndex);
+		if (entityType == INDEX_NONE || entityIndex == INDEX_NONE) return;
+
+		healthSystem->TakeDamage(DataStores[entityType], entityType, entityIndex, pair->CrowdDamageTaken);
+
+		auto* killEventSystem = systemsModule.GetSystem<FFluxPrimeCrowdsKillEventSystem>();
+		if (!killEventSystem) return;
+		
+		if (killEventSystem->CekKillEvent(DataStores[entityType], entityType, entityIndex, pair->CrowdDamageTaken))
+		{
+			int32& valueKill = PlayerKillsData.FindOrAdd(pair->UniqueId);
+			valueKill++;
+
+			FFluxPrimeCrowdsKillDataPayload data;
+			data.PlayerId = pair->UniqueId;
+			data.PlayerKillCount = valueKill;
+            
+			OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
+		}
+	}
+	
+	if (payload.GetScriptStruct() == FFluxPrimeCrwodsUpdatePriorityActionPayload::StaticStruct())
+	{
+		const FFluxPrimeCrwodsUpdatePriorityActionPayload* pair = payload.GetPtr<FFluxPrimeCrwodsUpdatePriorityActionPayload>();
+		
+		for (auto& pairTarget : CrowdsTarget)
+		{
+			if (pairTarget.CrowdsTargetID != pair->PlayerID) continue;
+			
+			pairTarget.CrowdsTargetPriority = pair->NewPriority;
+		}
+	}
+}
+
 void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 {
-	auto& moduleFragments = *ModuleFragments;
-	
 	if (payload.GetScriptStruct() == FFluxPrimeCrwodsSpawnActionPayload::StaticStruct())
 	{
 		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
@@ -316,16 +406,15 @@ void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
 		}
 	}
 	
-	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotDataPayload::StaticStruct())
+	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotDataPayload::StaticStruct() ||
+		payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotActiveEntityPayload::StaticStruct())
 	{
-		const FFluxPrimeCrowdsSnapshotDataPayload& data = payload.Get<FFluxPrimeCrowdsSnapshotDataPayload>();
-		
 		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
 
 		auto* snapshotSystem = systemsModule.GetSystem<FFluxPrimeCrowdsSnapshotSystem>();
 		if (!snapshotSystem) return;
 		
-		snapshotSystem->SyncData(DataStores, data.SnapshotDatas);
+		snapshotSystem->SyncData(DataStores, payload);
 	}
 	
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsKillDataPayload::StaticStruct())

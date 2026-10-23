@@ -4,6 +4,7 @@
 #include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Domains/Crowds/Configurations/SystemsConfiguration.h"
+#include "Domains/Crowds/Data/FluxPrimeCrowdsIdentity.h"
 #include "Framework/Core/FluxPrimeBaseModule.h"
 #include "Generics/Systems/FluxPrimeBoidsSystem.h"
 #include "Generics/Systems/FluxPrimeGroundHeightSystem.h"

@@ -36,6 +36,15 @@ struct FFluxPrimeCrowdsSnapshotDataPayload
 };
 
 USTRUCT()
+struct FFluxPrimeCrowdsSnapshotActiveEntityPayload
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TArray<int32> SnapshotActiveEntityCountDatas;
+};
+
+USTRUCT()
 struct FFluxPrimeCrowdsKillDataPayload
 {
 	GENERATED_BODY()

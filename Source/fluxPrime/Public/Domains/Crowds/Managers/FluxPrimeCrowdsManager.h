@@ -7,11 +7,8 @@
 #include "Engine/StreamableManager.h"
 #include "Components/ActorComponent.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsPayloadData.h"
 #include "Framework/Core/FluxPrimeBaseManager.h"
-#include "Domains/Crowds/Modules/FluxPrimeCrowdsSpawnerModule.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsSystemsModule.h"
-#include "Kismet/KismetMathLibrary.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), HideCategories=(Tags, Activation, Cooking, AssetUserData, Navigation))
@@ -83,88 +80,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
+	void RequestAction(FInstancedStruct payload);
 	void OnActionChange(FInstancedStruct payload);
 	
 	inline TMap<FUniqueNetIdRepl, int32> GetPlayerKillsData() const { return PlayerKillsData; }
-	
-	inline void SpawnCrowd(UFluxPrimeCrowdsIdentity* identity, FVector location, FRotator rotation, 
-		FVector randomBoundingBox, FGameplayTag newState, int32 totalEntityToSpawn)
-	{
-		if (!ModuleFragments || !ModuleFragments->IsValidIndex(CrowdsSpawnerModuleIndex)) return;
-
-		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
-
-		FFluxPrimeCrowdsSpawnerComponentContext context;
-		context.crowdsTypes = &CrowdsTypes;
-		context.dataStores = &DataStores;
-		context.identity = identity;
-		context.rotation = rotation;
-		context.newState = newState;
-		context.getStateID = [this](FGameplayTag Identity)
-		{
-			return GetStateID(Identity);
-		};
-
-		TArray<FVector_NetQuantize10> listSpawnLocation;
-		listSpawnLocation.Reserve(totalEntityToSpawn);
-	
-		for (int i = 0; i < totalEntityToSpawn; ++i)
-		{
-			FVector resultLocation = UKismetMathLibrary::RandomPointInBoundingBox(location, randomBoundingBox);
-			listSpawnLocation.Add(resultLocation);
-		
-			context.location = resultLocation;
-			spawnerModule.SpawnCrowd(context);
-		}
-	
-		FFluxPrimeCrwodsSpawnActionPayload data;
-		data.Identity = identity;
-		data.Locations = MoveTemp(listSpawnLocation);
-		data.Rotation = rotation;
-		data.NewState = newState;
-	
-		OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
-	};
-	
-	inline void ShootRay(FVector startRay, FVector endRay, int32 damage, FUniqueNetIdRepl playerId)
-	{
-		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
-
-		auto* raycastSystem = systemsModule.GetSystem<FFluxPrimeRaycastSystem>();
-		auto* healthSystem = systemsModule.GetSystem<FFluxPrimeHealthSystem>();
-		if (!raycastSystem || !healthSystem) return;
-		
-		int32 entityType = INDEX_NONE;
-		int32 entityIndex = INDEX_NONE;
-		
-		raycastSystem->ShootRay(DataStores, startRay, endRay, entityType, entityIndex);
-		if (entityType == INDEX_NONE || entityIndex == INDEX_NONE) return;
-
-		healthSystem->TakeDamage(DataStores[entityType], entityType, entityIndex, damage);
-
-		auto* killEventSystem = systemsModule.GetSystem<FFluxPrimeCrowdsKillEventSystem>();
-		if (!killEventSystem) return;
-		
-		if (killEventSystem->CekKillEvent(DataStores[entityType], entityType, entityIndex, damage))
-		{
-			int32& valueKill = PlayerKillsData.FindOrAdd(playerId);
-			valueKill++;
-
-			FFluxPrimeCrowdsKillDataPayload data;
-			data.PlayerId = playerId;
-			data.PlayerKillCount = valueKill;
-            
-			OnCrowdsManagerActionChange.ExecuteIfBound(FInstancedStruct::Make(data));
-		}
-	};
-	
-	inline void UpdatePrioriyTarget(FUniqueNetIdRepl playerID, int32 newPriority)
-	{
-		for (auto& pair : CrowdsTarget)
-		{
-			if (pair.CrowdsTargetID != playerID) continue;
-			
-			pair.CrowdsTargetPriority = newPriority;
-		}
-	}
 };
