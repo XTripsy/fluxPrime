@@ -15,7 +15,7 @@
 #include "Generics/Systems/FluxPrimeHealthSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsCompactSystem.h"
 #include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsAbilitySystem.h"
-#include "Domains/Crowds/Systems/Notify/FluxPrimeCrwodsAnimationNotifySystem.h"
+#include "Domains/Crowds/Systems/FluxPrimeCrwodsAnimationNotifySystem.h"
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsKillEventSystem.h"
