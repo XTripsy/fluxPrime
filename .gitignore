@@ -4,9 +4,11 @@ DerivedDataCache/
 
 .idea/
 .vs/
+.opencode/
 *.sln
 *.suo
 *.xcworkspace
 
 .DS_Store
 Thumbs.db
+opencode.json

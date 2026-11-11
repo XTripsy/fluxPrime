@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
+#include "Domains/Crowds/Data/FluxPrimeCrowdsTargetData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "GameplayTagContainer.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"

@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "FluxPrimeCrowdsData.h"
 #include "GameplayTagContainer.h"
 #include "FluxPrimeCrowdsPayloadData.generated.h"
+
+class UFluxPrimeCrowdsIdentity;
 
 USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsSpawnPayload

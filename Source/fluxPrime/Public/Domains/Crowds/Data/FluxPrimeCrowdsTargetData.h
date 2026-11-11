@@ -4,13 +4,16 @@
 #include "FluxPrimeCrowdsTargetData.generated.h"
 
 USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsTargetData
+struct FFluxPrimeTargetCatalog
 {
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere)
-	FUniqueNetIdRepl PlayerID;
+	TWeakObjectPtr<AActor> CrowdsTarget;
+	
+	UPROPERTY()
+	FUniqueNetIdRepl CrowdsTargetID;
 	
 	UPROPERTY(EditAnywhere)
-	int16 PlayerPriority;
+	uint16 CrowdsTargetPriority;
 };

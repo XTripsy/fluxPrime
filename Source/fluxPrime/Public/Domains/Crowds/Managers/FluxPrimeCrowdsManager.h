@@ -6,7 +6,6 @@
 #include "Domains/Crowds/Event/FluxPrimeCrowdsEvent.h"
 #include "Engine/StreamableManager.h"
 #include "Components/ActorComponent.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Framework/Core/FluxPrimeBaseManager.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsSystemsModule.h"
 #include "FluxPrimeCrowdsManager.generated.h"

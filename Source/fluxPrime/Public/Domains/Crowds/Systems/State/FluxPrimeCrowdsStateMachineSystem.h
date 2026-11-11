@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "StateLogics/FluxPrimeCrowdsWalkState.h"
 #include "FluxPrimeCrowdsStateTransition.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Framework/Data/FluxPrimeStateData.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseStateMachineSystem.h"
 #include "StateLogics/FluxPrimeCrowdsAbilityState.h"

@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Domains/Crowds/Data/FluxPrimeCrowdsData.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Domains/Crowds/Configurations/SystemsConfiguration.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsIdentity.h"
