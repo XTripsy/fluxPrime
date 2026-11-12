@@ -10,21 +10,21 @@ USTRUCT(BlueprintType)
 struct FRenderSystemDataTagConfig
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataRotationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRotationTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataIdTag;
+	FFluxPrimeDataConfig EntityDataIdConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-		   && EntityDataRotationTag.IsValid() 
-		   && EntityDataIdTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRotationConfig.EntityDataTag.IsValid() 
+		   && EntityDataIdConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -73,20 +73,32 @@ public:
 		check(context.componentsISMC);
 		check(context.catalogTotal);
 		check(context.dataStores);
+		
+		int32 countData = context.dataStores->Num();
+ 		EntityDataLocationID.Init(0, countData);
+ 		EntityDataRotationID.Init(0, countData);
 	
 		ComponentsISMC = context.componentsISMC;
 		InitializedTransformData(context.catalogTotal);
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
+			indexDataId++;
 		}
 	}
 
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Render_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("RENDER SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		auto& componentsISMC = *ComponentsISMC;
 		int32 totalComponents = componentsISMC.Num();

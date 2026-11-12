@@ -10,11 +10,11 @@ struct FRaycastSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -116,9 +116,13 @@ private:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		EntityDataLocationID.Init(0, dataStores.Num());
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			indexDataId++;
 		}
 		
 		SpatialGridSystems.Initialized(dataStores);
@@ -127,6 +131,12 @@ public:
 	void ShootRay(TArray<FFluxPrimeArchetypeDataStore>& dataStores, FVector startRay, FVector endRay, 
 		int32& outEntityType, int32& outEntityIndex)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("RAYCAST SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		TArray<int32> cellIds;
 		TArray<int32> entityType;
 		TArray<int32> entityIndex;

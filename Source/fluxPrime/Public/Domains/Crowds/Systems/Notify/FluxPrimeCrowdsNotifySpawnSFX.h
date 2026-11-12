@@ -10,11 +10,11 @@ struct FNotifySpawnSfxDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestNotifyTag;
+	FFluxPrimeDataConfig EntityDataRequestNotifyConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataRequestNotifyTag.IsValid();
+		return EntityDataRequestNotifyConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -54,17 +54,27 @@ public:
 		check(context.getNotifyID);
 		check(context.dataStores);
 		
+		EntityDataRequestNotifyID.Init(0, context.dataStores->Num());
+		
 		World = context.world;
 		NotifyID = context.getNotifyID(NotifyTag);
 
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestNotifyConfig, EntityDataRequestNotifyID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("NOTIFY SPAWN SFX :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		
 		check(entityDataRequestNotify);

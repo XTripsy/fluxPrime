@@ -8,6 +8,7 @@ struct FFluxPrimeArchetypeDataStore
 private:
 	int32 ActiveEntityCount = 0;
 	int32 TotalEntityCount = 0;
+	TArray<UScriptStruct*> RawStructTypeDatas;
 	TArray<uint8*> RawDataBuffers;
 	TArray<int32> RawElementSizes;
 	TArray<int32> EntityLookup;
@@ -30,6 +31,19 @@ public:
 		RawElementSizes.Empty();
 		EntityLookup.Empty();
 		DataID.Empty();
+	}
+	
+	bool TryResolveTag(const FGameplayTag tag, const UScriptStruct* expectedType, int16& outIndex)
+	{
+		outIndex = INDEX_NONE;
+
+		const int32 dataID = GetDataID(tag);
+		
+		if (expectedType == nullptr || !RawStructTypeDatas.IsValidIndex(dataID)) return false;
+		if (RawStructTypeDatas[dataID] != expectedType) return false;
+
+		outIndex = dataID;
+		return true;
 	}
 	
 	void SwapManualBuffer(int32 indexA, int32 indexB)
@@ -69,6 +83,7 @@ public:
 
 		return INDEX_NONE;
 	}
+	void AddNewRawStructTypeData(UScriptStruct* structType) { RawStructTypeDatas.Add(structType); UE_LOG(LogTemp, Log, TEXT("MASUK ADD")); }
 	void AddNewRawBufferData(uint8* allocatedMemory) { RawDataBuffers.Add(allocatedMemory); }
 	uint8* GetRawBufferData(const int32 dataID) const
 	{

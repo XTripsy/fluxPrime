@@ -12,12 +12,11 @@ struct FStateMachineSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataStateTag;
-
+	FFluxPrimeDataConfig EntityDataStateConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataStateTag.IsValid();
+		return EntityDataStateConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -103,6 +102,12 @@ public:
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_FSM_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("BASE STATE MACHINE SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		if (RuntimeDataStateMachine.IsEmpty()) return;
 

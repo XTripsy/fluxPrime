@@ -10,15 +10,15 @@ struct FNotifyAbilityDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestNotifyTag;
+	FFluxPrimeDataConfig EntityDataRequestNotifyConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestAbilityTag;
+	FFluxPrimeDataConfig EntityDataRequestAbilityConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataRequestNotifyTag.IsValid() 
-		   && EntityDataRequestAbilityTag.IsValid();
+		return EntityDataRequestNotifyConfig.EntityDataTag.IsValid() 
+		   && EntityDataRequestAbilityConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -48,17 +48,29 @@ public:
 		check(context.getNotifyID);
 		check(context.dataStores);
 		
+		int32 countData = context.dataStores->Num();
+		EntityDataRequestNotifyID.Init(0, countData);
+		EntityDataRequestAbilityID.Init(0, countData);
+		
 		NotifyID = context.getNotifyID(NotifyTag);
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
-			EntityDataRequestAbilityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestNotifyConfig, EntityDataRequestNotifyID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAbilityConfig, EntityDataRequestAbilityID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("NOTIFY ABILITY :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		FFluxPrimeWrapperBool* entityDataRequestAbility = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]));
 		

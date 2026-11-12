@@ -13,7 +13,7 @@
 #include "Generics/Systems/FluxPrimeRenderSystem.h"
 #include "Generics/Systems/FluxPrimeHealthSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsCompactSystem.h"
-#include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsAbilitySystem.h"
+#include "Domains/Crowds/Systems/FluxPrimeCrowdsAbilitySystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrwodsAnimationNotifySystem.h"
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
@@ -214,12 +214,9 @@ public:
 				
 				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeCrowdsCompactSystem>(fragment);
 				
-				FFluxPrimeCrowdsCompactSystemsContext tempContext;
-				tempContext.dataStores = context.dataStores;
-				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeCrowdsCompactSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsCompactSystem>();
-				system.Initialized(tempContext);
+				system.Initialized(*context.dataStores);
 			}
 			
 			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeGroundHeightSystem>())

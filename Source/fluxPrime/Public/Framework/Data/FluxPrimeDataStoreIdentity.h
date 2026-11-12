@@ -22,6 +22,19 @@ struct FFluxPrimeDataConfigEditor
 	bool AvailableOnLocalClient;
 };
 
+USTRUCT(BlueprintType)
+struct FFluxPrimeDataConfig
+{
+	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FGameplayTag EntityDataTag;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Type Config")
+	UScriptStruct* ExpectedStructType;
+};
+
+
 UCLASS()
 class FLUXPRIME_API UFluxPrimeDataStoreIdentity : public UPrimaryDataAsset
 {

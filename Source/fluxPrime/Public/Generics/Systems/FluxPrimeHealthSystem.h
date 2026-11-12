@@ -11,21 +11,21 @@ USTRUCT(BlueprintType)
 struct FHealthSystemDataTagConfig
 {
 	GENERATED_BODY()
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataConditionAliveTag;
-
+	FFluxPrimeDataConfig EntityDataConditionAliveConfig;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataHealthTag;
-
+	FFluxPrimeDataConfig EntityDataHealthConfig;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataDamageTakenTag;
+	FFluxPrimeDataConfig EntityDataDamageTakenConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataConditionAliveTag.IsValid() 
-		   && EntityDataHealthTag.IsValid() 
-		   && EntityDataDamageTakenTag.IsValid();
+		return EntityDataConditionAliveConfig.EntityDataTag.IsValid() 
+		   && EntityDataHealthConfig.EntityDataTag.IsValid()
+		   && EntityDataDamageTakenConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -39,26 +39,45 @@ public:
 	FHealthSystemDataTagConfig DataTagConfig;
 
 	TArray<int16> EntityDataConditionAliveID, EntityDataHealthID, EntityDataDamageTakenID;
-	
+
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataConditionAliveID.Init(0, countData);
+		EntityDataHealthID.Init(0, countData);
+		EntityDataDamageTakenID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataConditionAliveID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionAliveTag));
-			EntityDataHealthID.Add(dataStore.GetDataID(DataTagConfig.EntityDataHealthTag));
-			EntityDataDamageTakenID.Add(dataStore.GetDataID(DataTagConfig.EntityDataDamageTakenTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataConditionAliveConfig, EntityDataConditionAliveID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataHealthConfig, EntityDataHealthID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataDamageTakenConfig, EntityDataDamageTakenID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void TakeDamage(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("HEALTH SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataDamageTakenID[indexDataID]))[indexData].ValueInt16 += damageTaken;
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Health_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("HEALTH SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)

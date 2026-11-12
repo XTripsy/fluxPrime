@@ -16,71 +16,71 @@ struct FNavigationSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentLocationTag;
+	FFluxPrimeDataConfig EntityDataCurrentLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataPreviousLocationTag;
+	FFluxPrimeDataConfig EntityDataPreviousLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataSizeTag;
+	FFluxPrimeDataConfig EntityDataSizeConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCellIdTag;
+	FFluxPrimeDataConfig EntityDataCellIdConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCorridorsTag;
+	FFluxPrimeDataConfig EntityDataCorridorsConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataTargetLocationTag;
+	FFluxPrimeDataConfig EntityDataTargetLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointLocationTag;
+	FFluxPrimeDataConfig EntityDataCurrentWaypointLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLastReplanLocationTag;
+	FFluxPrimeDataConfig EntityDataLastReplanLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLastMoveLocationTag;
+	FFluxPrimeDataConfig EntityDataLastMoveLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataWaitTimeTag;
+	FFluxPrimeDataConfig EntityDataWaitTimeConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLastOptimizeTimeTag;
+	FFluxPrimeDataConfig EntityDataLastOptimizeTimeConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLastMoveTargetTimeTag;
+	FFluxPrimeDataConfig EntityDataLastMoveTargetTimeConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCountCorridorTag;
+	FFluxPrimeDataConfig EntityDataCountCorridorConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataNeedReplanTag;
+	FFluxPrimeDataConfig EntityDataNeedReplanConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataWaypointsTag;
+	FFluxPrimeDataConfig EntityDataWaypointsConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCountWaypointsTag;
+	FFluxPrimeDataConfig EntityDataCountWaypointsConfig;
 
     bool IsValid() const
     {
-       return EntityDataCurrentLocationTag.IsValid() 
-          && EntityDataPreviousLocationTag.IsValid() 
-          && EntityDataSizeTag.IsValid() 
-          && EntityDataCellIdTag.IsValid() 
-          && EntityDataCorridorsTag.IsValid() 
-          && EntityDataTargetLocationTag.IsValid() 
-          && EntityDataCurrentWaypointLocationTag.IsValid() 
-          && EntityDataLastReplanLocationTag.IsValid() 
-          && EntityDataLastMoveLocationTag.IsValid()
-          && EntityDataWaitTimeTag.IsValid()
-          && EntityDataLastOptimizeTimeTag.IsValid() 
-          && EntityDataLastMoveTargetTimeTag.IsValid() 
-          && EntityDataCountCorridorTag.IsValid() 
-          && EntityDataNeedReplanTag.IsValid() 
-          && EntityDataWaypointsTag.IsValid() 
-          && EntityDataCountWaypointsTag.IsValid();
+    	return EntityDataCurrentLocationConfig.EntityDataTag.IsValid() 
+		  && EntityDataPreviousLocationConfig.EntityDataTag.IsValid() 
+		  && EntityDataSizeConfig.EntityDataTag.IsValid() 
+		  && EntityDataCellIdConfig.EntityDataTag.IsValid() 
+		  && EntityDataCorridorsConfig.EntityDataTag.IsValid() 
+		  && EntityDataTargetLocationConfig.EntityDataTag.IsValid() 
+		  && EntityDataCurrentWaypointLocationConfig.EntityDataTag.IsValid() 
+		  && EntityDataLastReplanLocationConfig.EntityDataTag.IsValid() 
+		  && EntityDataLastMoveLocationConfig.EntityDataTag.IsValid()
+		  && EntityDataWaitTimeConfig.EntityDataTag.IsValid()
+		  && EntityDataLastOptimizeTimeConfig.EntityDataTag.IsValid() 
+		  && EntityDataLastMoveTargetTimeConfig.EntityDataTag.IsValid() 
+		  && EntityDataCountCorridorConfig.EntityDataTag.IsValid() 
+		  && EntityDataNeedReplanConfig.EntityDataTag.IsValid() 
+		  && EntityDataWaypointsConfig.EntityDataTag.IsValid() 
+		  && EntityDataCountWaypointsConfig.EntityDataTag.IsValid();
     }
 };
 
@@ -135,46 +135,47 @@ public:
 		NavQuery->init(DtNavMesh, 2048);
 		Corridor.init(256);
 		
-		int16 dataCount = context.dataStores->Num();
-		EntityDataCurrentLocationID.Reserve(dataCount);
-		EntityDataPreviousLocationID.Reserve(dataCount);
-		EntityDataSizeID.Reserve(dataCount);
-		EntityDataCellIdID.Reserve(dataCount);
-		EntityDataCorridorsID.Reserve(dataCount);
-		EntityDataTargetLocationID.Reserve(dataCount);
-		EntityDataCurrentWaypointLocationID.Reserve(dataCount);
-		EntityDataLastReplanLocationID.Reserve(dataCount);
-		EntityDataLastMoveLocationID.Reserve(dataCount);
-		EntityDataWaitTimeID.Reserve(dataCount);
-		EntityDataLastOptimizeTimeID.Reserve(dataCount);
-		EntityDataLastMoveTargetTimeID.Reserve(dataCount);
-		EntityDataCountCorridorID.Reserve(dataCount);
-		EntityDataNeedReplanID.Reserve(dataCount);
-		EntityDataWaypointsID.Reserve(dataCount);
-		EntityDataCountWaypointsID.Reserve(dataCount);
+		int16 countData = context.dataStores->Num();
+		EntityDataCurrentLocationID.Init(0, countData);
+		EntityDataPreviousLocationID.Init(0, countData);
+		EntityDataSizeID.Init(0, countData);
+		EntityDataCellIdID.Init(0, countData);
+		EntityDataCorridorsID.Init(0, countData);
+		EntityDataTargetLocationID.Init(0, countData);
+		EntityDataCurrentWaypointLocationID.Init(0, countData);
+		EntityDataLastReplanLocationID.Init(0, countData);
+		EntityDataLastMoveLocationID.Init(0, countData);
+		EntityDataWaitTimeID.Init(0, countData);
+		EntityDataLastOptimizeTimeID.Init(0, countData);
+		EntityDataLastMoveTargetTimeID.Init(0, countData);
+		EntityDataCountCorridorID.Init(0, countData);
+		EntityDataNeedReplanID.Init(0, countData);
+		EntityDataWaypointsID.Init(0, countData);
+		EntityDataCountWaypointsID.Init(0, countData);
 		
 		int32 dataTotalCount = 0;
-		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataCurrentLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentLocationTag));
-			EntityDataPreviousLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataPreviousLocationTag));
-			EntityDataSizeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataSizeTag));
-			EntityDataCellIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCellIdTag));
-			EntityDataCorridorsID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCorridorsTag));
-			EntityDataTargetLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetLocationTag));
-			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
-			EntityDataLastReplanLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastReplanLocationTag));
-			EntityDataLastMoveLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastMoveLocationTag));
-			EntityDataWaitTimeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataWaitTimeTag));
-			EntityDataLastOptimizeTimeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastOptimizeTimeTag));
-			EntityDataLastMoveTargetTimeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastMoveTargetTimeTag));
-			EntityDataCountCorridorID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCountCorridorTag));
-			EntityDataNeedReplanID.Add(dataStore.GetDataID(DataTagConfig.EntityDataNeedReplanTag));
-			EntityDataWaypointsID.Add(dataStore.GetDataID(DataTagConfig.EntityDataWaypointsTag));
-			EntityDataCountWaypointsID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCountWaypointsTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentLocationConfig, EntityDataCurrentLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataPreviousLocationConfig, EntityDataPreviousLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataSizeConfig, EntityDataSizeID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCellIdConfig, EntityDataCellIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCorridorsConfig, EntityDataCorridorsID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetLocationConfig, EntityDataTargetLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastReplanLocationConfig, EntityDataLastReplanLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastMoveLocationConfig, EntityDataLastMoveLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataWaitTimeConfig, EntityDataWaitTimeID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastOptimizeTimeConfig, EntityDataLastOptimizeTimeID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastMoveTargetTimeConfig, EntityDataLastMoveTargetTimeID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCountCorridorConfig, EntityDataCountCorridorID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataNeedReplanConfig, EntityDataNeedReplanID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataWaypointsConfig, EntityDataWaypointsID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCountWaypointsConfig, EntityDataCountWaypointsID[indexDataId]);
 			
 			dataTotalCount += dataStore.GetTotalEntityCount();
+			indexDataId++;
 		}
 		
 		EntityPathQueue.Init(FFluxPrimeNavigationDataRequest(), dataTotalCount);
@@ -190,6 +191,12 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Navigation_Systems);
 
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("NAVIGATION SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 		
 		float currentTime = World->GetTimeSeconds();

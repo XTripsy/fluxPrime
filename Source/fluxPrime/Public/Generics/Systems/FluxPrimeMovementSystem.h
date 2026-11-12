@@ -11,33 +11,33 @@ USTRUCT(BlueprintType)
 struct FMovementSystemDataTagConfig
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataRotationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRotationTag;
+	FFluxPrimeDataConfig EntityDataAccelerationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataAccelerationTag;
+	FFluxPrimeDataConfig EntityDataVelocityConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataVelocityTag;
+	FFluxPrimeDataConfig EntityDataCurrentWaypointConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataMaxSpeedTag;
+	FFluxPrimeDataConfig EntityDataMaxSpeedConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-		   && EntityDataRotationTag.IsValid() 
-		   && EntityDataAccelerationTag.IsValid() 
-		   && EntityDataVelocityTag.IsValid() 
-		   && EntityDataCurrentWaypointTag.IsValid() 
-		   && EntityDataMaxSpeedTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRotationConfig.EntityDataTag.IsValid() 
+		   && EntityDataAccelerationConfig.EntityDataTag.IsValid() 
+		   && EntityDataVelocityConfig.EntityDataTag.IsValid() 
+		   && EntityDataCurrentWaypointConfig.EntityDataTag.IsValid() 
+		   && EntityDataMaxSpeedConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -55,20 +55,36 @@ public:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRotationID.Init(0, countData);
+		EntityDataAccelerationID.Init(0, countData);
+		EntityDataVelocityID.Init(0, countData);
+		EntityDataCurrentWaypointID.Init(0, countData);
+		EntityDataMaxSpeedID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataMaxSpeedID.Add(dataStore.GetDataID(DataTagConfig.EntityDataMaxSpeedTag));
-			EntityDataAccelerationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataAccelerationTag));
-			EntityDataVelocityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataVelocityTag));
-			EntityDataCurrentWaypointID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataAccelerationConfig, EntityDataAccelerationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataVelocityConfig, EntityDataVelocityID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointConfig, EntityDataCurrentWaypointID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataMaxSpeedConfig, EntityDataMaxSpeedID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Movement_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("MOVEMENT SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)

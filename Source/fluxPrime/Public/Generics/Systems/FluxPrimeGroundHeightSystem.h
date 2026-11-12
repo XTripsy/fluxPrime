@@ -14,19 +14,19 @@ struct FGroundHeightSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRotationTag;
+	FFluxPrimeDataConfig EntityDataRotationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataMaxSpeedTag;
+	FFluxPrimeDataConfig EntityDataMaxSpeedConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-		   && EntityDataRotationTag.IsValid() 
-		   && EntityDataMaxSpeedTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRotationConfig.EntityDataTag.IsValid() 
+		   && EntityDataMaxSpeedConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -193,11 +193,18 @@ public:
 	{
 		check(context.world);
 
+		int32 countData = context.dataStores->Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRotationID.Init(0, countData);
+		EntityDataMaxSpeedID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataMaxSpeedID.Add(dataStore.GetDataID(DataTagConfig.EntityDataMaxSpeedTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataMaxSpeedConfig, EntityDataMaxSpeedID[indexDataId]);
+			indexDataId++;
 		}
 		
 		BakeGroundHeightSystems(context.world);
@@ -206,6 +213,12 @@ public:
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Ground_Height_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("GROUND HEIGHT SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		const FVector2D inputRange(75.0f, 300.0f);
 		const FVector2D outputRange(1.75f, 6.0f);

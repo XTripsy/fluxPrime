@@ -16,19 +16,19 @@ struct FAbilitySystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRotationTag;
+	FFluxPrimeDataConfig EntityDataRotationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestAbilityTag;
+	FFluxPrimeDataConfig EntityDataRequestAbilityConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-		   && EntityDataRotationTag.IsValid()
-		   && EntityDataRequestAbilityTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRotationConfig.EntityDataTag.IsValid()
+		   && EntityDataRequestAbilityConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -131,14 +131,21 @@ public:
 		check(context.catalogAbilityFragmentIdentity);
 		check(context.niagaraCallback);
 		check(context.dataStores);
+		
+		int32 countData = context.dataStores->Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRotationID.Init(0, countData);
+		EntityDataRequestAbilityID.Init(0, countData);
 
 		DamageMapping = context.damageMapping;
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataRequestAbilityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAbilityConfig, EntityDataRequestAbilityID[indexDataId]);
+			indexDataId++;
 		}
 		
 		if (DamageMapping.IsEmpty()) DamageMapping.Init(0, context.dataStores->Num());
@@ -149,6 +156,12 @@ public:
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Ability_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ABILITY SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)

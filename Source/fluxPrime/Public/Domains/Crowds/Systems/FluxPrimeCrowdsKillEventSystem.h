@@ -9,17 +9,17 @@ USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsKillEventSystemDataTagConfig
 {
 	GENERATED_BODY()
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataHealthConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataHealthTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataDamageTakenTag;
+	FFluxPrimeDataConfig EntityDataDamageTakenConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataHealthTag.IsValid() 
-		   && EntityDataDamageTakenTag.IsValid();
+		return EntityDataHealthConfig.EntityDataTag.IsValid() 
+		   && EntityDataDamageTakenConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -32,20 +32,32 @@ private:
 	UPROPERTY(EditAnywhere)
 	FFluxPrimeCrowdsKillEventSystemDataTagConfig DataTagConfig;
 
-	TArray<int16> EntityDataConditionAliveID, EntityDataHealthID, EntityDataDamageTakenID;
+	TArray<int16> EntityDataHealthID, EntityDataDamageTakenID;
 	
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataHealthID.Init(0, countData);
+		EntityDataDamageTakenID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataHealthID.Add(dataStore.GetDataID(DataTagConfig.EntityDataHealthTag));
-			EntityDataDamageTakenID.Add(dataStore.GetDataID(DataTagConfig.EntityDataDamageTakenTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataHealthConfig, EntityDataHealthID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataDamageTakenConfig, EntityDataDamageTakenID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	bool CekKillEvent(FFluxPrimeArchetypeDataStore& dataStore, int32 indexDataID, int32 indexData, int16 damageTaken)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("KILL EVENT SYSTEM :: SOME DATA NOT VALID"));
+			return false;
+		}
+		
 		int16 tempValue = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataHealthID[indexDataID]))[indexData].ValueInt16 - reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataDamageTakenID[indexDataID]))[indexData].ValueInt16;
 		return tempValue <= 0;
 	}

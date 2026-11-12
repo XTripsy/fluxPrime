@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Core/FluxPrimeBaseModule.h"
-#include "Framework/Data/FluxPrimeEntityCatalogIdentity.h"
 #include "Framework/Data/FluxPrimeDataStoreIdentity.h"
 #include "Framework/Data/FluxPrimeIdentityData.h"
 #include "FluxPrimeBaseDataModule.generated.h"
@@ -20,13 +19,16 @@ private:
 	void RegisterData(FFluxPrimeArchetypeDataStore& dataStore, const int32 totalEntityCount, const bool hasAuthority)
 	{
 		int32 index = 0;
+		UScriptStruct* structType = nullptr;
+		
 		for (auto& pair : DataStoreIdentity->DataConfigEditors)
 		{
 			if (!hasAuthority && !pair.AvailableOnLocalClient) continue;
 			
 			dataStore.AddNewDataID(pair.DataTag);
+			structType = pair.StructType;
 			
-			int32 structSize = pair.StructType->GetStructureSize();
+			int32 structSize = structType->GetStructureSize();
 			uint8* allocatedMemory = static_cast<uint8*>(FMemory::Malloc(structSize * totalEntityCount));
 
 			for (int32 i = 0; i < totalEntityCount; ++i)
@@ -34,6 +36,7 @@ private:
 				pair.StructType->InitializeStruct(allocatedMemory + (i * structSize));
 			}
 			
+			dataStore.AddNewRawStructTypeData(structType);
 			dataStore.AddNewRawBufferData(allocatedMemory);
 			dataStore.AddNewRawElementSizes(structSize);
 			

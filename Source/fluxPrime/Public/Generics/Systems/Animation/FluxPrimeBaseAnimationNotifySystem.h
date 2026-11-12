@@ -4,9 +4,7 @@
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
-#if IF_WITH_EDITOR
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#endif
 #include "FluxPrimeBaseAnimationNotifySystem.generated.h"
 
 using FNotifyExecute = void(*)(FInstancedStruct&, const int32, const int32, FFluxPrimeArchetypeDataStore&);
@@ -55,9 +53,7 @@ protected:
 public:
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-#if IF_WITH_EDITOR
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Notify_Systems);
-#endif
 
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)

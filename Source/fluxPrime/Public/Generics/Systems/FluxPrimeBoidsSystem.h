@@ -13,19 +13,19 @@ struct FBoidsSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataAccelerationTag;
+	FFluxPrimeDataConfig EntityDataAccelerationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataSizeTag;
+	FFluxPrimeDataConfig EntityDataSizeConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-		   && EntityDataAccelerationTag.IsValid() 
-		   && EntityDataSizeTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataAccelerationConfig.EntityDataTag.IsValid() 
+		   && EntityDataSizeConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -57,11 +57,18 @@ private:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataAccelerationID.Init(0, countData);
+		EntityDataSizeID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataAccelerationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataAccelerationTag));
-			EntityDataSizeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataSizeTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataAccelerationConfig, EntityDataAccelerationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataSizeConfig, EntityDataSizeID[indexDataId]);
+			indexDataId++;
 		}
 		
 		SpatialGridSystem.Initialized(dataStores);
@@ -76,6 +83,12 @@ public:
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 	    TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Boids_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("BOIDS SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 
 	    SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 

@@ -12,11 +12,14 @@ struct FDeadStateDataTagConfig
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataMaxSpeedConfig;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FGameplayTag EntityDataMaxSpeedTag;
 	
 	bool IsValid() const
 	{
-		return EntityDataMaxSpeedTag.IsValid();
+		return EntityDataMaxSpeedConfig.EntityDataTag.IsValid();
 	}
 	
 };
@@ -35,14 +38,24 @@ private:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		EntityDataMaxSpeedID.Init(0, dataStores.Num());
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataMaxSpeedID.Add(dataStore.GetDataID(DataTagConfig.EntityDataMaxSpeedTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataMaxSpeedConfig, EntityDataMaxSpeedID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteState(float deltaTime, int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("DEAD STATE :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FFluxPrimeWrapperFloat* entityDataMaxSpeed = reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]));
 		
 		entityDataMaxSpeed[indexEntity].ValueFloat = 0;

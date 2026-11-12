@@ -10,15 +10,15 @@ struct FAbilityStateDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointLocationTag;
+	FFluxPrimeDataConfig EntityDataCurrentWaypointLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataCurrentWaypointLocationTag.IsValid() 
-		   && EntityDataLocationTag.IsValid();
+		return EntityDataCurrentWaypointLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataLocationConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -36,15 +36,27 @@ public:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataCurrentWaypointLocationID.Init(0, countData);
+		EntityDataLocationID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteState(float deltaTime, int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ABILITY STATE :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]));
 		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		

@@ -10,15 +10,15 @@ struct FNotifySpawnVfxDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestNotifyTag;
+	FFluxPrimeDataConfig EntityDataRequestNotifyConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 	
 	bool IsValid() const
 	{
-		return EntityDataRequestNotifyTag.IsValid()
-		    && EntityDataLocationTag.IsValid();
+		return EntityDataRequestNotifyConfig.EntityDataTag.IsValid()
+			&& EntityDataLocationConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -58,18 +58,30 @@ public:
 		check(context.getNotifyID);
 		check(context.dataStores);
 		
+		int32 countData = context.dataStores->Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRequestNotifyID.Init(0, countData);
+		
 		World = context.world;
 		NotifyID = context.getNotifyID(NotifyTag);
 
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestNotifyConfig, EntityDataRequestNotifyID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("NOTIFY SPAWN VFX :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		

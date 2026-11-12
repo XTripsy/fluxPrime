@@ -11,6 +11,10 @@ struct FFluxPrimeCrowdsIdleState : public FFluxPrimeBaseState
 	
 	void ExecuteState(float deltaTime, int32 indexDataID, int32 indexEntity, FFluxPrimeArchetypeDataStore& dataStore)
 	{
-		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("IDLE STATE :: SOME DATA NOT VALID"));
+			return;
+		}
 	}
 };

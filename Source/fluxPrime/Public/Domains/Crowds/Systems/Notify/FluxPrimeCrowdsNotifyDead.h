@@ -10,19 +10,19 @@ struct FNotifyDeadDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestNotifyTag;
+	FFluxPrimeDataConfig EntityDataRequestNotifyConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestBackToPoolTag;
+	FFluxPrimeDataConfig EntityDataRequestBackToPoolConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataRequestNotifyTag.IsValid() 
-		   && EntityDataLocationTag.IsValid() 
-		   && EntityDataRequestBackToPoolTag.IsValid();
+		return EntityDataRequestNotifyConfig.EntityDataTag.IsValid() 
+		   && EntityDataLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRequestBackToPoolConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -52,18 +52,31 @@ public:
 		check(context.getNotifyID);
 		check(context.dataStores);
 		
+		int32 countData = context.dataStores->Num();
+		EntityDataRequestNotifyID.Init(0, countData);
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRequestBackToPoolID.Init(0, countData);
+		
 		NotifyID = context.getNotifyID(NotifyTag);
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataRequestNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNotifyTag));
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRequestBackToPoolID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestBackToPoolTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestNotifyConfig, EntityDataRequestNotifyID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestBackToPoolConfig, EntityDataRequestBackToPoolID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("NOTIFY DEAD :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 		FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
 		FFluxPrimeWrapperInt32* entityDataRequestNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestNotifyID[indexDataID]));
 		FFluxPrimeWrapperBool* entityDataRequestBackToPool = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]));

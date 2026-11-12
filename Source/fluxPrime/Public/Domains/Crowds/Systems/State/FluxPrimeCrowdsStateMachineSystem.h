@@ -100,10 +100,14 @@ public:
 		check(context.getStateID);
 		check(context.entityCatalog);
 		check(context.dataStores);
+		
+		EntityDataStateID.Init(0, context.dataStores->Num());
 
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStateTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStateConfig, EntityDataStateID[indexDataId]);
+			indexDataId++;
 			
 			RegisterStateData(*context.dataStores, *context.entityCatalog, context.entityCatalog->Num(), context.getStateID);
 		}

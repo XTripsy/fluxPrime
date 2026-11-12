@@ -10,19 +10,19 @@ struct FVisualInterpolationSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRotationTag;
+	FFluxPrimeDataConfig EntityDataRotationConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointLocationTag;
+	FFluxPrimeDataConfig EntityDataCurrentWaypointLocationConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid()
-		   && EntityDataRotationTag.IsValid()
-		   && EntityDataCurrentWaypointLocationTag.IsValid(); 
+		return EntityDataLocationConfig.EntityDataTag.IsValid()
+		   && EntityDataRotationConfig.EntityDataTag.IsValid()
+		   && EntityDataCurrentWaypointLocationConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -57,17 +57,30 @@ private:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		int32 countData = dataStores.Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataRotationID.Init(0, countData);
+		EntityDataCurrentWaypointLocationID.Init(0, countData);
+		
+		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[indexDataId]);
+			indexDataId = 0;
 		}
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_VisualInterpolation_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("VISUAL INTERPOLATION SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		int16 indexDataID = 0;
 		for (auto& dataStore : dataStores)

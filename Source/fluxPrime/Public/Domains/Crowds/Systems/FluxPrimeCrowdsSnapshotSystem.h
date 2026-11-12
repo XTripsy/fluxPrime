@@ -15,35 +15,35 @@ struct FSnapshotSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataIdTag;
+	FFluxPrimeDataConfig EntityDataIdConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCellIdTag;
+	FFluxPrimeDataConfig EntityDataCellIdConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataStateTag;
+	FFluxPrimeDataConfig EntityDataStateConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointLocationTag;
+	FFluxPrimeDataConfig EntityDataCurrentWaypointLocationConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataTargetLocationTag;
+	FFluxPrimeDataConfig EntityDataTargetLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataConditionAliveTag;
+	FFluxPrimeDataConfig EntityDataConditionAliveConfig;
 	
 	bool IsValid() const
 	{
-		return EntityDataIdTag.IsValid() 
-		   && EntityDataCellIdTag.IsValid()
-		   && EntityDataStateTag.IsValid()
-		   && EntityDataLocationTag.IsValid()
-		   && EntityDataCurrentWaypointLocationTag.IsValid()
-		   && EntityDataTargetLocationTag.IsValid()
-		   && EntityDataConditionAliveTag.IsValid();
+		return EntityDataIdConfig.EntityDataTag.IsValid() 
+		   && EntityDataCellIdConfig.EntityDataTag.IsValid()
+		   && EntityDataStateConfig.EntityDataTag.IsValid()
+		   && EntityDataLocationConfig.EntityDataTag.IsValid()
+		   && EntityDataCurrentWaypointLocationConfig.EntityDataTag.IsValid()
+		   && EntityDataTargetLocationConfig.EntityDataTag.IsValid()
+		   && EntityDataConditionAliveConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -120,24 +120,35 @@ public:
 	{
 		check(context.world);
 		check(context.onManagerActionChange);
+		check(context.dataStores);
 		
 		OnManagerActionChange = context.onManagerActionChange;
 		HasAuthority = context.hasAuthority;
 		
 		NeighborCellID.Init(0, 9);
 		
-		int16 indexData = 0;
+		int32 countData = context.dataStores->Num();
+		EntityDataIdID.Init(0, countData);
+		EntityDataCellIdID.Init(0, countData);
+		EntityDataStateID.Init(0, countData);
+		EntityDataLocationID.Init(0, countData);
+		EntityDataCurrentWaypointLocationID.Init(0, countData);
+		EntityDataTargetLocationID.Init(0, countData);
+		EntityDataConditionAliveID.Init(0, countData);
+		
+		int16 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
 			SpatialGridSystems.Initialized(*context.dataStores);
 			
-			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
-			EntityDataCellIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCellIdTag));
-			EntityDataStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStateTag));
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
-			EntityDataTargetLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetLocationTag));
-			EntityDataConditionAliveID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionAliveTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCellIdConfig, EntityDataCellIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStateConfig, EntityDataStateID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetLocationConfig, EntityDataTargetLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataConditionAliveConfig, EntityDataConditionAliveID[indexDataId]);
+			indexDataId++;
 		}
 		
 		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeCrowdsSnapshotData(), MaxBandwidthBuffer);
@@ -193,6 +204,12 @@ public:
 		if (!HasAuthority) return;
 		
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Snapshot_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("SNAPSHOT SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		check(OnManagerActionChange);
 		

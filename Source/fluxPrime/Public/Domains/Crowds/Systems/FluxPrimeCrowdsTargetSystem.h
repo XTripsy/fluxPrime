@@ -14,23 +14,23 @@ struct FTargetSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataLocationTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataTargetLocationTag;
+	FFluxPrimeDataConfig EntityDataTargetLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataTargetIdTag;
+	FFluxPrimeDataConfig EntityDataTargetIdConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataIdTag;
+	FFluxPrimeDataConfig EntityDataIdConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataLocationTag.IsValid() 
-			&& EntityDataTargetLocationTag.IsValid() 
-			&& EntityDataTargetIdTag.IsValid() 
-			&& EntityDataIdTag.IsValid();
+		return EntityDataLocationConfig.EntityDataTag.IsValid() 
+			&& EntityDataTargetLocationConfig.EntityDataTag.IsValid() 
+			&& EntityDataTargetIdConfig.EntityDataTag.IsValid() 
+			&& EntityDataIdConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -86,15 +86,23 @@ public:
 		check(context.targetCatalogs);
 		check(context.dataStores);
 		
+		int32 countData = context.dataStores->Num();
+		EntityDataLocationID.Init(0, countData);
+		EntityDataTargetLocationID.Init(0, countData);
+		EntityDataTargetIdID.Init(0, countData);
+		EntityDataIdID.Init(0, countData);
+		
 		TargetCatalogs = context.targetCatalogs;
 		AggroDistance = *context.aggroDistance;
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataTargetLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetLocationTag));
-			EntityDataTargetIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetIdTag));
-			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetLocationConfig, EntityDataTargetLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetIdConfig, EntityDataTargetIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
@@ -102,6 +110,12 @@ public:
 	{
 	    TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Target_Systems);
 	    
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("TARGET SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
+		
 	    check(TargetCatalogs);
 	    if (TargetCatalogs->IsEmpty()) return;
 	    

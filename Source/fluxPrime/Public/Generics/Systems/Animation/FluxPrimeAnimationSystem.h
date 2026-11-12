@@ -20,43 +20,43 @@ struct FAnimationSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataIdTag;
+	FFluxPrimeDataConfig EntityDataIdConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataStateTag;
+	FFluxPrimeDataConfig EntityDataStateConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataAnimStateTag;
+	FFluxPrimeDataConfig EntityDataAnimStateConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataStartTimeAnimTag;
+	FFluxPrimeDataConfig EntityDataStartTimeAnimConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataPreviousFrameAnimTag;
+	FFluxPrimeDataConfig EntityDataPreviousFrameAnimConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCellIdTag;
+	FFluxPrimeDataConfig EntityDataCellIdConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataTargetLocationTag;
+	FFluxPrimeDataConfig EntityDataTargetLocationConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestAnimationNotifyTag;
+	FFluxPrimeDataConfig EntityDataRequestAnimationNotifyConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestSyncAnimationTag;
+	FFluxPrimeDataConfig EntityDataRequestSyncAnimationConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataIdTag.IsValid()
-		   && EntityDataStateTag.IsValid() 
-		   && EntityDataAnimStateTag.IsValid() 
-		   && EntityDataStartTimeAnimTag.IsValid() 
-		   && EntityDataPreviousFrameAnimTag.IsValid() 
-		   && EntityDataCellIdTag.IsValid() 
-		   && EntityDataTargetLocationTag.IsValid() 
-		   && EntityDataRequestAnimationNotifyTag.IsValid()
-		   && EntityDataRequestSyncAnimationTag.IsValid();
+		return EntityDataIdConfig.EntityDataTag.IsValid()
+		   && EntityDataStateConfig.EntityDataTag.IsValid() 
+		   && EntityDataAnimStateConfig.EntityDataTag.IsValid() 
+		   && EntityDataStartTimeAnimConfig.EntityDataTag.IsValid() 
+		   && EntityDataPreviousFrameAnimConfig.EntityDataTag.IsValid() 
+		   && EntityDataCellIdConfig.EntityDataTag.IsValid() 
+		   && EntityDataTargetLocationConfig.EntityDataTag.IsValid() 
+		   && EntityDataRequestAnimationNotifyConfig.EntityDataTag.IsValid()
+		   && EntityDataRequestSyncAnimationConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -310,6 +310,17 @@ public:
 		check(context.getNotifyID);
 		check(context.dataStores);
 		
+		int32 countData = context.dataStores->Num();
+		EntityDataIdID.Init(0, countData);
+		EntityDataStateID.Init(0, countData);
+		EntityDataAnimStateID.Init(0, countData);
+		EntityDataStartTimeAnimID.Init(0, countData);
+		EntityDataPreviousFrameAnimID.Init(0, countData);
+		EntityDataCellIdID.Init(0, countData);
+		EntityDataTargetLocationID.Init(0, countData);
+		EntityDataRequestAnimationNotifyID.Init(0, countData);
+		EntityDataRequestSyncAnimationID.Init(0, countData);
+		
 		World = context.world;
 		ComponentsISMC = context.componentsISMC;
 		GetStateID = context.getStateID;
@@ -319,23 +330,31 @@ public:
 		
 		SpatialGridSystem.Initialized(*context.dataStores);
 		
+		int32 indexDataId = 0;
 		for (auto& dataStore : *context.dataStores)
 		{
-			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
-			EntityDataStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStateTag));
-			EntityDataAnimStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataAnimStateTag));
-			EntityDataStartTimeAnimID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStartTimeAnimTag));
-			EntityDataPreviousFrameAnimID.Add(dataStore.GetDataID(DataTagConfig.EntityDataPreviousFrameAnimTag));
-			EntityDataCellIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCellIdTag));
-			EntityDataTargetLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetLocationTag));
-			EntityDataRequestAnimationNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAnimationNotifyTag));
-			EntityDataRequestSyncAnimationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestSyncAnimationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStateConfig, EntityDataStateID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataAnimStateConfig, EntityDataAnimStateID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStartTimeAnimConfig, EntityDataStartTimeAnimID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataPreviousFrameAnimConfig, EntityDataPreviousFrameAnimID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCellIdConfig, EntityDataCellIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetLocationConfig, EntityDataTargetLocationID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAnimationNotifyConfig, EntityDataRequestAnimationNotifyID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestSyncAnimationConfig, EntityDataRequestSyncAnimationID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Update);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ANIMATION SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 		
 		SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 		

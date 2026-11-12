@@ -11,32 +11,24 @@ struct FCompactSystemDataTagConfig
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataConditionAliveTag;
+	FFluxPrimeDataConfig EntityDataIdConfig;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataConditionAliveConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestBackToPoolTag;
+	FFluxPrimeDataConfig EntityDataRequestBackToPoolConfig;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataIdTag;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestSyncAnimationTag;
+	FFluxPrimeDataConfig EntityDataRequestSyncAnimationConfig;
 
 	bool IsValid() const
 	{
-		return EntityDataConditionAliveTag.IsValid() 
-		   && EntityDataRequestBackToPoolTag.IsValid()
-		   && EntityDataIdTag.IsValid()
-		   && EntityDataRequestSyncAnimationTag.IsValid();
+		return EntityDataConditionAliveConfig.EntityDataTag.IsValid() 
+		   && EntityDataRequestBackToPoolConfig.EntityDataTag.IsValid()
+		   && EntityDataIdConfig.EntityDataTag.IsValid()
+		   && EntityDataRequestSyncAnimationConfig.EntityDataTag.IsValid();
 	}
-};
-
-USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsCompactSystemsContext
-{
-	GENERATED_BODY()
-	
-	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -65,22 +57,34 @@ private:
 	}
 	
 public:
-	void Initialized(FFluxPrimeCrowdsCompactSystemsContext context)
+	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-		check(context.dataStores);
-	
-		for (auto& dataStore : *context.dataStores)
+		int32 countData = dataStores.Num();
+		EntityDataIdID.Init(0, countData);
+		EntityDataConditionAliveID.Init(0, countData);
+		EntityDataRequestBackToPoolID.Init(0, countData);
+		EntityDataRequestSyncAnimationID.Init(0, countData);
+		
+		int32 indexDataId = 0;
+		for (auto& dataStore : dataStores)
 		{
-			EntityDataConditionAliveID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionAliveTag));
-			EntityDataRequestBackToPoolID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestBackToPoolTag));
-			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
-			EntityDataRequestSyncAnimationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestSyncAnimationTag));
+			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataConditionAliveConfig, EntityDataConditionAliveID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestBackToPoolConfig, EntityDataRequestBackToPoolID[indexDataId]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestSyncAnimationConfig, EntityDataRequestSyncAnimationID[indexDataId]);
+			indexDataId++;
 		}
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Compact_Systems);
+		
+		if (!IsAllDataValid)
+		{
+			UE_LOG(LogTemp, Error, TEXT("COMPACT SYSTEM :: SOME DATA NOT VALID"));
+			return;
+		}
 
 		int32 indexDataID = 0;
 		for (auto& dataStore : dataStores)
