@@ -8,20 +8,32 @@
 #include "FluxPrimeSpatialGridSystem.generated.h"
 
 USTRUCT(BlueprintType)
+struct FFluxPrimeSpatialGridDataConfig
+{
+    GENERATED_BODY()
+	
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+    FGameplayTag EntityDataTag;
+	
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Type Config")
+    UScriptStruct* ExpectedStructType;
+};
+
+USTRUCT(BlueprintType)
 struct FSpatialGridSystemDataTagConfig
 {
     GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+    FFluxPrimeSpatialGridDataConfig EntityDataLocationConfig;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataLocationTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataCellIdTag;
+    FFluxPrimeSpatialGridDataConfig EntityDataCellIdConfig;
 
     bool IsValid() const
     {
-        return EntityDataLocationTag.IsValid() 
-           && EntityDataCellIdTag.IsValid();
+        return EntityDataLocationConfig.EntityDataTag.IsValid() 
+           && EntityDataCellIdConfig.EntityDataTag.IsValid();
     }
 };
 
@@ -49,31 +61,49 @@ private:
     UPROPERTY(EditAnywhere)
     int32 CellHeight = 200;
     
-    UPROPERTY()
     int32 TotalCells = 100;
-    
-    UPROPERTY()
     TArray<int32> GridOffsets;
-    
-    UPROPERTY()
     TArray<int32> GridCounts;
-    
-    UPROPERTY()
     TArray<FFluxPrimeGridMemberData> GridMembers;
+    bool IsAllDataValid = true;
+    
+private:
+    void TryInitializedData(FFluxPrimeArchetypeDataStore& dataStore, FFluxPrimeSpatialGridDataConfig dataConfig, int16& dataID)
+    {
+        dataID = INDEX_NONE;
+        FGameplayTag dataTag = dataConfig.EntityDataTag;
+        UScriptStruct* dataType = dataConfig.ExpectedStructType;
+		
+        if (!IsAllDataValid) return;
+        if (dataStore.TryResolveTag(dataTag, dataType, dataID)) return;
+
+        IsAllDataValid = false;
+        UE_LOG(LogFluxPrime, Error,
+            TEXT("Data tag '%s' (expected struct '%s') was not found in this archetype's data store. ")
+            TEXT("The owning system will not run. Add the tag and its struct to UFluxPrimeDataStoreIdentity."),
+            *dataTag.ToString(),
+            dataType ? *dataType->GetName() : TEXT("null"));
+    }
     
 public:
     void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
     {
         TotalCells = CellWidth * CellHeight;
         
+        int32 countData = dataStores.Num();
+        EntityDataLocationID.Init(0, countData);
+        EntityDataCellIdID.Init(0, countData);
+        
         GridCounts.Init(0, TotalCells);
         GridOffsets.Init(0, TotalCells);
         
+        int32 indexDataId = 0;
         for (auto& dataStore : dataStores)
         {
-            EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-            EntityDataCellIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCellIdTag));
+            TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
+            TryInitializedData(dataStore, DataTagConfig.EntityDataCellIdConfig, EntityDataCellIdID[indexDataId]);
             
+            indexDataId++;
             TotalEntity += dataStore.GetTotalEntityCount();
         }
     }
@@ -81,6 +111,12 @@ public:
     void UpdateSpatialGridSystem(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
     {
         TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_Systems);
+        
+        if (!IsAllDataValid)
+        {
+            UE_LOG(LogFluxPrime, Verbose, TEXT("SPATIAL GRID SYSTEM :: data invalid; system skipped"));
+            return;
+        }
         
         GridCounts.Init(0, TotalCells);
         GridOffsets.SetNumUninitialized(TotalCells);
