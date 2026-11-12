@@ -6,6 +6,8 @@
 #include "Components/ActorComponent.h"
 #include "FluxPrimeCrowdsTargetManager.generated.h"
 
+class APlayerState;
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FLUXPRIME_API UFluxPrimeCrowdsTargetManager : public UActorComponent
 {
@@ -14,6 +16,9 @@ class FLUXPRIME_API UFluxPrimeCrowdsTargetManager : public UActorComponent
 private:
 	UPROPERTY(EditAnywhere, Category = "Priority Target", meta = (AllowPrivateAccess = true))
 	uint16 PriorityTarget = 0;
+
+	/** Resolves the player state from the owning pawn's controller, or nullptr when unavailable. */
+	APlayerState* GetOwningPlayerState() const;
 	
 protected:
 	UFUNCTION(Server, Reliable, BlueprintCallable)

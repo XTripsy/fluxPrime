@@ -5,6 +5,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
+#include "UObject/Package.h"
 #include "FluxPrimeCrowdsProjectileAbility.generated.h"
 
 USTRUCT(BlueprintType)
@@ -30,6 +31,10 @@ private:
 	
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
+
+	/** GC backstop for per-shot callbacks; Niagara also references them through User.NiagaraCallback. */
+	UPROPERTY()
+	TArray<TObjectPtr<UFluxPrimeCrowdsNiagaraCallback>> ActiveNiagaraCallbacks;
 	
 public:
 	UPROPERTY(EditAnywhere)
@@ -54,7 +59,27 @@ public:
 			location + FVector::UpVector * 150,
 			rotation
 		);
-		
+
+		if (!IsValid(projectileFX))
+		{
+			UE_LOG(LogFluxPrime, Warning, TEXT("Projectile ability %s could not spawn its Niagara system in world %s."),
+				*Identity.ToString(), World ? *World->GetName() : TEXT("null"));
+			return;
+		}
+
+		// One callback per shot so concurrent effects cannot overwrite each other's damage.
+		UFluxPrimeCrowdsNiagaraCallback* ParticleCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>(GetTransientPackage());
+		FFluxPrimeCrowdsNiagaraCallbackContext CallbackContext;
+		CallbackContext.world = World;
+		CallbackContext.damage = damage;
+		ParticleCallback->InitializedNiagaraCallback(CallbackContext);
+
+		ActiveNiagaraCallbacks.Add(ParticleCallback);
+		if (ActiveNiagaraCallbacks.Num() > 512)
+		{
+			ActiveNiagaraCallbacks.RemoveAt(0);
+		}
+
 		projectileFX->SetVariableFloat(
 			TEXT("User.Damage"),
 			damage
@@ -62,7 +87,7 @@ public:
 		
 		projectileFX->SetVariableObject(
 			TEXT("User.NiagaraCallback"),
-			NiagaraCallback
+			ParticleCallback
 		);
 	}
 };

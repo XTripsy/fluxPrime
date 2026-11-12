@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
 #include "FluxPrimeCrowdsNotifySpawnSFX.generated.h"
 
@@ -71,7 +72,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("NOTIFY SPAWN SFX :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("NOTIFY SPAWN SFX :: data invalid; system skipped"));
 			return;
 		}
 		

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "GameplayTagContainer.h"
 #include "Generics/Systems/Ability/FluxPrimeBaseAbilitySystem.h"
 #include "StructUtils/InstancedStruct.h"
@@ -159,7 +160,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("ABILITY SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("ABILITY SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

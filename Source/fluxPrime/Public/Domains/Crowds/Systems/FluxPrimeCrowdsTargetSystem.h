@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsTargetData.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
@@ -112,7 +113,7 @@ public:
 	    
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("TARGET SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("TARGET SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

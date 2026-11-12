@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "GameplayTagContainer.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
@@ -82,7 +83,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("MOVEMENT SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("MOVEMENT SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "FluxPrimeCrowdsKillEventSystem.generated.h"
@@ -54,7 +55,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("KILL EVENT SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("KILL EVENT SYSTEM :: data invalid; system skipped"));
 			return false;
 		}
 		

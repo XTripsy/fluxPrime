@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
 #include "Framework/Data/FluxPrimeDataStoreIdentity.h"
 #include "FluxPrimeBaseSystem.generated.h"
@@ -27,7 +28,14 @@ protected:
 		UScriptStruct* dataType = dataConfig.ExpectedStructType;
 		
 		if (!IsAllDataValid) return;
-		IsAllDataValid = dataStore.TryResolveTag(dataTag, dataType, dataID);
+		if (dataStore.TryResolveTag(dataTag, dataType, dataID)) return;
+
+		IsAllDataValid = false;
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Data tag '%s' (expected struct '%s') was not found in this archetype's data store. ")
+			TEXT("The owning system will not run. Add the tag and its struct to UFluxPrimeDataStoreIdentity."),
+			*dataTag.ToString(),
+			dataType ? *dataType->GetName() : TEXT("null"));
 	}
 	
 public:

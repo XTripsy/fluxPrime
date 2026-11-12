@@ -1,7 +1,8 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Framework/Core/FluxPrimeBaseWorldSubsystem.h"
+#include "fluxPrime.h"
 
 #include "EngineUtils.h"
 #include "Framework/Core/FluxPrimeBaseController.h"
@@ -40,5 +41,11 @@ void UFluxPrimeBaseWorldSubsystem::HandleWorldInitializedActors(const UWorld::FA
 	if (Params.World != GetWorld()) return;
 
 	Controller = GetBaseController();
-	if (!Controller.IsValid()) UE_LOG(LogTemp, Error, TEXT("NULLL"));
+	if (!Controller.IsValid())
+	{
+		const UWorld* World = GetWorld();
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("No AFluxPrimeBaseController found in world %s; crowds actions cannot be dispatched."),
+			World ? *World->GetName() : TEXT("unknown"));
+	}
 }

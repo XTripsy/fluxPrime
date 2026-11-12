@@ -29,7 +29,6 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure)
 	inline UFluxPrimeCrowdsManager* GetCrowdsManager() const
 	{
-		ensure(CrowdsManager);
 		return CrowdsManager;
 	};
 };

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "FluxPrimeVisualInterpolationSystem.generated.h"
 
@@ -78,7 +79,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("VISUAL INTERPOLATION SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("VISUAL INTERPOLATION SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

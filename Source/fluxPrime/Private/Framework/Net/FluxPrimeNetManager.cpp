@@ -21,7 +21,7 @@ void UFluxPrimeNetManager::MulticastActionChange_Implementation(const FInstanced
 	OnCrowdsNetManagerActionChange.ExecuteIfBound(payload);
 }
 
-void UFluxPrimeNetManager::OnActionChange(FInstancedStruct payload)
+void UFluxPrimeNetManager::OnActionChange(const FInstancedStruct& payload)
 {
 	MulticastActionChange(payload);
 }

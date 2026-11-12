@@ -29,6 +29,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void RequestAction(const FInstancedStruct& payload);
 	
+	/**
+	 * Blueprint-facing copy of the kill map. Native callers that query this often should use
+	 * UFluxPrimeCrowdsManager::GetPlayerKillsData(), which returns a const reference.
+	 */
 	UFUNCTION(BlueprintCallable)
 	TMap<FUniqueNetIdRepl, int32> GetPlayerKillsData() const;
 };

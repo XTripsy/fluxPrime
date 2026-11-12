@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Generics/Data/FluxPrimeAnimationData.h"
 #include "Generics/Systems/FluxPrimeSpatialGridSystem.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
@@ -352,7 +353,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("ANIMATION SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("ANIMATION SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

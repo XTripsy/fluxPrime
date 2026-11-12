@@ -6,7 +6,7 @@
 #include "StructUtils/InstancedStruct.h"
 #include "FluxPrimeCrowdsEvent.generated.h"
 
-DECLARE_DELEGATE_OneParam(FOnCrowdsManagerActionChange, FInstancedStruct);
+DECLARE_DELEGATE_OneParam(FOnCrowdsManagerActionChange, const FInstancedStruct&);
 
 USTRUCT()
 struct FFluxPrimeEvent

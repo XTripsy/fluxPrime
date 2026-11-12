@@ -14,6 +14,9 @@ struct FFluxPrimeCrowdsNiagaraCallbackContext
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
+
+	/** Damage applied to every particle hit. Set per effect instance rather than derived from particle size. */
+	float damage = 0.0f;
 };
 
 UCLASS()
@@ -24,6 +27,9 @@ class FLUXPRIME_API UFluxPrimeCrowdsNiagaraCallback : public UObject, public INi
 private:
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
+
+	float Damage = 0.0f;
+	bool bLoggedMissingWorld = false;
 	
 public:
 	void InitializedNiagaraCallback(FFluxPrimeCrowdsNiagaraCallbackContext context);

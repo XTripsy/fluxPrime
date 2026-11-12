@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseState.h"
 #include "FluxPrimeCrowdsIdleState.generated.h"
 
@@ -13,7 +14,7 @@ struct FFluxPrimeCrowdsIdleState : public FFluxPrimeBaseState
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("IDLE STATE :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("IDLE STATE :: data invalid; system skipped"));
 			return;
 		}
 	}

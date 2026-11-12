@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
 #include "FluxPrimeCrowdsNotifyDead.generated.h"
 
@@ -73,7 +74,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("NOTIFY DEAD :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("NOTIFY DEAD :: data invalid; system skipped"));
 			return;
 		}
 		

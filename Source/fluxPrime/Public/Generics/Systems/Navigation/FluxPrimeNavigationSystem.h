@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
@@ -193,7 +194,7 @@ public:
 
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("NAVIGATION SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("NAVIGATION SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

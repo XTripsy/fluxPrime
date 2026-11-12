@@ -2,6 +2,8 @@
 
 #include "fluxPrime.h"
 
+DEFINE_LOG_CATEGORY(LogFluxPrime);
+
 #define LOCTEXT_NAMESPACE "FfluxPrimeModule"
 
 void FfluxPrimeModule::StartupModule()

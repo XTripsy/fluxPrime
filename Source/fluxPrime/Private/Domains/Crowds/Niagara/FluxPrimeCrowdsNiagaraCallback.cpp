@@ -1,21 +1,40 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
+#include "fluxPrime.h"
 
 #include "Kismet/GameplayStatics.h"
 
 void UFluxPrimeCrowdsNiagaraCallback::InitializedNiagaraCallback(FFluxPrimeCrowdsNiagaraCallbackContext context)
 {
-	check(context.world);
-	
+	if (!IsValid(context.world))
+	{
+		UE_LOG(LogFluxPrime, Error, TEXT("Niagara callback %s initialized without a valid world; particle damage is disabled."), *GetName());
+		World = nullptr;
+		Damage = 0.0f;
+		return;
+	}
+
 	World = context.world;
+	Damage = context.damage;
+	bLoggedMissingWorld = false;
 }
 
 void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const TArray<FBasicParticleData>& Data,
                                                                    UNiagaraSystem* NiagaraSystem, const FVector& SimulationPositionOffset)
 {
-	UE_LOG(LogTemp, Log, TEXT("NIAGARACALLBACK:: HIT"));
+	if (!IsValid(World))
+	{
+		if (!bLoggedMissingWorld)
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Niagara callback %s received particles but has no valid world; ignoring them."), *GetName());
+			bLoggedMissingWorld = true;
+		}
+		return;
+	}
+
+	UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Niagara callback received %d particles"), Data.Num());
 	
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(AbilityMeleTrace), false);
 
@@ -26,20 +45,6 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 	
 	for (const FBasicParticleData& particle : Data)
 	{
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("HIT POSITION: %s"),
-			*particle.Position.ToString()
-		);
-		
-		UE_LOG(
-			LogTemp,
-			Log,
-			TEXT("HIT DAMAGE: %f"),
-			particle.Size
-		);
-		
 		start = particle.Position;
 		end = start;
 		
@@ -53,7 +58,7 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 			Params
 		);
 
-		if (!bHit) return;
+		if (!bHit) continue;
 
 		DrawDebugSphere(
 			World,
@@ -67,11 +72,12 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 		
 		UGameplayStatics::ApplyDamage(
 				Hit.GetActor(),
-				particle.Size,
+				Damage,
 				nullptr,
 				nullptr,
 				nullptr);
 		
-		UE_LOG(LogTemp, Log, TEXT("ABILITY:: END PROJECTILE ATTACK"));
+		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Projectile particle hit %s for %f damage"),
+			Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null actor"), Damage);
 	}
 }

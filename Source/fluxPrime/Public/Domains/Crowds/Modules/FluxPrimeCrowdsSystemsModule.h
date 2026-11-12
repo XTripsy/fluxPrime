@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Domains/Crowds/Configurations/SystemsConfiguration.h"
 #include "Domains/Crowds/Data/FluxPrimeCrowdsIdentity.h"
@@ -58,7 +59,9 @@ private:
 	
 	UPROPERTY()
 	TArray<FInstancedStruct> SystemFragments;
-	TMap<const UScriptStruct*, int32> SystemFragmentsIndex;
+
+	/** Executor indices per system type, in registration (asset) order. Duplicate types are supported. */
+	TMap<const UScriptStruct*, TArray<int32>> SystemFragmentsIndex;
 	
 	UPROPERTY()
 	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
@@ -76,21 +79,88 @@ private:
 	int32 RegisterSystemFragment(FInstancedStruct& fragment)
 	{
 		const int32 executorIndex = RegisterSystem<T>(fragment);
-		SystemFragmentsIndex.Add(T::StaticStruct(), executorIndex);
+		SystemFragmentsIndex.FindOrAdd(T::StaticStruct()).Add(executorIndex);
 		return executorIndex;
 	}
 	
 public:
+	/**
+	 * Returns the first registered instance of T in asset order. Duplicate fragments of the same
+	 * system type are allowed: every instance is registered and executes, and this accessor is
+	 * deterministic rather than arbitrary. Use GetSystems<T>() when all instances matter.
+	 */
 	template<typename T>
 	T* GetSystem()
 	{
-		if (const int32* executorIndex = SystemFragmentsIndex.Find(T::StaticStruct()))
+		if (const TArray<int32>* executorIndices = SystemFragmentsIndex.Find(T::StaticStruct()))
 		{
-			FSystemExecutor& executor = GetSystemExecutor(*executorIndex);
+			if (executorIndices->IsEmpty()) return nullptr;
+			FSystemExecutor& executor = GetSystemExecutor((*executorIndices)[0]);
 			return executor.Data->GetMutablePtr<T>();
 		}
 		
 		return nullptr;
+	}
+
+	/** Returns every registered instance of T in asset order. */
+	template<typename T>
+	void GetSystems(TArray<T*>& outSystems)
+	{
+		outSystems.Reset();
+
+		const TArray<int32>* executorIndices = SystemFragmentsIndex.Find(T::StaticStruct());
+		if (!executorIndices) return;
+
+		for (const int32 executorIndex : *executorIndices)
+		{
+			FSystemExecutor& executor = GetSystemExecutor(executorIndex);
+			if (T* system = executor.Data->GetMutablePtr<T>()) outSystems.Add(system);
+		}
+	}
+
+	/** Registration order of the first instance of T, or INDEX_NONE when it is not active. */
+	template<typename T>
+	int32 GetSystemOrder() const
+	{
+		const TArray<int32>* executorIndices = SystemFragmentsIndex.Find(T::StaticStruct());
+		if (!executorIndices || executorIndices->IsEmpty()) return INDEX_NONE;
+		return (*executorIndices)[0];
+	}
+
+	/**
+	 * Visual interpolation currently writes the simulation position buffer, so its order is part of
+	 * gameplay behavior. See Docs/DECISIONS/REF-032-visual-interpolation.md.
+	 */
+	void ValidateSystemOrder() const
+	{
+		const int32 InterpolationOrder = GetSystemOrder<FFluxPrimeVisualInterpolationSystem>();
+		if (InterpolationOrder == INDEX_NONE) return;
+
+		auto RequireBefore = [this, InterpolationOrder](int32 PrerequisiteOrder, const TCHAR* Name)
+		{
+			if (PrerequisiteOrder == INDEX_NONE || PrerequisiteOrder < InterpolationOrder) return;
+
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("System order: %s (index %d) must run before FFluxPrimeVisualInterpolationSystem (index %d). ")
+				TEXT("Interpolation writes the simulation position buffer, so this order changes gameplay. ")
+				TEXT("See Docs/DECISIONS/REF-032-visual-interpolation.md."),
+				Name, PrerequisiteOrder, InterpolationOrder);
+		};
+
+		RequireBefore(GetSystemOrder<FFluxPrimeMovementSystem>(), TEXT("FFluxPrimeMovementSystem"));
+		RequireBefore(GetSystemOrder<FFluxPrimeGroundHeightSystem>(), TEXT("FFluxPrimeGroundHeightSystem"));
+		RequireBefore(GetSystemOrder<FFluxPrimeRaycastSystem>(), TEXT("FFluxPrimeRaycastSystem"));
+		RequireBefore(GetSystemOrder<FFluxPrimeCrowdsTargetSystem>(), TEXT("FFluxPrimeCrowdsTargetSystem"));
+		RequireBefore(GetSystemOrder<FFluxPrimeCrowdsSnapshotSystem>(), TEXT("FFluxPrimeCrowdsSnapshotSystem"));
+
+		const int32 RenderOrder = GetSystemOrder<FFluxPrimeRenderSystem>();
+		if (RenderOrder != INDEX_NONE && RenderOrder < InterpolationOrder)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("System order: FFluxPrimeRenderSystem (index %d) must run after FFluxPrimeVisualInterpolationSystem (index %d). ")
+				TEXT("Otherwise rendering is one frame behind the interpolated position."),
+				RenderOrder, InterpolationOrder);
+		}
 	}
 	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
@@ -373,6 +443,8 @@ public:
 			}
 		}
 		
+		ValidateSystemOrder();
+
 		EndInitializedSystem();
 	}
 };

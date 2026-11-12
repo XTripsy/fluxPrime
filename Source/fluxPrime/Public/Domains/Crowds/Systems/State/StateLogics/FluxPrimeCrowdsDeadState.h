@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseState.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
@@ -52,7 +53,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("DEAD STATE :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("DEAD STATE :: data invalid; system skipped"));
 			return;
 		}
 		

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -216,7 +217,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("GROUND HEIGHT SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("GROUND HEIGHT SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

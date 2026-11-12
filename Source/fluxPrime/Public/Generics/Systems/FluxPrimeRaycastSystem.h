@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "FluxPrimeRaycastSystem.generated.h"
 
@@ -58,7 +59,7 @@ private:
 		return outCellIds.Num() > 0;
 	}
 	
-	void GetEntitysOnCellId(const TArray<int32> cellIds, TArray<int32>& outEntityIndex, TArray<int32>& outEntityType)
+	void GetEntitysOnCellId(const TArray<int32>& cellIds, TArray<int32>& outEntityIndex, TArray<int32>& outEntityType)
 	{
 		outEntityType.Empty();
 		outEntityIndex.Empty();
@@ -82,8 +83,8 @@ private:
 		}
 	}
 	
-	void GetCloserEntityOnCellId(const FVector startRay, const FVector endRay, const TArray<FFluxPrimeArchetypeDataStore>& dataStores, 
-		const TArray<int32> entityType, const TArray<int32> entityIndex, int32& outEntityType, int32& outEntityIndex)
+	void GetCloserEntityOnCellId(const FVector& startRay, const FVector& endRay, const TArray<FFluxPrimeArchetypeDataStore>& dataStores,
+		const TArray<int32>& entityType, const TArray<int32>& entityIndex, int32& outEntityType, int32& outEntityIndex)
 	{
 		float closestDistSquared = TNumericLimits<float>::Max();
 		int32 shortedEntityIndex = INDEX_NONE;
@@ -133,7 +134,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("RAYCAST SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("RAYCAST SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

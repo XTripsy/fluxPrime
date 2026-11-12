@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseState.h"
 #include "FluxPrimeCrowdsAbilityState.generated.h"
 
@@ -53,7 +54,7 @@ public:
 	{
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("ABILITY STATE :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("ABILITY STATE :: data invalid; system skipped"));
 			return;
 		}
 		

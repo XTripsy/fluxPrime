@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeCrowdsCompactSystem.generated.h"
@@ -82,7 +83,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("COMPACT SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("COMPACT SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 

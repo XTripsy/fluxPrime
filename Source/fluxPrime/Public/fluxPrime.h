@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 
+FLUXPRIME_API DECLARE_LOG_CATEGORY_EXTERN(LogFluxPrime, Log, All);
+
 class FfluxPrimeModule : public IModuleInterface
 {
 public:

@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "GameplayTagContainer.h"
 
 struct FFluxPrimeArchetypeDataStore
@@ -83,7 +84,7 @@ public:
 
 		return INDEX_NONE;
 	}
-	void AddNewRawStructTypeData(UScriptStruct* structType) { RawStructTypeDatas.Add(structType); UE_LOG(LogTemp, Log, TEXT("MASUK ADD")); }
+	void AddNewRawStructTypeData(UScriptStruct* structType) { RawStructTypeDatas.Add(structType); }
 	void AddNewRawBufferData(uint8* allocatedMemory) { RawDataBuffers.Add(allocatedMemory); }
 	uint8* GetRawBufferData(const int32 dataID) const
 	{

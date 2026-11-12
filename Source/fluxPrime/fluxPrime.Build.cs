@@ -22,6 +22,10 @@ public class fluxPrime : ModuleRules
 			);
 			
 		
+		// Keep this list limited to modules whose types appear in Public/ headers:
+		// GameplayTagContainer.h, NavigationSystem.h, NavMesh/RecastNavMesh.h,
+		// AnimToTextureDataAsset.h, StructUtils/InstancedStruct.h, Niagara headers,
+		// and FUniqueNetIdRepl (defined in Engine, implemented by CoreOnline).
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -31,12 +35,8 @@ public class fluxPrime : ModuleRules
 				"Navmesh",
 				"AnimToTexture",
 				"StructUtils", 
-				"AITestSuite",
 				"Niagara",
-				"NetCore",
-				"CoreOnline",
-				"OnlineSubsystem"
-				// ... add other public dependencies that you statically link with here ...
+				"CoreOnline"
 			}
 			);
 			
@@ -45,10 +45,7 @@ public class fluxPrime : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
-				// ... add private dependencies that you statically link with here ...	
+				"Engine"
 			}
 			);
 		

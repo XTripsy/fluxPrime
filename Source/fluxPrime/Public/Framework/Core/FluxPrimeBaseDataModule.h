@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Framework/Core/FluxPrimeBaseModule.h"
 #include "Framework/Data/FluxPrimeDataStoreIdentity.h"
 #include "Framework/Data/FluxPrimeIdentityData.h"
@@ -40,7 +41,8 @@ private:
 			dataStore.AddNewRawBufferData(allocatedMemory);
 			dataStore.AddNewRawElementSizes(structSize);
 			
-			UE_LOG(LogTemp, Log, TEXT("DATA :: TAG %s | ALLOCATE %p | INDEX %d"), *pair.DataTag.ToString(), allocatedMemory, index);
+			UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Allocated buffer for tag %s: %p, index %d, %d bytes x %d entities"),
+				*pair.DataTag.ToString(), allocatedMemory, index, structSize, totalEntityCount);
 			index++;
 		}
 	}

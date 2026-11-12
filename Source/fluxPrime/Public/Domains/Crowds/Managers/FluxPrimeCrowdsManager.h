@@ -79,8 +79,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 public:
-	void RequestAction(FInstancedStruct payload);
-	void OnActionChange(FInstancedStruct payload);
+	void RequestAction(const FInstancedStruct& payload);
+	void OnActionChange(const FInstancedStruct& payload);
 	
-	inline TMap<FUniqueNetIdRepl, int32> GetPlayerKillsData() const { return PlayerKillsData; }
+	inline const TMap<FUniqueNetIdRepl, int32>& GetPlayerKillsData() const { return PlayerKillsData; }
 };

@@ -8,7 +8,7 @@
 
 struct FInstancedStruct;
 
-DECLARE_DELEGATE_OneParam(FOnNetManagerActionChange, FInstancedStruct);
+DECLARE_DELEGATE_OneParam(FOnNetManagerActionChange, const FInstancedStruct&);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class FLUXPRIME_API UFluxPrimeNetManager : public UActorComponent
@@ -28,5 +28,5 @@ public:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastActionChange(const FInstancedStruct& payload);
 	
-	void OnActionChange(FInstancedStruct payload);
+	void OnActionChange(const FInstancedStruct& payload);
 };

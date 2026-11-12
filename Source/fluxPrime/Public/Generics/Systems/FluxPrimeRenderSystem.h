@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -96,7 +97,7 @@ public:
 		
 		if (!IsAllDataValid)
 		{
-			UE_LOG(LogTemp, Error, TEXT("RENDER SYSTEM :: SOME DATA NOT VALID"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("RENDER SYSTEM :: data invalid; system skipped"));
 			return;
 		}
 		

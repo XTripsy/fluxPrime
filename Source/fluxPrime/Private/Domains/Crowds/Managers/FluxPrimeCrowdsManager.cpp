@@ -1,7 +1,8 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Domains/Crowds/Managers/FluxPrimeCrowdsManager.h"
+#include "fluxPrime.h"
 
 #include "Engine/AssetManager.h"
 #include "GameFramework/GameStateBase.h"
@@ -68,17 +69,24 @@ void UFluxPrimeCrowdsManager::Initialize()
 		if (UStaticMesh* meshCached = identity->Mesh.Get())
 		{
 			CrowdsMeshSoftRef.Add(identity->Identity, meshCached);
-			UE_LOG(LogTemp, Error, TEXT("SUCESS MESH LOAD"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("Loaded mesh for archetype %s"), *identity->Identity.ToString());
 		}
 
 		if (UFluxPrimeAnimationData* animationCached = identity->AnimationData.Get())
 		{
 			CrowdsAnimationSoftRef.Add(identity->Identity, animationCached);
-			UE_LOG(LogTemp, Error, TEXT("SUCESS ANIM LOAD"));
+			UE_LOG(LogFluxPrime, Verbose, TEXT("Loaded animation for archetype %s"), *identity->Identity.ToString());
 		}
 	}
 	
-	if (CrowdsMeshSoftRef.IsEmpty() || CrowdsAnimationSoftRef.IsEmpty()) return;
+	if (CrowdsMeshSoftRef.IsEmpty() || CrowdsAnimationSoftRef.IsEmpty())
+	{
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Crowds manager %s cannot initialize: no cached mesh (%d) or animation (%d) assets. ")
+			TEXT("Check that UFluxPrimeCrowdsIdentity entries reference loadable assets."),
+			*GetName(), CrowdsMeshSoftRef.Num(), CrowdsAnimationSoftRef.Num());
+		return;
+	}
 	
 	InitializeComponentCrowds();
 	StreamingHandle.Reset();
@@ -209,7 +217,7 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		CrowdsComponents.Add(tempISMC);
 		
 		CrowdsTypes.Add(identity->Identity, i);
-		UE_LOG(LogTemp, Log, TEXT("ENTITY:: Name %s | Type %d"), *identity->Identity.ToString(), i);
+		UE_LOG(LogFluxPrime, Verbose, TEXT("Registered archetype %s at index %d"), *identity->Identity.ToString(), i);
 	}
 }
 
@@ -228,7 +236,7 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 
 	for (APlayerState* pair : playerStates)
 	{
-		UE_LOG(LogTemp, Log, TEXT("TARGET:: CEK STATE"));
+		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Evaluating player state for target registration"));
 		if (!pair) continue;
 		
 		uint16 priorityPawn = 0;
@@ -238,7 +246,7 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		if (UFluxPrimeCrowdsTargetManager* component = pawn->FindComponentByClass<UFluxPrimeCrowdsTargetManager>())
 			priorityPawn = component->GetPriorityTarget();
 		
-		UE_LOG(LogTemp, Log, TEXT("TARGET:: GET PRIORITY"));
+		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Resolved target priority %u"), priorityPawn);
 		
 		if (!pawn) continue;
 		
@@ -252,8 +260,8 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 		CrowdsTarget.Add(catalog);
 		PlayerKillsData.Add(id, 0);
 		
-		UE_LOG(LogTemp, Warning, TEXT("Init ID: %s"), *id.ToString());
-		UE_LOG(LogTemp, Log, TEXT("TARGET:: ADD NEW TARGET"));
+		UE_LOG(LogFluxPrime, Verbose, TEXT("Registered player target id %s"), *id.ToString());
+		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Added target catalog entry for %s"), *id.ToString());
 	}
 }
 
@@ -290,7 +298,7 @@ void UFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UFluxPrimeCrowdsManager::RequestAction(FInstancedStruct payload)
+void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 {
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct())
 	{
@@ -379,7 +387,7 @@ void UFluxPrimeCrowdsManager::RequestAction(FInstancedStruct payload)
 	}
 }
 
-void UFluxPrimeCrowdsManager::OnActionChange(FInstancedStruct payload)
+void UFluxPrimeCrowdsManager::OnActionChange(const FInstancedStruct& payload)
 {
 	if (payload.GetScriptStruct() == FFluxPrimeCrwodsSpawnActionPayload::StaticStruct())
 	{

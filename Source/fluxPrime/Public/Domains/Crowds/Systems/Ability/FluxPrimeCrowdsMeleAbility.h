@@ -1,6 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Generics/Systems/Ability/FluxPrimeBaseAbility.h"
 #include "Kismet/GameplayStatics.h"
 #include "FluxPrimeCrowdsMeleAbility.generated.h"
@@ -70,6 +71,7 @@ public:
 				nullptr,
 				nullptr);
 		
-		UE_LOG(LogTemp, Log, TEXT("ABILITY:: END MELE ATTACK | DAMAGE %f"), damage);
+		UE_LOG(LogFluxPrime, Verbose, TEXT("Melee ability dealt %f damage to %s"), damage,
+			Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null actor"));
 	}
 };
