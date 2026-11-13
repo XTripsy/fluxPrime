@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "StructUtils/InstancedStruct.h"
+#include "Generics/Data/FluxPrimeMeshOrientationConfig.h"
 #include "SystemsConfiguration.generated.h"
 
 /**
@@ -16,6 +17,9 @@ class FLUXPRIME_API USystemsConfiguration : public UPrimaryDataAsset
 	GENERATED_BODY()
 	
 public:
+	UPROPERTY(EditAnywhere, Category = "Mesh Orientation")
+	FFluxPrimeMeshOrientationConfig MeshOrientation;
+
 	UPROPERTY(EditAnywhere, meta=(BaseStruct="FluxPrimeBaseSystem", ExcludeBaseStruct))
 	TArray<FInstancedStruct> SystemFragments;
 };

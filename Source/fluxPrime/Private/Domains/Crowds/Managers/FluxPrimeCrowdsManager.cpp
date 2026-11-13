@@ -269,9 +269,7 @@ void UFluxPrimeCrowdsManager::TickComponent(float DeltaTime, ELevelTick TickType
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
-#if IF_WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Manager);
-#endif
 	
 	if (CrowdsComponents.IsEmpty()) return;
 	

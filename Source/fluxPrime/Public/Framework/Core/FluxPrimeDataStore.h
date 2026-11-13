@@ -12,7 +12,6 @@ private:
 	TArray<UScriptStruct*> RawStructTypeDatas;
 	TArray<uint8*> RawDataBuffers;
 	TArray<int32> RawElementSizes;
-	TArray<int32> EntityLookup;
 	TArray<FGameplayTag> DataID;
 	
 public:
@@ -30,7 +29,6 @@ public:
 		
 		RawDataBuffers.Empty();
 		RawElementSizes.Empty();
-		EntityLookup.Empty();
 		DataID.Empty();
 	}
 	
@@ -92,7 +90,5 @@ public:
 	}
 	void AddNewRawElementSizes(int32 elementSizes) { RawElementSizes.Add(elementSizes); }
 	
-	void InitializedLookUp(int32 countLookUpData) { EntityLookup.Init(0, countLookUpData); }
-	void UpdateLookUpValue(int32 indexLookUp, int32 valueLookUp) { EntityLookup[indexLookUp] = valueLookUp; }
-	int32 GetIndexDataLookUp(int32 entityId) const { return EntityLookup[entityId]; };
+	// Rows address the current active prefix, not stable entity handles.
 };

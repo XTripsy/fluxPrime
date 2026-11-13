@@ -105,6 +105,11 @@ private:
 	UPROPERTY(EditAnywhere)
 	FNavigationSystemDataTagConfig DataTagConfig;
 
+	UPROPERTY(EditAnywhere, Category = "Navigation", meta = (ClampMin = "0", Units = "cm"))
+	float ArrivalRadius = 60.0f;
+	UPROPERTY(EditAnywhere, Category = "Navigation", meta = (ClampMin = "0"))
+	float ArrivalSizeMultiplier = 1.5f;
+
 	TArray<int16> EntityDataCurrentLocationID, EntityDataPreviousLocationID, EntityDataSizeID, EntityDataCellIdID, EntityDataCorridorsID, EntityDataTargetLocationID, EntityDataCurrentWaypointLocationID, EntityDataLastReplanLocationID, EntityDataLastMoveLocationID, EntityDataWaitTimeID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataNeedReplanID, EntityDataWaypointsID, EntityDataCountWaypointsID;
 	TArray<FFluxPrimeNavigationDataRequest> EntityPathQueue;
 	TArray<FFluxPrimeNavigationDataRequest> EntityCorridorQueue;
@@ -239,7 +244,7 @@ public:
 				
 				entityDataWaitTime[i].ValueFloat += deltaTime;
 
-				const float arrivalRadiusSq = FMath::Square(FMath::Max(60.0f, entityDataSize[i].ValueInt16 * 1.5f));
+				const float arrivalRadiusSq = FMath::Square(FMath::Max(ArrivalRadius, entityDataSize[i].ValueInt16 * ArrivalSizeMultiplier));
 				const float distToWaypointSq = FVector::DistSquaredXY(entityDataCurrentLocation[i], entityDataCurrentTargetLocation[i]);
 				const bool bReachedCurrentWaypoint = (distToWaypointSq <= arrivalRadiusSq);
 
@@ -307,8 +312,7 @@ public:
 		
 		int32 indexInternalData = 0;
 		
-		if (countPathQueue > 1)
-			Algo::Sort(TArrayView<FFluxPrimeNavigationDataRequest>(EntityPathQueue.GetData(), countPathQueue));
+		if (countPathQueue > 1) Algo::Sort(TArrayView<FFluxPrimeNavigationDataRequest>(EntityPathQueue.GetData(), countPathQueue));
 
 		int32 queuePathLimit = FMath::Min(QueuePathCountPerFrame, countPathQueue);
 		for (int i = 0; i < queuePathLimit; ++i)

@@ -105,6 +105,9 @@ private:
 	
 	UPROPERTY(EditAnywhere)
 	FAnimationSystemDataTagConfig DataTagConfig;
+
+	UPROPERTY(EditAnywhere, Category = "Animation", meta = (ClampMin = "0.001"))
+	float SourceFrameRate = 30.0f;
 	
 	TArray<int16> EntityDataIdID, EntityDataStateID, EntityDataAnimStateID, EntityDataStartTimeAnimID, EntityDataPreviousFrameAnimID, EntityDataCellIdID, EntityDataTargetLocationID, EntityDataRequestAnimationNotifyID, EntityDataRequestSyncAnimationID;
 	
@@ -179,7 +182,7 @@ private:
 		float endFrame = RuntimeAnimationMapping[crowdType].AnimationEnd[animationState];
 		
 		float localAnimTime = realTime - startTimeAnimation;
-		float realTimeFrames = localAnimTime * 30.0f;
+		float realTimeFrames = localAnimTime * SourceFrameRate;
 		float reminder = FMath::Fmod(realTimeFrames, (endFrame - startFrame) + 1.0f);
 		float current = startFrame + reminder;
 		

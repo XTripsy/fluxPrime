@@ -9,6 +9,7 @@
 #include "Domains/Crowds/Systems/Ability/FluxPrimeCrowdsProjectileAbility.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Generics/Data/FluxPrimeMeshOrientationConfig.h"
 #include "FluxPrimeCrowdsAbilitySystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -57,9 +58,11 @@ struct FFluxPrimeCrowdsAbilitySystem : public FFluxPrimeBaseAbilitySystem
 public:
 	UPROPERTY(EditAnywhere)
 	FAbilitySystemDataTagConfig DataTagConfig;
+
+	const FFluxPrimeMeshOrientationConfig* MeshOrientation = &FFluxPrimeMeshOrientationConfig::Default();
 	
 	TArray<float> DamageMapping;
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataTypeID, EntityDataRequestAbilityID;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataRequestAbilityID;
 	
 private:
 	void RegisterAbilityExecutors(const FFluxPrimeCrowdsAbilitySystemsContext& context)
@@ -189,7 +192,7 @@ public:
 
 				check(executor.Execute != nullptr);
 
-				rotationEntity = FRotator(0, entityDataRotation[i].Yaw + 85.0f, 0);
+				rotationEntity = FRotator(0, MeshOrientation->ToTravelYaw(entityDataRotation[i].Yaw), 0);
 				executor.Execute(
 					*executor.Data,
 					entityDataLocation[i],

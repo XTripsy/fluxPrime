@@ -53,7 +53,7 @@ public:
 	UPROPERTY(EditAnywhere)
 	FRenderSystemDataTagConfig DataTagConfig;
 	
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataIdID, EntityDataTypeID;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataIdID;
 
 private:
 	void InitializedTransformData(const TArray<uint16>* catalogTotal)
@@ -123,8 +123,8 @@ public:
 
 				FTransform transform;
 				transform.SetLocation(entityDataLocation[i]);
-				FRotator Rot(0.0f, entityDataRotation[i].Yaw, 0.0f);
-				transform.SetRotation(Rot.Quaternion());
+				FRotator rot(0.0f, entityDataRotation[i].Yaw, 0.0f);
+				transform.SetRotation(rot.Quaternion());
 				TransformsPerComponent[indexDataID][i] = transform;
 			}
 

@@ -7,8 +7,6 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeGroundHeightSystem.generated.h"
 
-#define ECC_GroundHeight ECC_GameTraceChannel1
-
 USTRUCT(BlueprintType)
 struct FGroundHeightSystemDataTagConfig
 {
@@ -56,6 +54,9 @@ private:
 	UPROPERTY(EditAnywhere)
 	float CellSize = 100.0f;
 
+	UPROPERTY(EditAnywhere, Category = "Ground Trace")
+	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_GameTraceChannel1;
+
 	UPROPERTY(EditAnywhere)
 	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f); 
 
@@ -77,10 +78,7 @@ private:
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "16"))
 	int32 MaxFloorsPerCell = 1;
 	
-	UPROPERTY()
 	TArray<float> GroundHeightMap;
-
-	UPROPERTY()
 	TArray<uint8> CellFloorCounts;
 	
 private:
@@ -120,7 +118,7 @@ private:
 					FVector rayEnd(worldX, worldY, minWorldZ);
 
 					FHitResult hitResult;
-					bool bHit = world->LineTraceSingleByChannel(hitResult, rayStart, rayEnd, ECC_GroundHeight, traceParams);
+					bool bHit = world->LineTraceSingleByChannel(hitResult, rayStart, rayEnd, TraceChannel, traceParams);
 
 					if (!bHit) break;
 

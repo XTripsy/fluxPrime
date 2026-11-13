@@ -44,11 +44,6 @@ private:
 	TArray<int16> EntityDataConditionAliveID, EntityDataRequestBackToPoolID, EntityDataIdID, EntityDataRequestSyncAnimationID;
 	
 private:
-	void UpdateLookUpData(FFluxPrimeArchetypeDataStore& dataStore, int32 indexLookUpData, int32 newIndexLookUpDaata)
-	{
-		dataStore.UpdateLookUpValue(indexLookUpData, newIndexLookUpDaata);
-	}
-	
 	void SwapCrowdsData(FFluxPrimeArchetypeDataStore& dataStore, int32 currentIndex, int32 lastIndex)
 	{
 		if (currentIndex < 0 || lastIndex < 0) return;
@@ -105,8 +100,6 @@ public:
 				if (!entityDataConditionAlive[index].ValueBool && entityDataRequestBackToPool[index].ValueBool)
 				{
 					SwapCrowdsData(dataStore, index, lastIndex);
-					UpdateLookUpData(dataStore, index, lastIndex);
-					UpdateLookUpData(dataStore, lastIndex, index);
 					entityDataRequestSyncAnimation[index].ValueBool = true;
 					--lastIndex;
 				}

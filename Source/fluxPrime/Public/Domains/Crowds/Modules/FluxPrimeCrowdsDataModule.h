@@ -76,9 +76,7 @@ public:
 			auto& dataStore = dataStores[i];
 			
 			InitializedData(entityCatalog[i], dataStore, context.hasAuthority);
-		
-			dataStore.InitializedLookUp(dataStore.GetTotalEntityCount());
-		
+			
 			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
 			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
 			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
@@ -103,8 +101,6 @@ public:
 				entityDataRotation[i] = FRotator::ZeroRotator;
 				entityDataID[j].ValueInt16 = id;
 				entityDataSize[j].ValueInt16 = size;
-				
-				dataStore.UpdateLookUpValue(id, j);
 			}
 		}
 	}

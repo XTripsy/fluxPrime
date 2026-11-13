@@ -15,6 +15,9 @@ protected:
 	
 	int32 NotifyID = INDEX_NONE;
 	bool IsAllDataValid = true;
+
+public:
+	bool CanSkipEmptyRequest() const { return IsAllDataValid && NotifyID != INDEX_NONE; }
 	
 protected:
 	void TryInitializedData(FFluxPrimeArchetypeDataStore& dataStore, FFluxPrimeDataConfig dataConfig, int16& dataID)

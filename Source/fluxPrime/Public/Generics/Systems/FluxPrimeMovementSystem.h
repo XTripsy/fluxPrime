@@ -6,6 +6,7 @@
 #include "Framework/Data/Wrapper/FluxPrimeWrapperFloat.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Generics/Data/FluxPrimeMeshOrientationConfig.h"
 #include "FluxPrimeMovementSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -50,6 +51,17 @@ struct FFluxPrimeMovementSystem : public FFluxPrimeBaseSystem
 public:
 	UPROPERTY(EditAnywhere)
 	FMovementSystemDataTagConfig DataTagConfig;
+
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
+	float SteeringResponsiveness = 8.0f;
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0.001", Units = "Degrees"))
+	float SlowdownAngleDegrees = 120.0f;
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0", ClampMax = "1"))
+	float MinMoveFactor = 0.25f;
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
+	float VelocityOverspeedFactor = 1.2f;
+
+	const FFluxPrimeMeshOrientationConfig* MeshOrientation = &FFluxPrimeMeshOrientationConfig::Default();
 
 	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataAccelerationID, EntityDataVelocityID, EntityDataCurrentWaypointID, EntityDataMaxSpeedID;
 	
@@ -116,21 +128,20 @@ public:
 				dir.Normalize();
 
 				if (!dir.IsNearlyZero())
-				{	
-					// perlu di ubah
-					float targetYaw = dir.Rotation().Yaw - 85.0f;
+				{
+					float targetYaw = MeshOrientation->ToMeshYaw(dir.Rotation().Yaw);
 					float deltaYaw = FMath::FindDeltaAngleDegrees(entityDataRotation[i].Yaw, targetYaw);
 					entityDataRotation[i].Yaw += FMath::Clamp(deltaYaw, -360 * deltaTime, 360 * deltaTime);
 					float angleError = FMath::Abs(FMath::FindDeltaAngleDegrees(entityDataRotation[i].Yaw, targetYaw));
 					
-					float moveFactor = FMath::GetMappedRangeValueClamped(FVector2D(120.f, 0.f), FVector2D(0.25f, 1.0f), angleError);
+					float moveFactor = FMath::GetMappedRangeValueClamped(FVector2D(SlowdownAngleDegrees, 0.f), FVector2D(MinMoveFactor, 1.0f), angleError);
 					FVector desiredVelocity = dir * entityDataMaxSpeed[i].ValueFloat * moveFactor;
 					FVector avoidanceVelocity = entityDataAcceleration[i];
 					FVector finalDesiredVelocity = desiredVelocity + avoidanceVelocity;
 					
-					const float alpha = FMath::Clamp(8.0f * deltaTime, 0.f, 1.f);
+					const float alpha = FMath::Clamp(SteeringResponsiveness * deltaTime, 0.f, 1.f);
 					entityDataVelocity[i] += (finalDesiredVelocity - entityDataVelocity[i]) * alpha;
-					entityDataVelocity[i] = entityDataVelocity[i].GetClampedToMaxSize(entityDataMaxSpeed[i].ValueFloat * 1.2f);
+					entityDataVelocity[i] = entityDataVelocity[i].GetClampedToMaxSize(entityDataMaxSpeed[i].ValueFloat * VelocityOverspeedFactor);
 					
 					entityDataLocation[i] += entityDataVelocity[i] * deltaTime;
 				}

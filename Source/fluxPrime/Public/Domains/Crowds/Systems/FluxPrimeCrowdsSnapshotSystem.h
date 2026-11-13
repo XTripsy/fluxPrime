@@ -170,11 +170,13 @@ public:
 			for (auto& pair : pairData)
 			{
 				if (pair.CrowdType < 0 || pair.CrowdIndex < 0) continue;
-			
+				
 				FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
 				FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
 				FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
 			
+				if (pair.CrowdType != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE RECEIVE %d | LOCATION RECEIVE %s"), pair.CrowdType, *entityDataCurrentWaypointLocation[pair.CrowdIndex].ToString());
+				
 				check(entityDataCurrentWaypointLocation);
 				check(entityDataState);
 				check(entityDataConditionAlive);
@@ -194,6 +196,7 @@ public:
 			
 			for (int i = 0; i < pairData.Num(); ++i)
 			{
+				if (i != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: ACTIVE RECEIVE %d"), pairData[i]);
 				dataStores[i].SetActiveEntityCount(pairData[i]);
 			}
 		}
@@ -278,6 +281,8 @@ public:
 				snapshotData[indexEntityData].CrowdState = entityDataState[i].ValueInt8;
 				snapshotData[indexEntityData].CrowdConditionAlive = entityDataConditionAlive[i].ValueBool;
 				snapshotData[indexEntityData].CrowdNewWaypointLocation = entityDataLocation[i];
+				
+				if (indexDataID != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE SEND %d | LOCATION SEND %s"), indexDataID, *entityDataLocation[i].ToString());
 				
 				if (indexEntityData >= MaxBandwidthBuffer-1)
 				{

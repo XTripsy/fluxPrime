@@ -181,6 +181,13 @@ public:
 		for (int i = 0; i < SystemFragments.Num(); ++i)
 		{
 			FInstancedStruct& fragment = SystemFragments[i];
+			// All three consumers share the same asset-owned orientation for this module's lifetime.
+			if (auto* Movement = fragment.GetMutablePtr<FFluxPrimeMovementSystem>())
+				Movement->MeshOrientation = &SystemsConfiguration->MeshOrientation;
+			if (auto* Interpolation = fragment.GetMutablePtr<FFluxPrimeVisualInterpolationSystem>())
+				Interpolation->MeshOrientation = &SystemsConfiguration->MeshOrientation;
+			if (auto* Ability = fragment.GetMutablePtr<FFluxPrimeCrowdsAbilitySystem>())
+				Ability->MeshOrientation = &SystemsConfiguration->MeshOrientation;
 			
 			if (auto* pairSystem = fragment.GetPtr<FFluxPrimeCrowdsAbilitySystem>())
 			{

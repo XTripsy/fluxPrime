@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Generics/Data/FluxPrimeMeshOrientationConfig.h"
 #include "FluxPrimeVisualInterpolationSystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -35,6 +36,8 @@ struct FFluxPrimeVisualInterpolationSystem : public FFluxPrimeBaseSystem
 public:
 	UPROPERTY(EditAnywhere)
 	FVisualInterpolationSystemDataTagConfig DataTagConfig;
+
+	const FFluxPrimeMeshOrientationConfig* MeshOrientation = &FFluxPrimeMeshOrientationConfig::Default();
 	
 	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataCurrentWaypointLocationID;
 	
@@ -46,7 +49,7 @@ private:
 
 		if (!direction.IsNearlyZero())
 		{
-			float targetYaw = direction.Rotation().Yaw - 85.0f;
+			float targetYaw = MeshOrientation->ToMeshYaw(direction.Rotation().Yaw);
 			FRotator targetRotation = currentRotation;
 			targetRotation.Yaw = targetYaw;
 			currentRotation = FMath::RInterpTo(currentRotation, targetRotation, deltaTime, 10.0f);
@@ -69,7 +72,7 @@ public:
 			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[indexDataId]);
-			indexDataId = 0;
+			indexDataId++;
 		}
 	}
 	
@@ -96,6 +99,7 @@ public:
 			
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
+				if (indexDataID != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: VISUAL INTERPOLATION SYSTEM :: TYPE RECEIVE %d | LOCATION RECEIVE %s"), indexDataID, *entityDataCurrentWaypointLocation[i].ToString());
 				VisualInterpolation(deltaTime, entityDataLocation[i], entityDataRotation[i], entityDataCurrentWaypointLocation[i]);
 			}
 			

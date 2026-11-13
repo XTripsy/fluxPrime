@@ -25,6 +25,15 @@ private:
 	TObjectPtr<UWorld> World;
 	
 public:
+	UPROPERTY(EditAnywhere, Category = "Melee", meta = (ClampMin = "0", Units = "cm"))
+	float TraceForwardDistance = 200.0f;
+	UPROPERTY(EditAnywhere, Category = "Melee", meta = (ClampMin = "0", Units = "cm"))
+	float TraceSphereRadius = 50.0f;
+	UPROPERTY(EditAnywhere, Category = "Melee", meta = (Units = "cm"))
+	float TraceHeightOffset = 75.0f;
+	UPROPERTY(EditAnywhere, Category = "Melee")
+	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
+
 	void InitializedMeleAbilitySystems(FFluxPrimeCrowdsMeleAbilitySystemsContext context)
 	{
 		check(context.world);
@@ -34,22 +43,22 @@ public:
 	
 	void Execute(FVector location, FRotator rotation, float damage)
 	{
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(AbilityMeleTrace), false);
+		FCollisionQueryParams params(SCENE_QUERY_STAT(AbilityMeleTrace), false);
 
-		FHitResult Hit;
+		FHitResult hit;
 		const FVector forward = rotation.Vector();
 
-		const FVector start = location + FVector::UpVector * 75;
-		const FVector end   = start + forward * 200.0f;
+		const FVector start = location + FVector::UpVector * TraceHeightOffset;
+		const FVector end   = start + forward * TraceForwardDistance;
 
 		const bool bHit = World->SweepSingleByChannel(
-			Hit,
+			hit,
 			start,
 			end,
 			FQuat::Identity,
-			ECC_Pawn,
-			FCollisionShape::MakeSphere(50.0f),
-			Params
+			TraceChannel,
+			FCollisionShape::MakeSphere(TraceSphereRadius),
+			params
 		);
 
 		if (!bHit) return;
@@ -57,7 +66,7 @@ public:
 		DrawDebugSphere(
 			World,
 			end,
-			50.0f,
+			TraceSphereRadius,
 			16,
 			FColor::Yellow,
 			false,
@@ -65,13 +74,13 @@ public:
 		);
 		
 		UGameplayStatics::ApplyDamage(
-				Hit.GetActor(),
+				hit.GetActor(),
 				damage,
 				nullptr,
 				nullptr,
 				nullptr);
 		
 		UE_LOG(LogFluxPrime, Verbose, TEXT("Melee ability dealt %f damage to %s"), damage,
-			Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("null actor"));
+			hit.GetActor() ? *hit.GetActor()->GetName() : TEXT("null actor"));
 	}
 };
