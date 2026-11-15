@@ -5,7 +5,19 @@
 #include "Domains/Crowds/Data/FluxPrimeCrowdsConfigData.h"
 #include "FluxPrimeNavigationData.generated.h"
 
-// ini perlu di ubah
+namespace FluxNavigationConfig
+{
+	/** Ceiling for the scheduling score so the float priority stays finite and comparable. */
+	constexpr float MaxPriorityScore = 1.0e6f;
+	/**
+	 * Longest accumulated wait used for scheduling, in seconds. Ten minutes keeps every
+	 * starvation case ordered without letting the score grow without bound.
+	 */
+	constexpr float MaxWaitTime = 600.0f;
+	/** Points per second of accumulated wait, matching the historical 10x weighting. */
+	constexpr float WaitTimeScoreScale = 10.0f;
+}
+
 USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsWaypoint
 {
@@ -46,11 +58,13 @@ struct FFluxPrimeNavigationTask
 
 struct FFluxPrimeNavigationDataRequest
 {
-	uint8 PriorityScore;
-	int16 DataStoreIndex;
-	int32 InternalIndex;
+	/** Scheduling score. Higher wins; see operator<. */
+	float PriorityScore = 0.0f;
+	int16 DataStoreIndex = 0;
+	int32 InternalIndex = 0;
 	FFluxPrimeNavigationTask DataTask;
-    
+
+	/** Ascending sort puts the highest priority score first. */
 	bool operator<(const FFluxPrimeNavigationDataRequest& Other) const
 	{
 		return PriorityScore > Other.PriorityScore;

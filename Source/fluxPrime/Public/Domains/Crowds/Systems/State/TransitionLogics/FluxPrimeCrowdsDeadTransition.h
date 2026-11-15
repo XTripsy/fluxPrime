@@ -34,6 +34,8 @@ private:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		EntityDataHealthID.Reset();
+
 		for (auto& dataStore : dataStores)
 		{
 			EntityDataHealthID.Add(dataStore.GetDataID(DataTagConfig.EntityDataHealthTag));

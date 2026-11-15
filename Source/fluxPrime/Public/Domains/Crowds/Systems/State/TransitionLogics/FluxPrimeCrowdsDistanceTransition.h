@@ -54,6 +54,9 @@ public:
 public:
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
+		EntityDataLocationID.Reset();
+		EntityDataTargetLocationID.Reset();
+
 		for (auto& dataStore : dataStores)
 		{
 			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));

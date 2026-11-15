@@ -23,8 +23,90 @@ UFluxPrimeCrowdsManager::UFluxPrimeCrowdsManager()
 	SetIsReplicatedByDefault(false);
 }
 
+bool UFluxPrimeCrowdsManager::ValidateAndResolveConfiguration()
+{
+	ResolvedCrowdIdentities.Reset();
+
+	if (!ManagerConfiguration)
+	{
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Crowds manager %s cannot initialize: ManagerConfiguration is not set."), *GetName());
+		return false;
+	}
+
+	if (!EntityCatalogIdentity)
+	{
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Crowds manager %s cannot initialize: EntityCatalogIdentity is not set."), *GetName());
+		return false;
+	}
+
+	const TArray<FFluxPrimeArchetypeEntityCatalog>& catalog = EntityCatalogIdentity->ArchetypeEntityCatalog;
+
+	if (catalog.IsEmpty())
+	{
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Crowds manager %s cannot initialize: the entity catalog is empty."), *GetName());
+		return false;
+	}
+
+	ResolvedCrowdIdentities.Reserve(catalog.Num());
+
+	TSet<FName> resolvedNames;
+	resolvedNames.Reserve(catalog.Num());
+
+	for (int32 index = 0; index < catalog.Num(); ++index)
+	{
+		UFluxPrimeBaseIdentity* baseIdentity = catalog[index].EntityIdentity;
+		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(baseIdentity);
+
+		if (!identity)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds manager %s cannot initialize: catalog index %d holds %s, expected UFluxPrimeCrowdsIdentity."),
+				*GetName(), index, baseIdentity ? *baseIdentity->GetClass()->GetName() : TEXT("null"));
+			ResolvedCrowdIdentities.Reset();
+			return false;
+		}
+
+		if (identity->Identity.IsNone())
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds manager %s cannot initialize: catalog index %d (%s) has an empty Identity name."),
+				*GetName(), index, *identity->GetName());
+			ResolvedCrowdIdentities.Reset();
+			return false;
+		}
+
+		if (resolvedNames.Contains(identity->Identity))
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds manager %s cannot initialize: catalog index %d repeats identity name '%s'."),
+				*GetName(), index, *identity->Identity.ToString());
+			ResolvedCrowdIdentities.Reset();
+			return false;
+		}
+
+		if (!identity->StateIdentity)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds manager %s cannot initialize: identity '%s' (catalog index %d) has no StateIdentity."),
+				*GetName(), *identity->Identity.ToString(), index);
+			ResolvedCrowdIdentities.Reset();
+			return false;
+		}
+
+		resolvedNames.Add(identity->Identity);
+		ResolvedCrowdIdentities.Add(identity);
+	}
+
+	return true;
+}
+
 void UFluxPrimeCrowdsManager::PreLoading()
 {
+	if (!ValidateAndResolveConfiguration()) return;
+
 #if WITH_EDITOR
 	
 	{
@@ -38,10 +120,8 @@ void UFluxPrimeCrowdsManager::PreLoading()
 	
 	TArray<FSoftObjectPath> pathsToLoad;
 
-	for (int i = 0; i < EntityCatalogIdentity->ArchetypeEntityCatalog.Num(); ++i)
+	for (UFluxPrimeCrowdsIdentity* identity : ResolvedCrowdIdentities)
 	{
-		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
-		
 		if (identity->Mesh.IsPending()) pathsToLoad.Add(identity->Mesh.ToSoftObjectPath());
    
 		if (identity->AnimationData.IsPending()) pathsToLoad.Add(identity->AnimationData.ToSoftObjectPath());
@@ -60,16 +140,25 @@ void UFluxPrimeCrowdsManager::PreLoading()
 
 void UFluxPrimeCrowdsManager::Initialize()
 {
-	int32 entityCatalogCount = EntityCatalogIdentity->ArchetypeEntityCatalog.Num();
-	
+	const int32 entityCatalogCount = ResolvedCrowdIdentities.Num();
+
+	CrowdsMeshSoftRef.Reset();
+	CrowdsAnimationSoftRef.Reset();
+
+	TArray<FString> missingAssets;
+
 	for (int i = 0; i < entityCatalogCount; ++i)
 	{
-		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
+		UFluxPrimeCrowdsIdentity* identity = ResolvedCrowdIdentities[i];
 		
 		if (UStaticMesh* meshCached = identity->Mesh.Get())
 		{
 			CrowdsMeshSoftRef.Add(identity->Identity, meshCached);
 			UE_LOG(LogFluxPrime, Verbose, TEXT("Loaded mesh for archetype %s"), *identity->Identity.ToString());
+		}
+		else
+		{
+			missingAssets.Add(FString::Printf(TEXT("mesh '%s'"), *identity->Identity.ToString()));
 		}
 
 		if (UFluxPrimeAnimationData* animationCached = identity->AnimationData.Get())
@@ -77,33 +166,44 @@ void UFluxPrimeCrowdsManager::Initialize()
 			CrowdsAnimationSoftRef.Add(identity->Identity, animationCached);
 			UE_LOG(LogFluxPrime, Verbose, TEXT("Loaded animation for archetype %s"), *identity->Identity.ToString());
 		}
+		else
+		{
+			missingAssets.Add(FString::Printf(TEXT("animation '%s'"), *identity->Identity.ToString()));
+		}
 	}
 	
-	if (CrowdsMeshSoftRef.IsEmpty() || CrowdsAnimationSoftRef.IsEmpty())
+	if (!missingAssets.IsEmpty())
 	{
 		UE_LOG(LogFluxPrime, Error,
-			TEXT("Crowds manager %s cannot initialize: no cached mesh (%d) or animation (%d) assets. ")
-			TEXT("Check that UFluxPrimeCrowdsIdentity entries reference loadable assets."),
-			*GetName(), CrowdsMeshSoftRef.Num(), CrowdsAnimationSoftRef.Num());
+			TEXT("Crowds manager %s cannot initialize: missing assets for %s. ")
+			TEXT("Check that every UFluxPrimeCrowdsIdentity entry references loadable mesh and animation assets."),
+			*GetName(), *FString::Join(missingAssets, TEXT(", ")));
 		return;
 	}
 	
 	InitializeComponentCrowds();
 	StreamingHandle.Reset();
+
+	ResolvedAnimationData.Reset();
+	ResolvedAnimationData.Reserve(entityCatalogCount);
+
+	for (int i = 0; i < entityCatalogCount; ++i)
+	{
+		UFluxPrimeCrowdsIdentity* identity = ResolvedCrowdIdentities[i];
+		ResolvedAnimationData.Add(CrowdsAnimationSoftRef.FindChecked(identity->Identity).Get());
+	}
 	
 	for (int i = 0; i < entityCatalogCount; ++i)
 	{
-		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
+		UFluxPrimeCrowdsIdentity* identity = ResolvedCrowdIdentities[i];
 		
 		for (auto& pairState : identity->StateIdentity->StateData)
 		{
 			RegisterStateID(pairState.IdentityState);
 		}
 		
-		if (CrowdsAnimationSoftRef.Contains(identity->Identity))
+		if (UFluxPrimeAnimationData* dataAnim = CrowdsAnimationSoftRef.FindChecked(identity->Identity).Get())
 		{
-			UFluxPrimeAnimationData* dataAnim = CrowdsAnimationSoftRef[identity->Identity].Get();
-
 			for (auto& pairAnimation : dataAnim->DataAnimations)
 			{
 				for (auto& pairNotify : pairAnimation.AnimationNotifies)
@@ -119,6 +219,12 @@ void UFluxPrimeCrowdsManager::Initialize()
 
 void UFluxPrimeCrowdsManager::InitializedModules()
 {
+	if (!ModuleFragments)
+	{
+		UE_LOG(LogFluxPrime, Error, TEXT("Crowds manager %s cannot initialize modules: no module configuration."), *GetName());
+		return;
+	}
+
 	auto& moduleFragments = *ModuleFragments;
 	
 	InitializedModule(moduleFragments.Num());
@@ -141,6 +247,7 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 			FModuleExecutor& Executor = GetModuleExecutor(executorIndex);
 			FFluxPrimeCrowdsDataModule& module = Executor.Data->GetMutable<FFluxPrimeCrowdsDataModule>();
 			module.Initialized(context);
+			if (!module.IsAllDataValid) return;
 			continue;
 		}
 		
@@ -153,8 +260,9 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 		
 			context.world = GetWorld();
 			context.crowdsComponents = &CrowdsComponents;
-			context.entityCatalog = &EntityCatalogIdentity->ArchetypeEntityCatalog;;
-			context.crowdsAnimationSoftRef = &CrowdsAnimationSoftRef;
+			context.entityCatalog = &EntityCatalogIdentity->ArchetypeEntityCatalog;
+			context.resolvedIdentities = &ResolvedCrowdIdentities;
+			context.resolvedAnimationData = &ResolvedAnimationData;
 			context.hasAuthority = GetOwner()->HasAuthority();
 			
 			context.onCrowdsManagerActionChange = &OnCrowdsManagerActionChange;
@@ -183,17 +291,43 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 			
 			FModuleExecutor& Executor = GetModuleExecutor(executorIndex);
 			FFluxPrimeCrowdsSpawnerModule& module = Executor.Data->GetMutable<FFluxPrimeCrowdsSpawnerModule>();
-			module.Initialized(DataStores);
+			module.Initialized(DataStores, GetOwner()->HasAuthority());
 			continue;
 		}
+	}
+
+	if (CrowdsDataModuleIndex == INDEX_NONE)
+	{
+		UE_LOG(LogFluxPrime, Error, TEXT("Crowds manager %s has no data module; no buffers will be registered."), *GetName());
+	}
+
+	if (CrowdsSystemModuleIndex == INDEX_NONE)
+	{
+		UE_LOG(LogFluxPrime, Error, TEXT("Crowds manager %s has no systems module; no systems will run."), *GetName());
+	}
+
+	if (CrowdsSpawnerModuleIndex == INDEX_NONE)
+	{
+		UE_LOG(LogFluxPrime, Error, TEXT("Crowds manager %s has no spawner module; spawn requests will be ignored."), *GetName());
 	}
 }
 
 void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 {	
-	for (int i = 0; i < EntityCatalogIdentity->ArchetypeEntityCatalog.Num(); ++i)
+	for (int i = 0; i < ResolvedCrowdIdentities.Num(); ++i)
 	{
-		UFluxPrimeCrowdsIdentity* identity = Cast<UFluxPrimeCrowdsIdentity>(EntityCatalogIdentity->ArchetypeEntityCatalog[i].EntityIdentity);
+		UFluxPrimeCrowdsIdentity* identity = ResolvedCrowdIdentities[i];
+		if (!identity) continue;
+
+		const TSoftObjectPtr<UStaticMesh>* foundMesh = CrowdsMeshSoftRef.Find(identity->Identity);
+		if (!foundMesh || !foundMesh->IsValid())
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds manager %s skipped archetype '%s': no loaded static mesh."),
+				*GetName(), *identity->Identity.ToString());
+			continue;
+		}
+
 		FName name = identity->Identity;
     		
 		FAttachmentTransformRules AttachRules(
@@ -205,7 +339,7 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		
 		UInstancedStaticMeshComponent* tempISMC = NewObject<UInstancedStaticMeshComponent>(GetOwner(), name);
 		tempISMC->SetIsReplicated(false);
-		tempISMC->SetStaticMesh(CrowdsMeshSoftRef[identity->Identity].Get());
+		tempISMC->SetStaticMesh(foundMesh->Get());
 		tempISMC->AttachToComponent(GetOwner()->GetRootComponent(), AttachRules);
 		tempISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		tempISMC->ClearInstances();
@@ -223,7 +357,22 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 
 void UFluxPrimeCrowdsManager::InitializedPlayer()
 {
-	AGameStateBase* gameState = GetWorld()->GetGameState<AGameStateBase>();
+	UWorld* world = GetWorld();
+	if (!world)
+	{
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Crowds manager %s cannot register targets: no world."), *GetName());
+		return;
+	}
+
+	AGameStateBase* gameState = world->GetGameState<AGameStateBase>();
+	if (!gameState)
+	{
+		UE_LOG(LogFluxPrime, Warning,
+			TEXT("Crowds manager %s cannot register targets yet: no game state. Call InitializedPlayer after the game state exists."),
+			*GetName());
+		return;
+	}
 
 	TArray<APlayerState*> playerStates = gameState->PlayerArray;
 
@@ -237,18 +386,16 @@ void UFluxPrimeCrowdsManager::InitializedPlayer()
 	for (APlayerState* pair : playerStates)
 	{
 		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Evaluating player state for target registration"));
-		if (!pair) continue;
-		
-		uint16 priorityPawn = 0;
-		APawn* pawn = pair->GetPawn();
 		if (!IsValid(pair)) continue;
-		
+
+		APawn* pawn = pair->GetPawn();
+		if (!pawn) continue;
+
+		uint16 priorityPawn = 0;
 		if (UFluxPrimeCrowdsTargetManager* component = pawn->FindComponentByClass<UFluxPrimeCrowdsTargetManager>())
 			priorityPawn = component->GetPriorityTarget();
 		
 		UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Resolved target priority %u"), priorityPawn);
-		
-		if (!pawn) continue;
 		
 		FUniqueNetIdRepl id = pair->GetUniqueId();
 
@@ -301,10 +448,10 @@ void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct())
 	{
 		const FFluxPrimeCrowdsSpawnPayload* pair = payload.GetPtr<FFluxPrimeCrowdsSpawnPayload>();
-		
-		if (!ModuleFragments || !ModuleFragments->IsValidIndex(CrowdsSpawnerModuleIndex)) return;
+		if (!pair) return;
 
-		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
+		FFluxPrimeCrowdsSpawnerModule* spawnerModule = FindModule<FFluxPrimeCrowdsSpawnerModule>(CrowdsSpawnerModuleIndex);
+		if (!spawnerModule) return;
 
 		FFluxPrimeCrowdsSpawnerComponentContext context;
 		context.crowdsTypes = &CrowdsTypes;
@@ -326,7 +473,7 @@ void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 			listSpawnLocation.Add(resultLocation);
 		
 			context.location = resultLocation;
-			spawnerModule.SpawnCrowd(context);
+			spawnerModule->SpawnCrowd(context);
 		}
 	
 		FFluxPrimeCrwodsSpawnActionPayload data;
@@ -341,11 +488,13 @@ void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsShootRayPayload::StaticStruct())
 	{
 		const FFluxPrimeCrowdsShootRayPayload* pair = payload.GetPtr<FFluxPrimeCrowdsShootRayPayload>();
-		
-		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
+		if (!pair) return;
 
-		auto* raycastSystem = systemsModule.GetSystem<FFluxPrimeRaycastSystem>();
-		auto* healthSystem = systemsModule.GetSystem<FFluxPrimeHealthSystem>();
+		FFluxPrimeCrowdsSystemsModule* systemsModule = FindModule<FFluxPrimeCrowdsSystemsModule>(CrowdsSystemModuleIndex);
+		if (!systemsModule) return;
+
+		auto* raycastSystem = systemsModule->GetSystem<FFluxPrimeRaycastSystem>();
+		auto* healthSystem = systemsModule->GetSystem<FFluxPrimeHealthSystem>();
 		if (!raycastSystem || !healthSystem) return;
 		
 		int32 entityType = INDEX_NONE;
@@ -356,7 +505,7 @@ void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 
 		healthSystem->TakeDamage(DataStores[entityType], entityType, entityIndex, pair->CrowdDamageTaken);
 
-		auto* killEventSystem = systemsModule.GetSystem<FFluxPrimeCrowdsKillEventSystem>();
+		auto* killEventSystem = systemsModule->GetSystem<FFluxPrimeCrowdsKillEventSystem>();
 		if (!killEventSystem) return;
 		
 		if (killEventSystem->CekKillEvent(DataStores[entityType], entityType, entityIndex, pair->CrowdDamageTaken))
@@ -375,7 +524,8 @@ void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 	if (payload.GetScriptStruct() == FFluxPrimeCrwodsUpdatePriorityActionPayload::StaticStruct())
 	{
 		const FFluxPrimeCrwodsUpdatePriorityActionPayload* pair = payload.GetPtr<FFluxPrimeCrwodsUpdatePriorityActionPayload>();
-		
+		if (!pair) return;
+
 		for (auto& pairTarget : CrowdsTarget)
 		{
 			if (pairTarget.CrowdsTargetID != pair->PlayerID) continue;
@@ -389,10 +539,10 @@ void UFluxPrimeCrowdsManager::OnActionChange(const FInstancedStruct& payload)
 {
 	if (payload.GetScriptStruct() == FFluxPrimeCrwodsSpawnActionPayload::StaticStruct())
 	{
-		if (!ModuleFragments || CrowdsSpawnerModuleIndex == INDEX_NONE) return;
-		const FFluxPrimeCrwodsSpawnActionPayload& data = payload.Get<FFluxPrimeCrwodsSpawnActionPayload>();
+		FFluxPrimeCrowdsSpawnerModule* spawnerModule = FindModule<FFluxPrimeCrowdsSpawnerModule>(CrowdsSpawnerModuleIndex);
+		if (!spawnerModule) return;
 
-		auto& spawnerModule = (*ModuleFragments)[CrowdsSpawnerModuleIndex].GetMutable<FFluxPrimeCrowdsSpawnerModule>();
+		const FFluxPrimeCrwodsSpawnActionPayload& data = payload.Get<FFluxPrimeCrwodsSpawnActionPayload>();
 
 		FFluxPrimeCrowdsSpawnerComponentContext context;
 		context.crowdsTypes = &CrowdsTypes;
@@ -408,16 +558,17 @@ void UFluxPrimeCrowdsManager::OnActionChange(const FInstancedStruct& payload)
 		for (auto& pairLocation : data.Locations)
 		{
 			context.location = pairLocation;
-			spawnerModule.SpawnNetCrowd(context);
+			spawnerModule->SpawnNetCrowd(context);
 		}
 	}
 	
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotDataPayload::StaticStruct() ||
 		payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotActiveEntityPayload::StaticStruct())
 	{
-		auto& systemsModule = (*ModuleFragments)[CrowdsSystemModuleIndex].GetMutable<FFluxPrimeCrowdsSystemsModule>();
+		FFluxPrimeCrowdsSystemsModule* systemsModule = FindModule<FFluxPrimeCrowdsSystemsModule>(CrowdsSystemModuleIndex);
+		if (!systemsModule) return;
 
-		auto* snapshotSystem = systemsModule.GetSystem<FFluxPrimeCrowdsSnapshotSystem>();
+		auto* snapshotSystem = systemsModule->GetSystem<FFluxPrimeCrowdsSnapshotSystem>();
 		if (!snapshotSystem) return;
 		
 		snapshotSystem->SyncData(DataStores, payload);

@@ -21,13 +21,8 @@ struct FNotifyTestDispatcher : FFluxPrimeBaseAnimationNotifySystem
 template<typename T>
 T* AddBuffer(FFluxPrimeArchetypeDataStore& Store, FGameplayTag Tag)
 {
-	T* Buffer = static_cast<T*>(FMemory::Malloc(sizeof(T), alignof(T)));
-	new (Buffer) T();
-	Store.AddNewDataID(Tag);
-	Store.AddNewRawStructTypeData(T::StaticStruct());
-	Store.AddNewRawBufferData(reinterpret_cast<uint8*>(Buffer));
-	Store.AddNewRawElementSizes(sizeof(T));
-	return Buffer;
+	if (!Store.AddBuffer(Tag, T::StaticStruct(), sizeof(T), 1)) return nullptr;
+	return reinterpret_cast<T*>(Store.GetRawBufferData(Store.GetDataID(Tag)));
 }
 
 void InitNotify(FInstancedStruct& Fragment, TArray<FFluxPrimeArchetypeDataStore>& Stores,

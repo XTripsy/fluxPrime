@@ -2,6 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "StructUtils/InstancedStruct.h"
+#include "fluxPrime.h"
+#include "Framework/Core/FluxPrimeDataStore.h"
+#include "Framework/Data/FluxPrimeDataStoreIdentity.h"
 #include "FluxPrimeBaseModule.generated.h"
 
 using FSystemExecute = void(*)(FInstancedStruct&, const float, TArray<FFluxPrimeArchetypeDataStore>&);
@@ -19,6 +22,21 @@ struct FFluxPrimeBaseModule
 	
 public:
 	virtual ~FFluxPrimeBaseModule() = default;
+
+	bool IsAllDataValid = true;
+
+protected:
+	void TryInitializedData(FFluxPrimeArchetypeDataStore& dataStore, FFluxPrimeDataConfig dataConfig, int16& dataID)
+	{
+		dataID = INDEX_NONE;
+		if (!IsAllDataValid) return;
+		if (dataStore.TryResolveTag(dataConfig.EntityDataTag, dataConfig.ExpectedStructType, dataID)) return;
+		IsAllDataValid = false;
+		UE_LOG(LogFluxPrime, Error,
+			TEXT("Data tag '%s' (expected struct '%s') was not found in this archetype's data store. The owning module will not run."),
+			*dataConfig.EntityDataTag.ToString(),
+			dataConfig.ExpectedStructType ? *dataConfig.ExpectedStructType->GetName() : TEXT("null"));
+	}
 	
 private:
 	bool IsInitializedDone = false;
@@ -65,7 +83,7 @@ protected:
 public:
 	void ExecuteModule(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
-		if (!SystemExecutors.IsEmpty() && IsInitializedDone)
+		if (IsAllDataValid && !SystemExecutors.IsEmpty() && IsInitializedDone)
 		{
 			for (auto& pair : SystemExecutors)
 			{

@@ -27,9 +27,34 @@ public:
 			FMemory::Free(pair);
 		}
 		
+		RawStructTypeDatas.Empty();
 		RawDataBuffers.Empty();
 		RawElementSizes.Empty();
 		DataID.Empty();
+	}
+	
+	/**
+	 * Registers one tag and its buffer in a single step. The three parallel arrays are appended
+	 * together, so a duplicate tag is rejected before any memory is allocated.
+	 */
+	bool AddBuffer(const FGameplayTag tag, UScriptStruct* structType, const int32 elementSize, const int32 count)
+	{
+		if (structType == nullptr || elementSize <= 0 || count < 0) return false;
+		if (GetDataID(tag) != INDEX_NONE) return false;
+
+		uint8* allocatedMemory = static_cast<uint8*>(FMemory::Malloc(elementSize * count));
+		if (allocatedMemory == nullptr) return false;
+
+		for (int32 i = 0; i < count; ++i)
+		{
+			structType->InitializeStruct(allocatedMemory + (i * elementSize));
+		}
+
+		DataID.Add(tag);
+		RawStructTypeDatas.Add(structType);
+		RawDataBuffers.Add(allocatedMemory);
+		RawElementSizes.Add(elementSize);
+		return true;
 	}
 	
 	bool TryResolveTag(const FGameplayTag tag, const UScriptStruct* expectedType, int16& outIndex)
@@ -86,6 +111,12 @@ public:
 	void AddNewRawBufferData(uint8* allocatedMemory) { RawDataBuffers.Add(allocatedMemory); }
 	uint8* GetRawBufferData(const int32 dataID) const
 	{
+		checkf(DataID.Num() == RawDataBuffers.Num() &&
+			DataID.Num() == RawElementSizes.Num() &&
+			DataID.Num() == RawStructTypeDatas.Num(),
+			TEXT("FluxPrime data store arrays are out of sync: DataID=%d buffers=%d sizes=%d types=%d"),
+			DataID.Num(), RawDataBuffers.Num(), RawElementSizes.Num(), RawStructTypeDatas.Num());
+
 		return RawDataBuffers[dataID];
 	}
 	void AddNewRawElementSizes(int32 elementSizes) { RawElementSizes.Add(elementSizes); }

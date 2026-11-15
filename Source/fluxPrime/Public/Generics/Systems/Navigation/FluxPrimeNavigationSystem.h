@@ -109,6 +109,10 @@ private:
 	float ArrivalRadius = 60.0f;
 	UPROPERTY(EditAnywhere, Category = "Navigation", meta = (ClampMin = "0"))
 	float ArrivalSizeMultiplier = 1.5f;
+	UPROPERTY(EditAnywhere, Category = "Navigation")
+	bool bConstrainToNavMesh = true;
+	UPROPERTY(EditAnywhere, Category = "Navigation", meta = (ClampMin = "0"))
+	float NavMeshProjectionSizeMultiplier = 1.5f;
 
 	TArray<int16> EntityDataCurrentLocationID, EntityDataPreviousLocationID, EntityDataSizeID, EntityDataCellIdID, EntityDataCorridorsID, EntityDataTargetLocationID, EntityDataCurrentWaypointLocationID, EntityDataLastReplanLocationID, EntityDataLastMoveLocationID, EntityDataWaitTimeID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataNeedReplanID, EntityDataWaypointsID, EntityDataCountWaypointsID;
 	TArray<FFluxPrimeNavigationDataRequest> EntityPathQueue;
@@ -119,6 +123,7 @@ public:
 	{
 		check(context.world);
 
+		Detour.Reset();
 		World = context.world;
 		
 		SpatialGridSystem.Initialized(*context.dataStores);
@@ -130,16 +135,28 @@ public:
 		check(NavData);
 
 		RecastNavMesh = Cast<ARecastNavMesh>(NavData);
-		check(RecastNavMesh);
+		if (!IsValid(RecastNavMesh) || RecastNavMesh->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Navigation system cannot initialize: the default navigation data is not a Recast navmesh."));
+			IsAllDataValid = false;
+			return;
+		}
 		
-		NavQuery = dtAllocNavMeshQuery();
-		check(NavQuery);
-
 		dtNavMesh* DtNavMesh = RecastNavMesh->GetRecastMesh();
-		check(DtNavMesh);
+		if (!DtNavMesh)
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Navigation system cannot initialize: the navmesh has no Detour mesh."));
+			IsAllDataValid = false;
+			return;
+		}
 
-		NavQuery->init(DtNavMesh, 2048);
-		Corridor.init(256);
+		if (!Detour.Initialize(DtNavMesh, 2048, 256))
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Navigation system cannot initialize: Detour query or corridor allocation failed."));
+			IsAllDataValid = false;
+			return;
+		}
 		
 		int16 countData = context.dataStores->Num();
 		EntityDataCurrentLocationID.Init(0, countData);
@@ -192,6 +209,40 @@ public:
 	{
 		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataNeedReplanID[indexDataID]))[indexData].ValueBool = newRequestNeedReplan;
 	}
+
+	/**
+	 * Pulls every agent back onto the navmesh before path planning and grid updates.
+	 *
+	 * Movement runs after navigation, so this is the next-tick constraint: boids can still
+	 * push an agent slightly off the mesh for the current frame, and navigation recovers it
+	 * before using its position again. The navmesh is already eroded by the agent radius,
+	 * so a normal movement step cannot reach the far side of a wall between two ticks.
+	 */
+	void ConstrainLocationsToNavMesh(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
+	{
+		if (!bConstrainToNavMesh || !IsValid(RecastNavMesh)) return;
+
+		int32 indexDataID = 0;
+		for (auto& dataStore : dataStores)
+		{
+			FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentLocationID[indexDataID]));
+			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[indexDataID]));
+			indexDataID++;
+
+			if (!entityDataLocation || !entityDataSize) continue;
+
+			const int32 activeCount = dataStore.GetActiveEntityCount();
+			for (int32 i = 0; i < activeCount; ++i)
+			{
+				FNavLocation ProjectedLocation;
+				const FVector Extent = ComputeNavigationProjectionExtent(entityDataSize[i].ValueInt16, NavMeshProjectionSizeMultiplier);
+				if (!RecastNavMesh->ProjectPoint(entityDataLocation[i], ProjectedLocation, Extent)) continue;
+
+				entityDataLocation[i].X = ProjectedLocation.Location.X;
+				entityDataLocation[i].Y = ProjectedLocation.Location.Y;
+			}
+		}
+	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
@@ -202,7 +253,14 @@ public:
 			UE_LOG(LogFluxPrime, Verbose, TEXT("NAVIGATION SYSTEM :: data invalid; system skipped"));
 			return;
 		}
+
+		if (!EnsureDetourMatchesNavMesh())
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("NAVIGATION SYSTEM :: navmesh unavailable or changed. Runtime rebuilds are unsupported; navigation disabled. Restart with fresh entity corridors and waypoints."));
+			return;
+		}
 		
+		ConstrainLocationsToNavMesh(dataStores);
 		SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 		
 		float currentTime = World->GetTimeSeconds();
@@ -242,7 +300,7 @@ public:
 				
 				entityDataNeedReplan[i].ValueBool = (targetCellId != lastReplanTargetCellId) || entityDataNeedReplan[i].ValueBool;
 				
-				entityDataWaitTime[i].ValueFloat += deltaTime;
+				entityDataWaitTime[i].ValueFloat = AccumulateNavigationWaitTime(entityDataWaitTime[i].ValueFloat, deltaTime);
 
 				const float arrivalRadiusSq = FMath::Square(FMath::Max(ArrivalRadius, entityDataSize[i].ValueInt16 * ArrivalSizeMultiplier));
 				const float distToWaypointSq = FVector::DistSquaredXY(entityDataCurrentLocation[i], entityDataCurrentTargetLocation[i]);
@@ -276,7 +334,6 @@ public:
 				tempPathTask.EntityDataCountWaypoints = entityDataCountWaypoints[i].ValueUint8;
 
 				float baseScore = (targetCellId == entityDataCellId[i].ValueInt32) ? 5.0f : 0.0f;
-				float timeScore = entityDataWaitTime[i].ValueFloat * 10.0f;
 
 				if (entityDataNeedReplan[i].ValueBool)
 				{
@@ -284,7 +341,7 @@ public:
 						entityDataCurrentTargetLocation[i] = entityDataCurrentLocation[i];
 
 					FFluxPrimeNavigationDataRequest tempPathRequest;
-					tempPathRequest.PriorityScore = baseScore + timeScore;
+					tempPathRequest.PriorityScore = ComputeNavigationPriority(entityDataWaitTime[i].ValueFloat, baseScore, 0.0f);
 					tempPathRequest.DataStoreIndex = indexDataID;
 					tempPathRequest.InternalIndex = i;
 					tempPathRequest.DataTask = tempPathTask;
@@ -297,7 +354,7 @@ public:
 					float arrivalBoost = bReachedCurrentWaypoint ? 50.0f : 0.0f;
 
 					FFluxPrimeNavigationDataRequest tempCorridorRequest;
-					tempCorridorRequest.PriorityScore = baseScore + timeScore + arrivalBoost;
+					tempCorridorRequest.PriorityScore = ComputeNavigationPriority(entityDataWaitTime[i].ValueFloat, baseScore, arrivalBoost);
 					tempCorridorRequest.DataStoreIndex = indexDataID;
 					tempCorridorRequest.InternalIndex = i;
 					tempCorridorRequest.DataTask = tempPathTask;
@@ -331,6 +388,8 @@ public:
         
 			reinterpret_cast<FFluxPrimeCrowdsCorridor*>(dataStore.GetRawBufferData(EntityDataCorridorsID[indexDataID]))[indexInternalData] = task.EntityDataCorridors;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataPreviousLocationID[indexDataID]))[indexInternalData] = task.EntityDataPreviousLocation;
+			// QueueFindPath may snap an off-mesh agent back to its last walkable position.
+			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentLocationID[indexDataID]))[indexInternalData] = task.EntityDataCurrentLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]))[indexInternalData] = task.EntityDataTargetLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLastReplanLocationID[indexDataID]))[indexInternalData] = task.EntityDataLastReplanLocation;
 			reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLastMoveLocationID[indexDataID]))[indexInternalData] = task.EntityDataLastMoveLocation;

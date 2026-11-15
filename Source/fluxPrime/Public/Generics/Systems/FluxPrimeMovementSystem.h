@@ -43,6 +43,21 @@ struct FMovementSystemDataTagConfig
 	}
 };
 
+/**
+* Limits crowd avoidance to a fraction of the steering velocity.
+*
+* Separation is authored per crowd and can exceed an entity's max speed (the shipped
+* configuration uses 500 while the slower archetype moves at 75-225 cm/s). Applying that
+* force unclamped lets avoidance reverse path following, which pushes agents off the
+* navmesh and through walls. Keeping avoidance proportional to the desired velocity means
+* the agent always keeps a steering component toward its waypoint.
+*/
+inline FVector ClampAvoidanceVelocity(const FVector& desiredVelocity, const FVector& avoidanceVelocity, const float avoidanceWeight)
+{
+	const float MaxAvoidance = desiredVelocity.Size() * FMath::Max(avoidanceWeight, 0.0f);
+	return avoidanceVelocity.GetClampedToMaxSize(MaxAvoidance);
+}
+
 USTRUCT(BlueprintType)
 struct FFluxPrimeMovementSystem : public FFluxPrimeBaseSystem
 {
@@ -60,6 +75,12 @@ public:
 	float MinMoveFactor = 0.25f;
 	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
 	float VelocityOverspeedFactor = 1.2f;
+	/**
+	 * Upper bound on avoidance relative to the desired steering velocity. Separation can be
+	 * authored higher than max speed, so this keeps the waypoint direction authoritative.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
+	float AvoidanceWeight = 0.5f;
 
 	const FFluxPrimeMeshOrientationConfig* MeshOrientation = &FFluxPrimeMeshOrientationConfig::Default();
 
@@ -136,7 +157,7 @@ public:
 					
 					float moveFactor = FMath::GetMappedRangeValueClamped(FVector2D(SlowdownAngleDegrees, 0.f), FVector2D(MinMoveFactor, 1.0f), angleError);
 					FVector desiredVelocity = dir * entityDataMaxSpeed[i].ValueFloat * moveFactor;
-					FVector avoidanceVelocity = entityDataAcceleration[i];
+					FVector avoidanceVelocity = ClampAvoidanceVelocity(desiredVelocity, entityDataAcceleration[i], AvoidanceWeight);
 					FVector finalDesiredVelocity = desiredVelocity + avoidanceVelocity;
 					
 					const float alpha = FMath::Clamp(SteeringResponsiveness * deltaTime, 0.f, 1.f);

@@ -36,9 +36,6 @@ private:
 	TArray<FGameplayTag> StateID;
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "Entity Manager | CollisionProfile", meta = (AllowPrivateAccess = true))
-	FName ProfileNameCollisionCrowds = "Pawn";
-	
 	UPROPERTY(EditAnywhere, Category = "Entity Manager | Configuration", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UManagerConfiguration> ManagerConfiguration;
 	
@@ -46,7 +43,6 @@ protected:
 	TObjectPtr<UFluxPrimeEntityCatalogIdentity> EntityCatalogIdentity;
 	
 	TArray<FFluxPrimeArchetypeDataStore> DataStores;
-	
 
 private:
 	template<typename T>

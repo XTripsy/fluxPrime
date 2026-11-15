@@ -8,19 +8,60 @@
 #include "DetourCrowd/DetourPathCorridor.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Generics/Data/FluxPrimeNavigationData.h"
+#include "Generics/Systems/Navigation/FluxPrimeDetourOwner.h"
 #include "FluxPrimeBaseNavigationSystem.generated.h"
+
+/** Accumulates scheduling wait time and stops at the configured bound. */
+inline float AccumulateNavigationWaitTime(const float currentWaitTime, const float deltaTime)
+{
+	return FMath::Min(currentWaitTime + deltaTime, FluxNavigationConfig::MaxWaitTime);
+}
+
+/**
+ * Priority used to order navigation requests. The result is clamped, so no out-of-range
+ * value ever reaches the sort key.
+ */
+inline float ComputeNavigationPriority(const float waitTime, const float baseScore, const float arrivalBoost)
+{
+	const float RawScore = baseScore + (waitTime * FluxNavigationConfig::WaitTimeScoreScale) + arrivalBoost;
+	return FMath::Clamp(RawScore, 0.0f, FluxNavigationConfig::MaxPriorityScore);
+}
+/**
+ * Bounds a Detour straight-path result by the destination waypoint capacity.
+ * Detour's result is unbounded, so an oversized path is truncated rather than treated as an error.
+ */
+inline int32 ClampWaypointCount(const int32 resultCount, const int32 capacity)
+{
+	return FMath::Clamp(resultCount, 0, FMath::Max(capacity, 0));
+}
+
+/**
+ * Search extent used to pull an off-mesh crowd agent back to the navmesh.
+ *
+ * The extent is derived from the entity radius, which the navmesh already accounts for
+ * through agent-radius erosion. Navigation owns this correction, so movement stays a pure
+ * kinematic system and the constraint is applied at the start of the next navigation tick.
+ */
+inline FVector ComputeNavigationProjectionExtent(const int16 entitySize, const float sizeMultiplier)
+{
+	const float SafeSize = FMath::Max(1.0f, static_cast<float>(entitySize));
+	const float SafeMultiplier = FMath::Max(sizeMultiplier, 0.0f);
+	return FVector(SafeSize * SafeMultiplier, SafeSize * SafeMultiplier, SafeSize * 2.0f * SafeMultiplier);
+}
 
 USTRUCT()
 struct FFluxPrimeBaseNavigationSystem : public FFluxPrimeBaseSystem
 {
 	GENERATED_BODY()
+
+	friend class FFluxPrimeDetourOwnershipTest;
 	
 protected:
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
 	
-	dtPathCorridor Corridor;
-	dtNavMeshQuery* NavQuery = nullptr;
+	/** Sole owner of the Detour query and path corridor. */
+	FFluxPrimeDetourOwner Detour;
 	dtQueryFilter Filter;
 	
 	UPROPERTY()
@@ -52,6 +93,19 @@ protected:
 	FFluxPrimeSpatialGridSystem SpatialGridSystem = FFluxPrimeSpatialGridSystem();
 	
 protected:
+	// Stored entity corridors/waypoints cannot survive a rebuild. Never rebind them.
+	bool EnsureDetourMatchesNavMesh()
+	{
+		if (!IsValid(RecastNavMesh) || RecastNavMesh->HasAnyFlags(RF_ClassDefaultObject)
+			|| !Detour.MatchesUnchangedMesh(RecastNavMesh->GetRecastMesh()))
+		{
+			Detour.Reset();
+			IsAllDataValid = false;
+			return false;
+		}
+		return true;
+	}
+
 	void UnrealToRecast(const FVector& UnrealPoint, dtReal RecastPoint[3])
 	{
 		RecastPoint[0] = -UnrealPoint.X;
@@ -67,7 +121,8 @@ protected:
 	bool FindStraightPath(const FVector3d& startPos, const FVector3d& endPos,
 		FFluxPrimeCrowdsWaypoint& outPath, uint8& outCountPath, const int options = DT_STRAIGHTPATH_AREA_CROSSINGS)
 	{
-		if (GetPathCount() <= 0) return false;
+		dtNavMeshQuery* NavQuery = Detour.GetQuery();
+		if (!NavQuery || GetPathCount() <= 0) return false;
 
 		dtQueryResult result;
 
@@ -87,7 +142,18 @@ protected:
 
 		if (dtStatusFailed(Status)) return false;
 
-		outCountPath = static_cast<int8>(result.size());
+		const int32 maxWaypoints = static_cast<int32>(FluxConfig::WaypointsCount);
+		const int32 resultCount = result.size();
+		const int32 copiedCount = ClampWaypointCount(resultCount, maxWaypoints);
+
+		if (resultCount > copiedCount)
+		{
+			UE_LOG(LogFluxPrime, Verbose,
+				TEXT("Straight path returned %d waypoints; truncating to the configured WaypointsCount %d."),
+				resultCount, copiedCount);
+		}
+
+		outCountPath = static_cast<uint8>(copiedCount);
 
 		for (int32 i = 0; i < outCountPath; ++i)
 		{
@@ -150,7 +216,7 @@ protected:
 	{
 		dtReal dtPos[3];
 		UnrealToRecast(newPosition, dtPos);
-		return Corridor.movePosition(dtPos, NavQuery, &Filter);
+		return Detour.GetCorridor().movePosition(dtPos, Detour.GetQuery(), &Filter);
 	}
 	
 	bool MoveTargetPosition(const FVector& newTarget)
@@ -158,37 +224,37 @@ protected:
 		dtReal dtTarget[3];
 		UnrealToRecast(newTarget, dtTarget);
 
-		Corridor.moveTargetPosition(dtTarget, NavQuery, &Filter);
+		Detour.GetCorridor().moveTargetPosition(dtTarget, Detour.GetQuery(), &Filter);
 		return true;
 	}
 	
 	bool OptimizePathTopology()
 	{
-		return Corridor.optimizePathTopology(NavQuery, &Filter);
+		return Detour.GetCorridor().optimizePathTopology(Detour.GetQuery(), &Filter);
 	}
 	
 	void Reset(NavNodeRef startPoly, const FVector& startLocation)
 	{
 		dtReal dtStart[3];
 		UnrealToRecast(startLocation, dtStart);
-		Corridor.reset(startPoly, dtStart);
+		Detour.GetCorridor().reset(startPoly, dtStart);
 	}
 	
 	void SetCorridor(const FVector& target, const TArray<NavNodeRef>& corridorPath)
 	{
 		dtReal dtTarget[3];
 		UnrealToRecast(target, dtTarget);
-		Corridor.setCorridor(dtTarget, corridorPath.GetData(), corridorPath.Num());
+		Detour.GetCorridor().setCorridor(dtTarget, corridorPath.GetData(), corridorPath.Num());
 	}
 	
 	const dtPolyRef* GetPath() const
 	{
-		return Corridor.getPath();
+		return Detour.GetCorridor().getPath();
 	}
 
 	int32 GetPathCount() const
 	{
-		return Corridor.getPathCount();
+		return Detour.GetCorridor().getPathCount();
 	}
 	
 	void Reset(const FFluxPrimeCrowdsCorridor& corridor, const FVector& currentLocation)
@@ -196,7 +262,7 @@ protected:
 		dtReal dtStart[3];
 		UnrealToRecast(currentLocation, dtStart);
 		NavNodeRef startPoly = corridor.Corridors[0];
-		Corridor.reset(startPoly, dtStart);
+		Detour.GetCorridor().reset(startPoly, dtStart);
 	}
 	
 	float SelectFloat(bool condition, float a, float b) const
@@ -208,7 +274,7 @@ protected:
 	{
 		dtReal dtTarget[3];
 		UnrealToRecast(targetLocation, dtTarget);
-		Corridor.setCorridor(dtTarget, corridor.Corridors.GetData(), corridorCount);
+		Detour.GetCorridor().setCorridor(dtTarget, corridor.Corridors.GetData(), corridorCount);
 	}
 	
 	void Save(FFluxPrimeCrowdsCorridor& corridor, uint8& corridorCount)
@@ -233,10 +299,30 @@ protected:
 		FVector3d startNearestPoint, targetNearestPoint;
 		FVector searchExtent(size, size, size * 2.f);
 		
-		bool bFindNearestPoly = FindNearestPoly(location, searchExtent, startPoly, startNearestPoint) 
-			&& FindNearestPoly(targetLocation, searchExtent, targetPoly, targetNearestPoint);
-		
-		if (!bFindNearestPoly) return;
+		bool bStartFound = FindNearestPoly(location, searchExtent, startPoly, startNearestPoint);
+
+		// A crowded agent can be pushed slightly off the mesh before the movement clamp runs.
+		// Recover from its last known walkable start instead of failing the same query forever.
+		if (!bStartFound && outCorridorCount > 0 &&
+			FindNearestPoly(previousLocation, searchExtent, startPoly, startNearestPoint))
+		{
+			location = startNearestPoint;
+			bStartFound = true;
+		}
+
+		if (!bStartFound)
+		{
+			outCorridorCount = 0;
+			outCountWaypoints = 0;
+			return;
+		}
+
+		if (!FindNearestPoly(targetLocation, searchExtent, targetPoly, targetNearestPoint))
+		{
+			outCorridorCount = 0;
+			outCountWaypoints = 0;
+			return;
+		}
 		
 		if (!FindPath(startNearestPoint, targetNearestPoint, outCorridor, outCorridorCount))
 		{
@@ -254,7 +340,12 @@ protected:
 		Load(outCorridor, outCorridorCount, lastReplanLocation);
 		
 		if (!FindStraightPath(startNearestPoint, targetNearestPoint, outWaypoints, outCountWaypoints))
+		{
+			// Do not keep the agent walking to a stale waypoint; ask for a fresh path next frame.
 			outCountWaypoints = 0;
+			needReplan = true;
+			return;
+		}
 		
 		Save(outCorridor, outCorridorCount);
 		needReplan = false;
@@ -296,7 +387,12 @@ protected:
 		}
 		
 		if (!FindStraightPath(location, lastMoveTargetLocation, waypoints, countWaypoints))
+		{
+			// The corridor can survive while a straight path through it does not. Requeue a
+			// path request instead of leaving the agent frozen on a zero-waypoint target.
 			countWaypoints = 0;
+			needReplan = true;
+		}
 		
 		Save(corridors, countCorridor);
 		previousLocation = location;

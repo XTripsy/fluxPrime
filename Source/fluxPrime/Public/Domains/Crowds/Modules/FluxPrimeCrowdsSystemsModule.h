@@ -36,7 +36,10 @@ struct FFluxPrimeCrowdsSystemsModuleContext
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* crowdsComponents = nullptr;
 	TArray<FFluxPrimeArchetypeEntityCatalog>* entityCatalog = nullptr;
-	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* crowdsAnimationSoftRef = nullptr;
+	/** Catalog entries already resolved to UFluxPrimeCrowdsIdentity, in archetype order. */
+	TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>>* resolvedIdentities = nullptr;
+	/** One validated animation asset per archetype, in the same order. */
+	TArray<TObjectPtr<UFluxPrimeAnimationData>>* resolvedAnimationData = nullptr;
 	
 	FOnCrowdsManagerActionChange* onCrowdsManagerActionChange = nullptr;
 	TArray<FFluxPrimeTargetCatalog>* crowdsTarget = nullptr;
@@ -165,6 +168,27 @@ public:
 	
 	void InitializeSystems(FFluxPrimeCrowdsSystemsModuleContext context)
 	{
+		IsAllDataValid = false;
+		StartInitializedSystem(0);
+		SystemFragmentsIndex.Reset();
+		if (!SystemsConfiguration)
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Crowds systems module cannot initialize: SystemsConfiguration is not set."));
+			return;
+		}
+
+		if (!context.resolvedIdentities || !context.entityCatalog || !context.resolvedAnimationData ||
+			context.resolvedIdentities->Num() != context.entityCatalog->Num() ||
+			context.resolvedAnimationData->Num() != context.entityCatalog->Num())
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Crowds systems module cannot initialize: resolved identities (%d) or animations (%d) do not match the catalog (%d)."),
+				context.resolvedIdentities ? context.resolvedIdentities->Num() : 0,
+				context.resolvedAnimationData ? context.resolvedAnimationData->Num() : 0,
+				context.entityCatalog ? context.entityCatalog->Num() : 0);
+			return;
+		}
+
 		NiagaraCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>();
 		
 		{
@@ -174,8 +198,8 @@ public:
 		}
 		
 		SystemFragments = SystemsConfiguration->SystemFragments;
-		auto& catalog = *context.entityCatalog;
 		
+		SystemFragmentsIndex.Reset();
 		StartInitializedSystem(SystemFragments.Num());
 		
 		for (int i = 0; i < SystemFragments.Num(); ++i)
@@ -198,10 +222,8 @@ public:
 				TArray<float> damageMapping;
 				TArray<FGameplayTag> crowdsCatalogAbilityFragmentIdentity;
 
-				for (auto& pair : catalog)
+				for (const TObjectPtr<UFluxPrimeCrowdsIdentity>& identity : *context.resolvedIdentities)
 				{
-					auto* identity = Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity);
-					
 					crowdsCatalogAbilityFragmentIdentity.Add(identity->AbilityIdentity);
 					damageMapping.Add(identity->Damage);
 				}
@@ -246,20 +268,10 @@ public:
 				
 				const int32 executorIndex = RegisterSystemFragment<FFluxPrimeAnimationSystem>(fragment);
 				
-				TArray<FName> catalogIdentity;
-
-				for (auto& pair : *context.entityCatalog)
-				{
-					FName identity = Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity)->Identity;
-					catalogIdentity.Add(identity);
-				}
-					
 				FFluxPrimeAnimationSystemsContext tempContext;
 				tempContext.world = context.world;
 				tempContext.componentsISMC = context.crowdsComponents;
-				tempContext.nameCatalog = &catalogIdentity;
-				tempContext.countCatalog = catalog.Num();
-				tempContext.animationSoftRef = context.crowdsAnimationSoftRef;
+				tempContext.resolvedAnimationData = context.resolvedAnimationData;
 				tempContext.getStateID = context.getStateID;
 				tempContext.getNotifyID = context.getNotifyID;
 				tempContext.dataStores = context.dataStores;
@@ -384,9 +396,9 @@ public:
 				
 				TArray<float> aggroDistance;
 
-				for (auto& pair : catalog)
+				for (const TObjectPtr<UFluxPrimeCrowdsIdentity>& identity : *context.resolvedIdentities)
 				{
-					aggroDistance.Add(Cast<UFluxPrimeCrowdsIdentity>(pair.EntityIdentity)->AggroDistance);
+					aggroDistance.Add(identity->AggroDistance);
 				}
 			
 				FFluxPrimeCrowdsTargetSystemsContext tempContext;
@@ -450,8 +462,19 @@ public:
 			}
 		}
 		
+		// Duplicate animation fragments share the same ISM buffer; relocate it once per move.
+		FFluxPrimeAnimationSystem* Animation = GetSystem<FFluxPrimeAnimationSystem>();
+		TArray<FFluxPrimeCrowdsCompactSystem*> CompactSystems;
+		GetSystems(CompactSystems);
+		for (FFluxPrimeCrowdsCompactSystem* Compact : CompactSystems)
+		{
+			Compact->RelocatePresentation = Animation ? Animation->CreatePresentationRelocator()
+				: TFunction<void(int32, int32, int32)>();
+		}
+
 		ValidateSystemOrder();
 
+		IsAllDataValid = true;
 		EndInitializedSystem();
 	}
 };

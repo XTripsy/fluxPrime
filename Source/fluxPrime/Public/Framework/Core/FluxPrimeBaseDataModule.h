@@ -19,31 +19,40 @@ private:
 private:
 	void RegisterData(FFluxPrimeArchetypeDataStore& dataStore, const int32 totalEntityCount, const bool hasAuthority)
 	{
-		int32 index = 0;
-		UScriptStruct* structType = nullptr;
-		
+		if (!DataStoreIdentity)
+		{
+			IsAllDataValid = false;
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Data module cannot register buffers: DataStoreIdentity is not set."));
+			return;
+		}
+
 		for (auto& pair : DataStoreIdentity->DataConfigEditors)
 		{
 			if (!hasAuthority && !pair.AvailableOnLocalClient) continue;
 			
-			dataStore.AddNewDataID(pair.DataTag);
-			structType = pair.StructType;
-			
-			int32 structSize = structType->GetStructureSize();
-			uint8* allocatedMemory = static_cast<uint8*>(FMemory::Malloc(structSize * totalEntityCount));
-
-			for (int32 i = 0; i < totalEntityCount; ++i)
+			if (!pair.StructType)
 			{
-				pair.StructType->InitializeStruct(allocatedMemory + (i * structSize));
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Data module rejected tag %s: no StructType is configured."),
+					*pair.DataTag.ToString());
+				IsAllDataValid = false;
+				return;
+			}
+
+			const int32 structSize = pair.StructType->GetStructureSize();
+			if (!dataStore.AddBuffer(pair.DataTag, pair.StructType, structSize, totalEntityCount))
+			{
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Data module rejected tag %s: duplicate tag or invalid configuration. ")
+					TEXT("Tag-to-buffer indices stay consistent because no buffer was allocated."),
+					*pair.DataTag.ToString());
+				IsAllDataValid = false;
+				return;
 			}
 			
-			dataStore.AddNewRawStructTypeData(structType);
-			dataStore.AddNewRawBufferData(allocatedMemory);
-			dataStore.AddNewRawElementSizes(structSize);
-			
-			UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Allocated buffer for tag %s: %p, index %d, %d bytes x %d entities"),
-				*pair.DataTag.ToString(), allocatedMemory, index, structSize, totalEntityCount);
-			index++;
+			UE_LOG(LogFluxPrime, VeryVerbose, TEXT("Allocated buffer for tag %s: %d bytes x %d entities"),
+				*pair.DataTag.ToString(), structSize, totalEntityCount);
 		}
 	}
 	

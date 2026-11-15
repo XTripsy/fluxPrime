@@ -40,6 +40,52 @@ struct FFluxPrimeGroundHeightSystemsContext
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
+
+/**
+* Chooses the world Z that the ground-height system should interpolate toward.
+*
+* Floors are the surfaces baked for one grid cell, in no particular order.
+* Behavior:
+* - Prefer the highest surface at or below the entity: stand on it, step down, or fall to it.
+* - If every baked surface is above the entity, step up only to the closest one within
+*   MaxStepHeight. This prevents a ceiling or wall top from pulling an agent upward.
+* - If nothing is reachable, keep the current Z instead of snapping to an arbitrary floor.
+*/
+inline float SelectGroundHeightTarget(const float currentZ, const float* floors, const int32 floorCount,
+	const float maxStepHeight, const float groundZOffset)
+{
+	if (!floors || floorCount <= 0) return currentZ;
+
+	const float StepHeight = FMath::Max(maxStepHeight, 0.0f);
+	float HighestBelow = -TNumericLimits<float>::Max();
+	float ClosestAbove = TNumericLimits<float>::Max();
+
+	for (int32 i = 0; i < floorCount; ++i)
+	{
+		const float FloorZ = floors[i];
+		if (FloorZ <= currentZ)
+		{
+			HighestBelow = FMath::Max(HighestBelow, FloorZ);
+		}
+		else if (FloorZ <= currentZ + StepHeight)
+		{
+			ClosestAbove = FMath::Min(ClosestAbove, FloorZ);
+		}
+	}
+
+	if (HighestBelow > -TNumericLimits<float>::Max())
+	{
+		return HighestBelow + groundZOffset;
+	}
+
+	if (ClosestAbove < TNumericLimits<float>::Max())
+	{
+		return ClosestAbove + groundZOffset;
+	}
+
+	return currentZ;
+}
+
 USTRUCT(BlueprintType)
 struct FFluxPrimeGroundHeightSystem : public FFluxPrimeBaseSystem
 {
@@ -153,7 +199,7 @@ private:
 		}
 	}
 	
-	float GetGroundHeight(const FVector& location) const
+	float GetGroundHeight(const FVector& location)
 	{
 		int32 cellX = FMath::FloorToInt((location.X - Origin.X) / CellSize);
 		int32 cellY = FMath::FloorToInt((location.Y - Origin.Y) / CellSize);
@@ -164,27 +210,11 @@ private:
 		int32 cellIndex = (cellY * CellWidth) + cellX;
 		uint8 floorCount = CellFloorCounts[cellIndex];
 
-		if (floorCount == 0) return location.Z - GroundZOffset;
+		if (floorCount == 0) return location.Z;
 
 		int32 baseDataIndex = cellIndex * MaxFloorsPerCell;
-		float bestHeight = location.Z - GroundZOffset;
-		float closestVerticalDist = TNumericLimits<float>::Max();
-
-		for (uint8 i = 0; i < floorCount; ++i)
-		{
-			float candidateZ = GroundHeightMap[baseDataIndex + i];
-			float verticalDist = FMath::Abs(candidateZ - location.Z);
-			
-			if (verticalDist < closestVerticalDist)
-			{
-				closestVerticalDist = verticalDist;
-				bestHeight = candidateZ;
-			}
-		}
-
-		if (closestVerticalDist > MaxStepHeight) return location.Z - GroundZOffset;
-
-		return bestHeight;
+		return SelectGroundHeightTarget(location.Z, &GroundHeightMap[baseDataIndex], floorCount,
+			MaxStepHeight, GroundZOffset);
 	}
 	
 public:
@@ -235,7 +265,7 @@ public:
 			for (int32 i = 0; i < activeCount; ++i)
 			{
 				float interpMultiplier = FMath::GetMappedRangeValueClamped(inputRange, outputRange, entityDataMaxSpeed[i].ValueFloat);
-				float targetZ = GetGroundHeight(entityDataLocation[i]) + GroundZOffset;
+				float targetZ = GetGroundHeight(entityDataLocation[i]);
 				
 				entityDataLocation[i].Z = FMath::Lerp(entityDataLocation[i].Z, targetZ, deltaTime * interpMultiplier);
 			}

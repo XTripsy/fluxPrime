@@ -19,16 +19,12 @@ struct FCompactSystemDataTagConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FFluxPrimeDataConfig EntityDataRequestBackToPoolConfig;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FFluxPrimeDataConfig EntityDataRequestSyncAnimationConfig;
 
 	bool IsValid() const
 	{
 		return EntityDataConditionAliveConfig.EntityDataTag.IsValid() 
 		   && EntityDataRequestBackToPoolConfig.EntityDataTag.IsValid()
-		   && EntityDataIdConfig.EntityDataTag.IsValid()
-		   && EntityDataRequestSyncAnimationConfig.EntityDataTag.IsValid();
+		   && EntityDataIdConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -41,7 +37,7 @@ private:
 	UPROPERTY(EditAnywhere)
 	FCompactSystemDataTagConfig DataTagConfig;
 	
-	TArray<int16> EntityDataConditionAliveID, EntityDataRequestBackToPoolID, EntityDataIdID, EntityDataRequestSyncAnimationID;
+	TArray<int16> EntityDataConditionAliveID, EntityDataRequestBackToPoolID, EntityDataIdID;
 	
 private:
 	void SwapCrowdsData(FFluxPrimeArchetypeDataStore& dataStore, int32 currentIndex, int32 lastIndex)
@@ -53,13 +49,15 @@ private:
 	}
 	
 public:
+	/** Called synchronously after a row move: archetype, source row, destination row. */
+	TFunction<void(int32, int32, int32)> RelocatePresentation;
+
 	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 	{
 		int32 countData = dataStores.Num();
 		EntityDataIdID.Init(0, countData);
 		EntityDataConditionAliveID.Init(0, countData);
 		EntityDataRequestBackToPoolID.Init(0, countData);
-		EntityDataRequestSyncAnimationID.Init(0, countData);
 		
 		int32 indexDataId = 0;
 		for (auto& dataStore : dataStores)
@@ -67,7 +65,6 @@ public:
 			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataConditionAliveConfig, EntityDataConditionAliveID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestBackToPoolConfig, EntityDataRequestBackToPoolID[indexDataId]);
-			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestSyncAnimationConfig, EntityDataRequestSyncAnimationID[indexDataId]);
 			indexDataId++;
 		}
 	}
@@ -87,11 +84,9 @@ public:
 		{
 			FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionAliveID[indexDataID]));
 			FFluxPrimeWrapperBool* entityDataRequestBackToPool = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]));
-			FFluxPrimeWrapperBool* entityDataRequestSyncAnimation = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]));
 			
 			check(entityDataConditionAlive);
 			check(entityDataRequestBackToPool);
-			check(entityDataRequestSyncAnimation);
 		
 			int32 lastIndex = dataStore.GetActiveEntityCount() - 1;
 
@@ -100,7 +95,7 @@ public:
 				if (!entityDataConditionAlive[index].ValueBool && entityDataRequestBackToPool[index].ValueBool)
 				{
 					SwapCrowdsData(dataStore, index, lastIndex);
-					entityDataRequestSyncAnimation[index].ValueBool = true;
+					if (index != lastIndex && RelocatePresentation) RelocatePresentation(indexDataID, lastIndex, index);
 					--lastIndex;
 				}
 				else ++index;

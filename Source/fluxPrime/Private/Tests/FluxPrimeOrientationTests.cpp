@@ -41,11 +41,13 @@ bool FFluxPrimeOrientationTest::RunTest(const FString& Parameters)
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("SlowdownAngleDegrees"), 120.0f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("MinMoveFactor"), 0.25f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("VelocityOverspeedFactor"), 1.2f);
+	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("AvoidanceWeight"), 0.5f);
 	FFluxPrimeAnimationSystem Animation;
 	CheckDefault(Animation.StaticStruct(), &Animation, TEXT("SourceFrameRate"), 30.0f);
 	FFluxPrimeNavigationSystem Navigation;
 	CheckDefault(Navigation.StaticStruct(), &Navigation, TEXT("ArrivalRadius"), 60.0f);
 	CheckDefault(Navigation.StaticStruct(), &Navigation, TEXT("ArrivalSizeMultiplier"), 1.5f);
+	CheckDefault(Navigation.StaticStruct(), &Navigation, TEXT("NavMeshProjectionSizeMultiplier"), 1.5f);
 	FFluxPrimeCrowdsMeleAbility Melee;
 	CheckDefault(Melee.StaticStruct(), &Melee, TEXT("TraceForwardDistance"), 200.0f);
 	CheckDefault(Melee.StaticStruct(), &Melee, TEXT("TraceSphereRadius"), 50.0f);

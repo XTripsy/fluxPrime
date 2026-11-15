@@ -24,6 +24,8 @@ struct FFluxPrimeCrowdsStateTransition : public FFluxPrimeBaseStateTransition
 private:
 	void RegisterTransitions(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FGetStateID getStateID)
 	{
+		Transition.Reset();
+
 		for (auto& pair : TransitionFragments)
 		{
 			if (pair.TransitionFragment.GetPtr<FFluxPrimeCrowdsDistanceTransition>())

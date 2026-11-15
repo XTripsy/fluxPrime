@@ -37,13 +37,28 @@ private:
 	TMap<FUniqueNetIdRepl, int32> PlayerKillsData;
 	TMap<FName, int8> CrowdsTypes;
 	TArray<FGameplayTag> NotifyID;
+
+	/** Catalog entries resolved once at initialization. Archetype indices are positional. */
+	UPROPERTY()
+	TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>> ResolvedCrowdIdentities;
+
+	/** One validated animation asset per archetype, in the same order as the catalog. */
+	UPROPERTY()
+	TArray<TObjectPtr<UFluxPrimeAnimationData>> ResolvedAnimationData;
 	
-	TArray<FInstancedStruct>* ModuleFragments;
 	int16 CrowdsSpawnerModuleIndex = INDEX_NONE, CrowdsSystemModuleIndex = INDEX_NONE, CrowdsDataModuleIndex = INDEX_NONE;
 	
 public:
 	UFluxPrimeCrowdsManager();
 	void PreLoading();
+
+	/** Resolves a cached module index to the expected module type, or null when absent/mismatched. */
+	template<typename T>
+	T* FindModule(int32 cachedIndex) const
+	{
+		if (!ModuleFragments || !ModuleFragments->IsValidIndex(cachedIndex)) return nullptr;
+		return (*ModuleFragments)[cachedIndex].GetMutablePtr<T>();
+	}
 
 private:
 	UFUNCTION()
@@ -51,7 +66,6 @@ private:
 	
 	void InitializedModules();
 	void InitializeComponentCrowds();
-	
 	UFUNCTION(BlueprintCallable)
 	void InitializedPlayer();
 	
@@ -75,6 +89,12 @@ private:
 	}
 	
 protected:
+	/** Module configuration owned by the duplicated manager configuration. */
+	TArray<FInstancedStruct>* ModuleFragments = nullptr;
+
+	/** Validates and resolves the catalog before any asset is loaded. Exposed for tests and subclasses. */
+	bool ValidateAndResolveConfiguration();
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
@@ -83,4 +103,5 @@ public:
 	void OnActionChange(const FInstancedStruct& payload);
 	
 	inline const TMap<FUniqueNetIdRepl, int32>& GetPlayerKillsData() const { return PlayerKillsData; }
+	inline const TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>>& GetResolvedCrowdIdentities() const { return ResolvedCrowdIdentities; }
 };

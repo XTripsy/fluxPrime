@@ -12,104 +12,79 @@
 USTRUCT(BlueprintType)
 struct FSpawnerModuleDataTagConfig
 {
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataLocationTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataRotationTag;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataCurrentWaypointLocationTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataHealthTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataStateTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataMaxSpeedTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataConditionTag;
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FGameplayTag EntityDataRequestSyncAnimationTag;
-	
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataRequestBackToPoolTag;
+	FFluxPrimeDataConfig EntityDataLocationConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataRotationConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataCurrentWaypointLocationConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataHealthConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataStateConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataMaxSpeedConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataConditionConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataRequestBackToPoolConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataRequestAbilityConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataRequestAnimationNotifyConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataStartTimeAnimationConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataPreviousAnimationFrameConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataTargetIdConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataLastOptimizeTimeConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataLastMoveTargetTimeConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataCountCorridorConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataRequestNeedReplanConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataCountWaypointsConfig;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
+	FFluxPrimeDataConfig EntityDataIdConfig;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataRequestAbilityTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataRequestAnimationNotifyTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataStartTimeAnimationTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataPreviousAnimationFrameTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataTargetIdTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataLastOptimizeTimeTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataLastMoveTargetTimeTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataCountCorridorTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataRequestNeedReplanTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataCountWaypointsTag;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-    FGameplayTag EntityDataIdTag;
-
-    bool IsValid() const
-    {
-       return EntityDataLocationTag.IsValid() 
-          && EntityDataRotationTag.IsValid() 
-    	  && EntityDataCurrentWaypointLocationTag.IsValid()
-          && EntityDataHealthTag.IsValid() 
-          && EntityDataStateTag.IsValid() 
-          && EntityDataMaxSpeedTag.IsValid() 
-          && EntityDataConditionTag.IsValid() 
-          && EntityDataRequestSyncAnimationTag.IsValid() 
-          && EntityDataRequestBackToPoolTag.IsValid() 
-          && EntityDataRequestAbilityTag.IsValid() 
-          && EntityDataRequestAnimationNotifyTag.IsValid() 
-          && EntityDataStartTimeAnimationTag.IsValid() 
-          && EntityDataPreviousAnimationFrameTag.IsValid() 
-          && EntityDataTargetIdTag.IsValid() 
-          && EntityDataLastOptimizeTimeTag.IsValid() 
-          && EntityDataLastMoveTargetTimeTag.IsValid() 
-          && EntityDataCountCorridorTag.IsValid() 
-          && EntityDataRequestNeedReplanTag.IsValid() 
-          && EntityDataCountWaypointsTag.IsValid()
-          && EntityDataIdTag.IsValid();
-    }
+	bool IsValid() const
+	{
+		return EntityDataLocationConfig.EntityDataTag.IsValid()
+			&& EntityDataRotationConfig.EntityDataTag.IsValid()
+			&& EntityDataCurrentWaypointLocationConfig.EntityDataTag.IsValid()
+			&& EntityDataHealthConfig.EntityDataTag.IsValid()
+			&& EntityDataStateConfig.EntityDataTag.IsValid()
+			&& EntityDataMaxSpeedConfig.EntityDataTag.IsValid()
+			&& EntityDataConditionConfig.EntityDataTag.IsValid()
+			&& EntityDataRequestBackToPoolConfig.EntityDataTag.IsValid()
+			&& EntityDataRequestAbilityConfig.EntityDataTag.IsValid()
+			&& EntityDataRequestAnimationNotifyConfig.EntityDataTag.IsValid()
+			&& EntityDataStartTimeAnimationConfig.EntityDataTag.IsValid()
+			&& EntityDataPreviousAnimationFrameConfig.EntityDataTag.IsValid()
+			&& EntityDataTargetIdConfig.EntityDataTag.IsValid()
+			&& EntityDataLastOptimizeTimeConfig.EntityDataTag.IsValid()
+			&& EntityDataLastMoveTargetTimeConfig.EntityDataTag.IsValid()
+			&& EntityDataCountCorridorConfig.EntityDataTag.IsValid()
+			&& EntityDataRequestNeedReplanConfig.EntityDataTag.IsValid()
+			&& EntityDataCountWaypointsConfig.EntityDataTag.IsValid()
+			&& EntityDataIdConfig.EntityDataTag.IsValid();
+	}
 };
 
 struct FFluxPrimeCrowdsSpawnerComponentContext
 {
 	FGetStateID getStateID = nullptr;
-	
 	TMap<FName, int8>* crowdsTypes = nullptr;
-	
 	UFluxPrimeCrowdsIdentity* identity = nullptr;
-	FVector location; 
-	FRotator rotation; 
+	FVector location;
+	FRotator rotation;
 	FGameplayTag newState;
-	
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
@@ -117,111 +92,140 @@ USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsSpawnerModule : public FFluxPrimeBaseModule
 {
 	GENERATED_BODY()
-	
-private:
+
+public:
 	UPROPERTY(EditAnywhere)
 	FSpawnerModuleDataTagConfig DataTagConfig;
-	
+
+private:
 	UPROPERTY(EditAnywhere)
 	float RandomOffsetPercent = 0.5f;
+	bool HasAuthority = false;
+	bool IsInitialized = false;
+	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataCurrentWaypointLocationID, EntityDataHealthID, EntityDataStateID, EntityDataMaxSpeedID, EntityDataConditionID, EntityDataRequestBackToPoolID, EntityDataRequestAbilityID, EntityDataRequestAnimationNotifyID, EntityDataStartTimeAnimationID, EntityDataPreviousAnimationFrameID, EntityDataTargetIdID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataRequestNeedReplanID, EntityDataCountWaypointsID, EntityDataIdID;
 
-	TArray<int16> EntityDataLocationID, EntityDataRotationID, EntityDataCurrentWaypointLocationID, EntityDataHealthID, EntityDataStateID, EntityDataMaxSpeedID, EntityDataConditionID, EntityDataRequestSyncAnimationID, EntityDataRequestBackToPoolID, EntityDataRequestAbilityID, EntityDataRequestAnimationNotifyID, EntityDataStartTimeAnimationID, EntityDataPreviousAnimationFrameID, EntityDataTargetIdID, EntityDataLastOptimizeTimeID, EntityDataLastMoveTargetTimeID, EntityDataCountCorridorID, EntityDataRequestNeedReplanID, EntityDataCountWaypointsID, EntityDataIdID;
-	
 public:
-	void Initialized(const TArray<FFluxPrimeArchetypeDataStore>& dataStores)
+	void Initialized(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const bool hasAuthority = true)
 	{
-		for (auto& dataStore : dataStores)
+		IsAllDataValid = true;
+		IsInitialized = false;
+		HasAuthority = hasAuthority;
+		const int32 count = dataStores.Num();
+		EntityDataLocationID.Init(INDEX_NONE, count);
+		EntityDataRotationID.Init(INDEX_NONE, count);
+		EntityDataCurrentWaypointLocationID.Init(INDEX_NONE, count);
+		EntityDataHealthID.Init(INDEX_NONE, count);
+		EntityDataStateID.Init(INDEX_NONE, count);
+		EntityDataMaxSpeedID.Init(INDEX_NONE, count);
+		EntityDataConditionID.Init(INDEX_NONE, count);
+		EntityDataRequestBackToPoolID.Init(INDEX_NONE, count);
+		EntityDataRequestAbilityID.Init(INDEX_NONE, count);
+		EntityDataRequestAnimationNotifyID.Init(INDEX_NONE, count);
+		EntityDataStartTimeAnimationID.Init(INDEX_NONE, count);
+		EntityDataPreviousAnimationFrameID.Init(INDEX_NONE, count);
+		EntityDataTargetIdID.Init(INDEX_NONE, count);
+		EntityDataLastOptimizeTimeID.Init(INDEX_NONE, count);
+		EntityDataLastMoveTargetTimeID.Init(INDEX_NONE, count);
+		EntityDataCountCorridorID.Init(INDEX_NONE, count);
+		EntityDataRequestNeedReplanID.Init(INDEX_NONE, count);
+		EntityDataCountWaypointsID.Init(INDEX_NONE, count);
+		EntityDataIdID.Init(INDEX_NONE, count);
+		for (int32 i = 0; i < count; ++i)
 		{
-			EntityDataLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLocationTag));
-			EntityDataRotationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRotationTag));
-			EntityDataCurrentWaypointLocationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCurrentWaypointLocationTag));
-			EntityDataHealthID.Add(dataStore.GetDataID(DataTagConfig.EntityDataHealthTag));
-			EntityDataStateID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStateTag));
-			EntityDataMaxSpeedID.Add(dataStore.GetDataID(DataTagConfig.EntityDataMaxSpeedTag));
-			EntityDataConditionID.Add(dataStore.GetDataID(DataTagConfig.EntityDataConditionTag));
-			EntityDataRequestSyncAnimationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestSyncAnimationTag));
-			EntityDataRequestBackToPoolID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestBackToPoolTag));
-			EntityDataRequestAbilityID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAbilityTag));
-			EntityDataRequestAnimationNotifyID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestAnimationNotifyTag));
-			EntityDataStartTimeAnimationID.Add(dataStore.GetDataID(DataTagConfig.EntityDataStartTimeAnimationTag));
-			EntityDataPreviousAnimationFrameID.Add(dataStore.GetDataID(DataTagConfig.EntityDataPreviousAnimationFrameTag));
-			EntityDataTargetIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataTargetIdTag));
-			EntityDataLastOptimizeTimeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastOptimizeTimeTag));
-			EntityDataLastMoveTargetTimeID.Add(dataStore.GetDataID(DataTagConfig.EntityDataLastMoveTargetTimeTag));
-			EntityDataCountCorridorID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCountCorridorTag));
-			EntityDataRequestNeedReplanID.Add(dataStore.GetDataID(DataTagConfig.EntityDataRequestNeedReplanTag));
-			EntityDataCountWaypointsID.Add(dataStore.GetDataID(DataTagConfig.EntityDataCountWaypointsTag));
-			EntityDataIdID.Add(dataStore.GetDataID(DataTagConfig.EntityDataIdTag));
+			auto& dataStore = dataStores[i];
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLocationConfig, EntityDataLocationID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRotationConfig, EntityDataRotationID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCurrentWaypointLocationConfig, EntityDataCurrentWaypointLocationID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStateConfig, EntityDataStateID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataConditionConfig, EntityDataConditionID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestBackToPoolConfig, EntityDataRequestBackToPoolID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAbilityConfig, EntityDataRequestAbilityID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAnimationNotifyConfig, EntityDataRequestAnimationNotifyID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataStartTimeAnimationConfig, EntityDataStartTimeAnimationID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataPreviousAnimationFrameConfig, EntityDataPreviousAnimationFrameID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataIdConfig, EntityDataIdID[i]);
+			if (!HasAuthority) continue;
+			TryInitializedData(dataStore, DataTagConfig.EntityDataHealthConfig, EntityDataHealthID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataMaxSpeedConfig, EntityDataMaxSpeedID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetIdConfig, EntityDataTargetIdID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastOptimizeTimeConfig, EntityDataLastOptimizeTimeID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataLastMoveTargetTimeConfig, EntityDataLastMoveTargetTimeID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCountCorridorConfig, EntityDataCountCorridorID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestNeedReplanConfig, EntityDataRequestNeedReplanID[i]);
+			TryInitializedData(dataStore, DataTagConfig.EntityDataCountWaypointsConfig, EntityDataCountWaypointsID[i]);
 		}
+		IsInitialized = IsAllDataValid;
 	}
-	
+
+private:
+	FFluxPrimeArchetypeDataStore* ResolveSpawnTarget(const FFluxPrimeCrowdsSpawnerComponentContext& context, int32& outIndexDataID)
+	{
+		if (!context.identity)
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Spawn rejected: the spawn request has no identity."));
+			return nullptr;
+		}
+		if (!context.crowdsTypes || !context.dataStores || !context.getStateID)
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Spawn rejected: archetype map, data stores or state lookup is unavailable."));
+			return nullptr;
+		}
+		if (!IsInitialized || !IsAllDataValid) return nullptr;
+		const int8* foundIndex = context.crowdsTypes->Find(context.identity->Identity);
+		if (!foundIndex || !context.dataStores->IsValidIndex(*foundIndex) || !EntityDataLocationID.IsValidIndex(*foundIndex))
+		{
+			UE_LOG(LogFluxPrime, Error, TEXT("Spawn rejected: identity '%s' has no initialized archetype."), *context.identity->Identity.ToString());
+			return nullptr;
+		}
+		auto& dataStore = (*context.dataStores)[*foundIndex];
+		if (dataStore.GetActiveEntityCount() >= dataStore.GetTotalEntityCount()) return nullptr;
+		outIndexDataID = *foundIndex;
+		return &dataStore;
+	}
+
+	void WriteSpawnFields(const FFluxPrimeCrowdsSpawnerComponentContext& context, FFluxPrimeArchetypeDataStore& dataStore,
+		const int32 indexDataID, const int32 indexSelected)
+	{
+		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]))[indexSelected] = context.location;
+		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexSelected] = context.location;
+		reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]))[indexSelected] = FRotator(0, context.rotation.Yaw, 0);
+		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionID[indexDataID]))[indexSelected].ValueBool = true;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]))[indexSelected].ValueBool = false;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]))[indexSelected].ValueBool = false;
+		reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]))[indexSelected].ValueInt32 = INDEX_NONE;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataStartTimeAnimationID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataPreviousAnimationFrameID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
+	}
+
+public:
 	void SpawnNetCrowd(FFluxPrimeCrowdsSpawnerComponentContext context)
 	{
-		auto& identity = *context.identity;
-		auto& type = *context.crowdsTypes;
-		if (!context.identity || !type.Contains(identity.Identity)) return;
-		
-		int16 indexDataID = *type.Find(identity.Identity);
-		auto& dataStore = (*context.dataStores)[indexDataID];
-		
-		if (dataStore.GetActiveEntityCount() >= dataStore.GetTotalEntityCount()) return;
-		
-		int32 indexSelected = dataStore.GetActiveEntityCount();
-		
-		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]))[indexSelected] = context.location;
-		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexSelected] = context.location;
-		reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]))[indexSelected] = FRotator(0, context.rotation.Yaw, 0);
-		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
-		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionID[indexDataID]))[indexSelected].ValueBool = true;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]))[indexSelected].ValueInt32 = INDEX_NONE;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataStartTimeAnimationID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataPreviousAnimationFrameID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		
-		int32 activeEntityCount = dataStore.GetActiveEntityCount();
-		dataStore.SetActiveEntityCount(++activeEntityCount);
+		int32 indexDataID = INDEX_NONE;
+		auto* dataStore = ResolveSpawnTarget(context, indexDataID);
+		if (!dataStore) return;
+		const int32 indexSelected = dataStore->GetActiveEntityCount();
+		WriteSpawnFields(context, *dataStore, indexDataID, indexSelected);
+		dataStore->SetActiveEntityCount(indexSelected + 1);
 	}
-	
+
 	void SpawnCrowd(FFluxPrimeCrowdsSpawnerComponentContext context)
 	{
-		auto& identity = *context.identity;
-		auto& type = *context.crowdsTypes;
-		if (!context.identity || !type.Contains(identity.Identity)) return;
-		
-		int16 indexDataID = *type.Find(identity.Identity);
-		auto& dataStore = (*context.dataStores)[indexDataID];
-		
-		if (dataStore.GetActiveEntityCount() >= dataStore.GetTotalEntityCount()) return;
-		
-		const float baseSpeed = identity.Speed;
-		
-		int16 health = identity.Health;
-		int32 indexSelected = dataStore.GetActiveEntityCount();
-		
-		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]))[indexSelected] = context.location;
-		reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataCurrentWaypointLocationID[indexDataID]))[indexSelected] = context.location;
-		reinterpret_cast<FRotator*>(dataStore.GetRawBufferData(EntityDataRotationID[indexDataID]))[indexSelected] = FRotator(0, context.rotation.Yaw, 0);
-		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataHealthID[indexDataID]))[indexSelected].ValueInt16 = health;
-		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataStateID[indexDataID]))[indexSelected].ValueInt8 = context.getStateID(context.newState);
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataMaxSpeedID[indexDataID]))[indexSelected].ValueFloat = FMath::FRandRange(baseSpeed * (1.0f - RandomOffsetPercent), baseSpeed * (1.0f + RandomOffsetPercent));
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataConditionID[indexDataID]))[indexSelected].ValueBool = true;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestBackToPoolID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestAbilityID[indexDataID]))[indexSelected].ValueBool = false;
-		reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]))[indexSelected].ValueInt32 = INDEX_NONE;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataStartTimeAnimationID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataPreviousAnimationFrameID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		reinterpret_cast<FFluxPrimeWrapperUint16*>(dataStore.GetRawBufferData(EntityDataTargetIdID[indexDataID]))[indexSelected].ValueUint16 = 0;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataLastOptimizeTimeID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore.GetRawBufferData(EntityDataLastMoveTargetTimeID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
-		reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore.GetRawBufferData(EntityDataCountCorridorID[indexDataID]))[indexSelected].ValueUint8 = 0;
-		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestNeedReplanID[indexDataID]))[indexSelected].ValueBool = true;
-		reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStore.GetRawBufferData(EntityDataCountWaypointsID[indexDataID]))[indexSelected].ValueInt8 = 0;
-		
-		int32 activeEntityCount = dataStore.GetActiveEntityCount();
-		dataStore.SetActiveEntityCount(++activeEntityCount);
+		int32 indexDataID = INDEX_NONE;
+		auto* dataStore = ResolveSpawnTarget(context, indexDataID);
+		if (!dataStore || !HasAuthority) return;
+		const float baseSpeed = context.identity->Speed;
+		const int16 health = context.identity->Health;
+		const int32 indexSelected = dataStore->GetActiveEntityCount();
+		WriteSpawnFields(context, *dataStore, indexDataID, indexSelected);
+		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore->GetRawBufferData(EntityDataHealthID[indexDataID]))[indexSelected].ValueInt16 = health;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore->GetRawBufferData(EntityDataMaxSpeedID[indexDataID]))[indexSelected].ValueFloat = FMath::FRandRange(baseSpeed * (1.0f - RandomOffsetPercent), baseSpeed * (1.0f + RandomOffsetPercent));
+		reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore->GetRawBufferData(EntityDataTargetIdID[indexDataID]))[indexSelected].ValueInt16 = 0;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore->GetRawBufferData(EntityDataLastOptimizeTimeID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
+		reinterpret_cast<FFluxPrimeWrapperFloat*>(dataStore->GetRawBufferData(EntityDataLastMoveTargetTimeID[indexDataID]))[indexSelected].ValueFloat = 0.0f;
+		reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore->GetRawBufferData(EntityDataCountCorridorID[indexDataID]))[indexSelected].ValueUint8 = 0;
+		reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore->GetRawBufferData(EntityDataRequestNeedReplanID[indexDataID]))[indexSelected].ValueBool = true;
+		reinterpret_cast<FFluxPrimeWrapperUint8*>(dataStore->GetRawBufferData(EntityDataCountWaypointsID[indexDataID]))[indexSelected].ValueUint8 = 0;
+		dataStore->SetActiveEntityCount(indexSelected + 1);
 	}
 };

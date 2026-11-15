@@ -43,9 +43,6 @@ struct FAnimationSystemDataTagConfig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
 	FFluxPrimeDataConfig EntityDataRequestAnimationNotifyConfig;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tag Config")
-	FFluxPrimeDataConfig EntityDataRequestSyncAnimationConfig;
 
 	bool IsValid() const
 	{
@@ -56,8 +53,7 @@ struct FAnimationSystemDataTagConfig
 		   && EntityDataPreviousFrameAnimConfig.EntityDataTag.IsValid() 
 		   && EntityDataCellIdConfig.EntityDataTag.IsValid() 
 		   && EntityDataTargetLocationConfig.EntityDataTag.IsValid() 
-		   && EntityDataRequestAnimationNotifyConfig.EntityDataTag.IsValid()
-		   && EntityDataRequestSyncAnimationConfig.EntityDataTag.IsValid();
+		   && EntityDataRequestAnimationNotifyConfig.EntityDataTag.IsValid();
 	}
 };
 
@@ -73,9 +69,8 @@ struct FFluxPrimeAnimationSystemsContext
 	TObjectPtr<UWorld> world;
 	
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>>* componentsISMC = nullptr;
-	TArray<FName>* nameCatalog = nullptr;
-	uint16 countCatalog;
-	TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>* animationSoftRef = nullptr;
+	/** One resolved animation asset per archetype, in catalog order. */
+	const TArray<TObjectPtr<UFluxPrimeAnimationData>>* resolvedAnimationData = nullptr;
 	
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
@@ -109,11 +104,38 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Animation", meta = (ClampMin = "0.001"))
 	float SourceFrameRate = 30.0f;
 	
-	TArray<int16> EntityDataIdID, EntityDataStateID, EntityDataAnimStateID, EntityDataStartTimeAnimID, EntityDataPreviousFrameAnimID, EntityDataCellIdID, EntityDataTargetLocationID, EntityDataRequestAnimationNotifyID, EntityDataRequestSyncAnimationID;
+	TArray<int16> EntityDataIdID, EntityDataStateID, EntityDataAnimStateID, EntityDataStartTimeAnimID, EntityDataPreviousFrameAnimID, EntityDataCellIdID, EntityDataTargetLocationID, EntityDataRequestAnimationNotifyID;
 	
-private:
-	void InitializeAnimationMapping(const uint16& countCatalog, TArray<FName>& nameCatalog, TMap<FName, TSoftObjectPtr<UFluxPrimeAnimationData>>& animationSoftRef)
+public:
+	/** Copies presentation only; datastore relocation already preserves playback and notify phase. */
+	TFunction<void(int32, int32, int32)> CreatePresentationRelocator() const
 	{
+		TArray<TWeakObjectPtr<UInstancedStaticMeshComponent>> Components;
+		if (ComponentsISMC)
+		{
+			for (const auto& Component : *ComponentsISMC) Components.Add(Component.Get());
+		}
+		// No system/module address survives FInstancedStruct copies or teardown.
+		return [Components = MoveTemp(Components)](int32 Archetype, int32 Source, int32 Destination)
+		{
+			if (Source == Destination || !Components.IsValidIndex(Archetype)) return;
+			UInstancedStaticMeshComponent* Component = Components[Archetype].Get();
+			if (!Component || Component->NumCustomDataFloats < 6 || Source < 0 || Destination < 0 ||
+				Source >= Component->GetInstanceCount() || Destination >= Component->GetInstanceCount()) return;
+			for (int32 Field = 0; Field < 6; ++Field)
+			{
+				Component->SetCustomDataValue(Destination, Field,
+					Component->PerInstanceSMCustomData[Source * Component->NumCustomDataFloats + Field], false);
+			}
+			Component->MarkRenderStateDirty();
+		};
+	}
+
+	/** Builds per-archetype runtime mappings from already resolved animation assets. */
+	bool InitializeAnimationMapping(const TArray<TObjectPtr<UFluxPrimeAnimationData>>& resolvedAnimationData)
+	{
+		const int32 countCatalog = resolvedAnimationData.Num();
+
 		RuntimeAnimationMapping.Init(FFluxPrimeRuntimeAnimationMapping(), countCatalog);
 		RuntimeAnimationNotify.Init(FFluxPrimeRuntimeAnimationNotify(), countCatalog);
 		
@@ -121,9 +143,15 @@ private:
 		
 		for (int i = 0; i < countCatalog; ++i)
 		{
-			UFluxPrimeAnimationData& dataAnim = *animationSoftRef[nameCatalog[i]];
-			
-			int32 countAnimationData = dataAnim.DataAnimations.Num();
+			UFluxPrimeAnimationData* dataAnim = resolvedAnimationData[i];
+			if (!dataAnim)
+			{
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Animation system cannot initialize archetype %d: no animation asset is resolved."), i);
+				return false;
+			}
+
+			int32 countAnimationData = dataAnim->DataAnimations.Num();
 			FFluxPrimeRuntimeAnimationMapping animationRuntimeData = FFluxPrimeRuntimeAnimationMapping();
 			FFluxPrimeRuntimeAnimationNotify animationRuntimeNotify = FFluxPrimeRuntimeAnimationNotify();
 			
@@ -138,7 +166,7 @@ private:
 			
 			RuntimeAnimationNotify[i].RuntimeAnimationNotifyData.Init(FFluxPrimeRuntimeAnimationNotifyData(), countAnimationData);
 			
-			for (auto& pair : dataAnim.DataAnimations)
+			for (auto& pair : dataAnim->DataAnimations)
 			{
 				int32 index = GetStateID(pair.StateTag);
 				
@@ -159,8 +187,11 @@ private:
 			RuntimeAnimationMapping[i] = animationRuntimeData;
 			RuntimeAnimationNotify[i] = animationRuntimeNotify;
 		}
+
+		return countCatalog > 0;
 	}
 	
+private:
 	bool IsNotifyTriggered(float PrevFrame, float CurrentFrame, float NotifyFrame)
 	{
 		if (PrevFrame < 0.0f) return false;
@@ -213,7 +244,7 @@ private:
 			uint8 indexAnimation = animationState;
 			uint16 previousStartFrame = RuntimeAnimationMapping[type].AnimationStart[indexAnimation];
 			uint16 previousEndFrame = RuntimeAnimationMapping[type].AnimationEnd[indexAnimation];
-			uint16 previousTime = startTimeAnimation;
+			const float previousTime = startTimeAnimation;
 			
 			// change current state
 			animationState = state;
@@ -231,28 +262,7 @@ private:
 		}
 	}
 	
-	void SyncAnimation(const int16 instanceIndexEntity, const int8 type, const int8 animationState, 
-		float& startTimeAnimation, float& previousFrameAnimation, float realTime)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_UpdateAnimation);
-		
-		// previous
-		uint16 previousStartFrame = RuntimeAnimationMapping[type].AnimationStart[animationState];
-		uint16 previousEndFrame = RuntimeAnimationMapping[type].AnimationEnd[animationState];
-		uint16 previousTime = startTimeAnimation;
-		
-		// current
-		uint16 currentStartFrame = RuntimeAnimationMapping[type].AnimationStart[animationState];
-		uint16 currentEndFrame = RuntimeAnimationMapping[type].AnimationEnd[animationState];
-			
-		SwitchAnimation(instanceIndexEntity, type, currentStartFrame, currentEndFrame, previousStartFrame, previousEndFrame, previousTime, realTime);
-		
-		// update start time
-		startTimeAnimation = realTime;
-		previousFrameAnimation = -1.0f;
-	}
-	
-	void SwitchAnimation(uint16 instanceIndexEntity, int8 type, uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame,uint16 previousStartTime, float realTime)
+	void SwitchAnimation(uint16 instanceIndexEntity, int8 type, uint16 currentStartFrame, uint16 currentEndFrame, uint16 previousStartFrame, uint16 previousEndFrame, float previousStartTime, float realTime)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_Switch);
 		
@@ -308,8 +318,7 @@ public:
 	{
 		check(context.world);
 		check(context.componentsISMC);
-		check(context.nameCatalog);
-		check(context.animationSoftRef);
+		check(context.resolvedAnimationData);
 		check(context.getStateID);
 		check(context.getNotifyID);
 		check(context.dataStores);
@@ -323,14 +332,17 @@ public:
 		EntityDataCellIdID.Init(0, countData);
 		EntityDataTargetLocationID.Init(0, countData);
 		EntityDataRequestAnimationNotifyID.Init(0, countData);
-		EntityDataRequestSyncAnimationID.Init(0, countData);
 		
 		World = context.world;
 		ComponentsISMC = context.componentsISMC;
 		GetStateID = context.getStateID;
 		GetNotifyID = context.getNotifyID;
 		
-		InitializeAnimationMapping(context.countCatalog, *context.nameCatalog, *context.animationSoftRef);
+		if (!InitializeAnimationMapping(*context.resolvedAnimationData))
+		{
+			IsAllDataValid = false;
+			return;
+		}
 		
 		SpatialGridSystem.Initialized(*context.dataStores);
 		
@@ -345,7 +357,6 @@ public:
 			TryInitializedData(dataStore, DataTagConfig.EntityDataCellIdConfig, EntityDataCellIdID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataTargetLocationConfig, EntityDataTargetLocationID[indexDataId]);
 			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestAnimationNotifyConfig, EntityDataRequestAnimationNotifyID[indexDataId]);
-			TryInitializedData(dataStore, DataTagConfig.EntityDataRequestSyncAnimationConfig, EntityDataRequestSyncAnimationID[indexDataId]);
 			indexDataId++;
 		}
 	}
@@ -375,7 +386,6 @@ public:
 			FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 			FVector* entityDataTargetLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataTargetLocationID[indexDataID]));
 			FFluxPrimeWrapperInt32* entityDataRequestAnimationNotify = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataRequestAnimationNotifyID[indexDataID]));
-			FFluxPrimeWrapperBool* entityDataRequestSyncNotify = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStore.GetRawBufferData(EntityDataRequestSyncAnimationID[indexDataID]));
 			
 			check(entityDataId);
 			check(entityDataState);
@@ -385,19 +395,11 @@ public:
 			check(entityDataCellId);
 			check(entityDataTargetLocation);
 			check(entityDataRequestAnimationNotify);
-			check(entityDataRequestSyncNotify);
 
 			for (int16 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
-				if (entityDataRequestSyncNotify[i].ValueBool)
-				{
-					entityDataRequestSyncNotify[i].ValueBool = false;
-					SyncAnimation(i, indexDataID,  
-					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
-				}
-				
-				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8, 
-					entityDataAnimState[i].ValueInt8, entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
+				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8,  entityDataAnimState[i].ValueInt8, 
+					entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				
 				int32 targetCellId = SpatialGridSystem.GetSpatialGridSystemsCellID(entityDataTargetLocation[i]);
 				

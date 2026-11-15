@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "StateLogics/FluxPrimeCrowdsWalkState.h"
 #include "FluxPrimeCrowdsStateTransition.h"
+#include "Framework/Data/FluxPrimeIdentityData.h"
 #include "Framework/Data/FluxPrimeStateData.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseStateMachineSystem.h"
 #include "StateLogics/FluxPrimeCrowdsAbilityState.h"
@@ -20,12 +21,25 @@ struct FFluxPrimeCrowdsStateMachineSystemContext
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 
+USTRUCT()
+struct FFluxPrimeRuntimeArchetypeStateData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FFluxPrimeStateDataEditor> StateData;
+};
+
 USTRUCT(BlueprintType)
 struct FFluxPrimeCrowdsStateMachineSystem : public FFluxPrimeBaseStateMachineSystem
 {
 	GENERATED_BODY()
 	
 private:
+	/** Per-archetype deep copies of the asset's state data. Executors point only into these copies. */
+	UPROPERTY()
+	TArray<FFluxPrimeRuntimeArchetypeStateData> RuntimeStateData;
+
 	void InitializedStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, FInstancedStruct& sourceState)
 	{
 		if (sourceState.GetPtr<FFluxPrimeCrowdsWalkState>())
@@ -74,15 +88,15 @@ private:
 		}
 	}
 	
-	void RegisterStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, TArray<FFluxPrimeArchetypeEntityCatalog>& entityCatalog, 
-		const int32 entityCatalogCount, const FGetStateID getStateID)
+	void RegisterStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FGetStateID getStateID)
 	{
+		const int32 entityCatalogCount = RuntimeStateData.Num();
 		RuntimeDataStateMachine.Reserve(entityCatalogCount);
 		RuntimeDataStateMachine.Init(FFluxPrimeRuntimeDataStateMapping(), entityCatalogCount);
 		
 		for (int indexCatalog = 0; indexCatalog < entityCatalogCount; ++indexCatalog)
 		{
-			TArray<FFluxPrimeStateDataEditor>& tempData = entityCatalog[indexCatalog].EntityIdentity->StateIdentity->StateData;
+			TArray<FFluxPrimeStateDataEditor>& tempData = RuntimeStateData[indexCatalog].StateData;
 			RuntimeDataStateMachine[indexCatalog].State.Reserve(tempData.Num());
 			RuntimeDataStateMachine[indexCatalog].Transition.Reserve(tempData.Num());
 
@@ -94,12 +108,38 @@ private:
 		}
 	}
 	
+	/** Copies each archetype's authored state and transition fragments so runtime data never touches the asset. */
+	bool BuildRuntimeStateData(const TArray<FFluxPrimeArchetypeEntityCatalog>& entityCatalog)
+	{
+		RuntimeStateData.Reset();
+		RuntimeStateData.Reserve(entityCatalog.Num());
+
+		for (int32 indexCatalog = 0; indexCatalog < entityCatalog.Num(); ++indexCatalog)
+		{
+			const UFluxPrimeBaseIdentity* baseIdentity = entityCatalog[indexCatalog].EntityIdentity;
+			const UFluxPrimeStateIdentity* stateIdentity = baseIdentity ? baseIdentity->StateIdentity : nullptr;
+			if (!stateIdentity)
+			{
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("State machine system cannot initialize: archetype index %d has no StateIdentity."), indexCatalog);
+				return false;
+			}
+
+			RuntimeStateData.Add(FFluxPrimeRuntimeArchetypeStateData());
+			RuntimeStateData.Last().StateData = stateIdentity->StateData;
+		}
+
+		return true;
+	}
+	
 public:
 	void Initialized(FFluxPrimeCrowdsStateMachineSystemContext context)
 	{
 		check(context.getStateID);
 		check(context.entityCatalog);
 		check(context.dataStores);
+
+		if (!BuildRuntimeStateData(*context.entityCatalog)) return;
 		
 		EntityDataStateID.Init(0, context.dataStores->Num());
 
@@ -108,9 +148,11 @@ public:
 		{
 			TryInitializedData(dataStore, DataTagConfig.EntityDataStateConfig, EntityDataStateID[indexDataId]);
 			indexDataId++;
-			
-			RegisterStateData(*context.dataStores, *context.entityCatalog, context.entityCatalog->Num(), context.getStateID);
 		}
-		
+
+		RegisterStateData(*context.dataStores, context.getStateID);
 	}
+
+	/** Runtime copies of the authored state data, one entry per archetype. */
+	const TArray<FFluxPrimeRuntimeArchetypeStateData>& GetRuntimeStateData() const { return RuntimeStateData; }
 };
