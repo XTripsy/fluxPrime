@@ -264,6 +264,7 @@ void UFluxPrimeCrowdsManager::InitializedModules()
 			context.resolvedIdentities = &ResolvedCrowdIdentities;
 			context.resolvedAnimationData = &ResolvedAnimationData;
 			context.hasAuthority = GetOwner()->HasAuthority();
+			context.globalStateCount = GetStateCount();
 			
 			context.onCrowdsManagerActionChange = &OnCrowdsManagerActionChange;
 			context.crowdsTarget = &CrowdsTarget;

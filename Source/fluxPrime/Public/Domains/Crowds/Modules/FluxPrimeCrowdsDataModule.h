@@ -78,6 +78,25 @@ public:
 				UE_LOG(LogFluxPrime, Error, TEXT("Data module cannot initialize archetype %d: invalid identity, component or pool size."), i);
 				return;
 			}
+
+			if (entityCatalog[i].TotalEntityOnPool > TNumericLimits<int16>::Max())
+			{
+				IsAllDataValid = false;
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Data module cannot initialize archetype %d: pool size %d exceeds the Int16 instance-id range. ")
+					TEXT("Widen the id buffer (REF-028) before using a pool this large."),
+					i, entityCatalog[i].TotalEntityOnPool);
+				return;
+			}
+
+			if (entityCatalog[i].EntityIdentity->Size > TNumericLimits<int16>::Max())
+			{
+				IsAllDataValid = false;
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Data module cannot initialize archetype %d: identity size %d exceeds the Int16 size buffer."),
+					i, entityCatalog[i].EntityIdentity->Size);
+				return;
+			}
 		}
 		// Build separately so failed validation leaves the existing pool untouched.
 		TArray<FFluxPrimeArchetypeDataStore> pendingStores;

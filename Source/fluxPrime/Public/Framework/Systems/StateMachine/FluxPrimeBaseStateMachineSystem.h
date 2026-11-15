@@ -76,27 +76,33 @@ private:
 	
 protected:
 	template<typename TState>
-	int32 RegisterStateRuntimeData(FInstancedStruct& sourceState, int32 indexData)
+	int32 RegisterStateRuntimeData(FInstancedStruct& sourceState, int32 indexData, int32 targetState)
 	{
-		if (indexData == INDEX_NONE) return INDEX_NONE;
+		if (indexData == INDEX_NONE || targetState == INDEX_NONE) return INDEX_NONE;
+		if (!RuntimeDataStateMachine.IsValidIndex(indexData)) return INDEX_NONE;
+		if (!RuntimeDataStateMachine[indexData].State.IsValidIndex(targetState)) return INDEX_NONE;
 		
 		FStateExecutor executorState;
 		executorState.Data = &sourceState;
 		executorState.Execute = &ExecuteState<TState>;
 		
-		return RuntimeDataStateMachine[indexData].State.Add(MoveTemp(executorState));
+		RuntimeDataStateMachine[indexData].State[targetState] = MoveTemp(executorState);
+		return targetState;
 	}
 	
 	template<typename TTransition>
-	int32 RegisterTransitionRuntimeData(FInstancedStruct& sourceTransition, int32 indexData)
+	int32 RegisterTransitionRuntimeData(FInstancedStruct& sourceTransition, int32 indexData, int32 targetState)
 	{
-		if (indexData == INDEX_NONE) return INDEX_NONE;
+		if (indexData == INDEX_NONE || targetState == INDEX_NONE) return INDEX_NONE;
+		if (!RuntimeDataStateMachine.IsValidIndex(indexData)) return INDEX_NONE;
+		if (!RuntimeDataStateMachine[indexData].Transition.IsValidIndex(targetState)) return INDEX_NONE;
 		
 		FStateTransitionExecutor executorTransition;
 		executorTransition.Data = &sourceTransition;
 		executorTransition.Execute = &ExecuteTransition<TTransition>;
 		
-		return RuntimeDataStateMachine[indexData].Transition.Add(MoveTemp(executorTransition));
+		RuntimeDataStateMachine[indexData].Transition[targetState] = MoveTemp(executorTransition);
+		return targetState;
 	}
 	
 public:
@@ -128,13 +134,19 @@ public:
 				if (pairData.State.IsValidIndex(currentState))
 				{
 					FStateExecutor& pairState = pairData.State[currentState];
-					pairState.Execute(*pairState.Data, deltaTime, indexDataID, indexEntity, dataStore);
+					if (pairState.Execute && pairState.Data)
+					{
+						pairState.Execute(*pairState.Data, deltaTime, indexDataID, indexEntity, dataStore);
+					}
 				}
 				
 				if (pairData.Transition.IsValidIndex(currentState))
 				{
 					FStateTransitionExecutor& pairTransition = pairData.Transition[currentState];
-					pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);
+					if (pairTransition.Execute && pairTransition.Data)
+					{
+						pairTransition.Execute(*pairTransition.Data, entityDataState[indexEntity].ValueInt8, indexDataID, indexEntity, dataStore);
+					}
 				}
 			}
 			

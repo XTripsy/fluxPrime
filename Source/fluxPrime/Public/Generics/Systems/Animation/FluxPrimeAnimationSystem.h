@@ -64,6 +64,8 @@ struct FFluxPrimeAnimationSystemsContext
 	
 	FGetStateID getStateID = nullptr;
 	FGetNotifyID getNotifyID = nullptr;
+	/** Size of the manager's global state table. Per-archetype animation arrays are indexed by it. */
+	int32 globalStateCount = 0;
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
@@ -131,15 +133,30 @@ public:
 		};
 	}
 
-	/** Builds per-archetype runtime mappings from already resolved animation assets. */
-	bool InitializeAnimationMapping(const TArray<TObjectPtr<UFluxPrimeAnimationData>>& resolvedAnimationData)
+	/** Builds per-archetype runtime mappings indexed by the manager's global state ids. */
+	bool InitializeAnimationMapping(const TArray<TObjectPtr<UFluxPrimeAnimationData>>& resolvedAnimationData,
+		int32 globalStateCount)
 	{
 		const int32 countCatalog = resolvedAnimationData.Num();
 
+		if (globalStateCount <= 0)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Animation system cannot initialize: the global state table is empty."));
+			return false;
+		}
+
+		if (globalStateCount > FluxPrimeMaxGlobalStateCount)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Animation system cannot initialize: global state count %d exceeds the int8 runtime carrier ")
+				TEXT("limit of %d."),
+				globalStateCount, FluxPrimeMaxGlobalStateCount);
+			return false;
+		}
+
 		RuntimeAnimationMapping.Init(FFluxPrimeRuntimeAnimationMapping(), countCatalog);
 		RuntimeAnimationNotify.Init(FFluxPrimeRuntimeAnimationNotify(), countCatalog);
-		
-		int32 notifyIndex = -1;
 		
 		for (int i = 0; i < countCatalog; ++i)
 		{
@@ -151,47 +168,88 @@ public:
 				return false;
 			}
 
-			int32 countAnimationData = dataAnim->DataAnimations.Num();
-			FFluxPrimeRuntimeAnimationMapping animationRuntimeData = FFluxPrimeRuntimeAnimationMapping();
-			FFluxPrimeRuntimeAnimationNotify animationRuntimeNotify = FFluxPrimeRuntimeAnimationNotify();
-			
-			animationRuntimeData.AnimationStart.Init(0, countAnimationData);
-			animationRuntimeData.AnimationEnd.Init(0, countAnimationData);
-			animationRuntimeData.AnimationForceNotify.Init(false, countAnimationData);
-			animationRuntimeNotify.RuntimeAnimationNotifyData.Init(FFluxPrimeRuntimeAnimationNotifyData(), countAnimationData);
-			
-			RuntimeAnimationMapping[i].AnimationStart.Init(0, countAnimationData);
-			RuntimeAnimationMapping[i].AnimationEnd.Init(0, countAnimationData);
-			RuntimeAnimationMapping[i].AnimationForceNotify.Init(false, countAnimationData);
-			
-			RuntimeAnimationNotify[i].RuntimeAnimationNotifyData.Init(FFluxPrimeRuntimeAnimationNotifyData(), countAnimationData);
+			FFluxPrimeRuntimeAnimationMapping& mapping = RuntimeAnimationMapping[i];
+			FFluxPrimeRuntimeAnimationNotify& notify = RuntimeAnimationNotify[i];
+
+			mapping.AnimationStart.Init(0, globalStateCount);
+			mapping.AnimationEnd.Init(0, globalStateCount);
+			mapping.AnimationForceNotify.Init(false, globalStateCount);
+			mapping.AnimationStateValid.Init(false, globalStateCount);
+			notify.RuntimeAnimationNotifyData.Init(FFluxPrimeRuntimeAnimationNotifyData(), globalStateCount);
 			
 			for (auto& pair : dataAnim->DataAnimations)
 			{
-				int32 index = GetStateID(pair.StateTag);
+				const int32 index = GetStateID(pair.StateTag);
+				if (index == INDEX_NONE || index >= globalStateCount)
+				{
+					UE_LOG(LogFluxPrime, Error,
+						TEXT("Animation system cannot initialize archetype %d: state tag '%s' is not registered ")
+						TEXT("in the global state table (count %d)."),
+						i, *pair.StateTag.ToString(), globalStateCount);
+					return false;
+				}
+
+				if (pair.AnimationStartFrame < 0 || pair.AnimationEndFrame < pair.AnimationStartFrame)
+				{
+					UE_LOG(LogFluxPrime, Error,
+						TEXT("Animation system cannot initialize archetype %d: state '%s' has invalid frames %d-%d."),
+						i, *pair.StateTag.ToString(), pair.AnimationStartFrame, pair.AnimationEndFrame);
+					return false;
+				}
 				
 				for (int32 l = 0; l < FluxConfig::AnimationArrayCount; ++l)
 				{
 					if (!pair.AnimationNotifies[l].AnimationNotifyTag.IsValid()) continue;
-					notifyIndex = animationRuntimeNotify.RuntimeAnimationNotifyData[index].AnimationNotifyCount;
-					animationRuntimeNotify.RuntimeAnimationNotifyData[index].AnimationNotify[notifyIndex].AnimationNotifyID = GetNotifyID(pair.AnimationNotifies[l].AnimationNotifyTag);
-					animationRuntimeNotify.RuntimeAnimationNotifyData[index].AnimationNotify[notifyIndex].AnimationNotifyFrame = pair.AnimationNotifies[l].AnimationNotifyFrame;
-					animationRuntimeNotify.RuntimeAnimationNotifyData[index].AnimationNotifyCount++;
+
+					const int32 notifyID = GetNotifyID(pair.AnimationNotifies[l].AnimationNotifyTag);
+					if (notifyID == INDEX_NONE)
+					{
+						UE_LOG(LogFluxPrime, Error,
+							TEXT("Animation system cannot initialize archetype %d: notify tag '%s' is not registered."),
+							i, *pair.AnimationNotifies[l].AnimationNotifyTag.ToString());
+						return false;
+					}
+
+					const int32 notifyCount = notify.RuntimeAnimationNotifyData[index].AnimationNotifyCount;
+					if (notifyCount < 0 || notifyCount >= FluxConfig::AnimationArrayCount)
+					{
+						UE_LOG(LogFluxPrime, Error,
+							TEXT("Animation system cannot initialize archetype %d: state '%s' has more than %d notifies."),
+							i, *pair.StateTag.ToString(), FluxConfig::AnimationArrayCount);
+						return false;
+					}
+
+					notify.RuntimeAnimationNotifyData[index].AnimationNotify[notifyCount].AnimationNotifyID = notifyID;
+					notify.RuntimeAnimationNotifyData[index].AnimationNotify[notifyCount].AnimationNotifyFrame = pair.AnimationNotifies[l].AnimationNotifyFrame;
+					notify.RuntimeAnimationNotifyData[index].AnimationNotifyCount = static_cast<int8>(notifyCount + 1);
 				}
 				
-				animationRuntimeData.AnimationStart[index] = pair.AnimationStartFrame;
-				animationRuntimeData.AnimationEnd[index] = pair.AnimationEndFrame;
-				animationRuntimeData.AnimationForceNotify[index] = pair.AnimationForceNotify;
+				mapping.AnimationStart[index] = pair.AnimationStartFrame;
+				mapping.AnimationEnd[index] = pair.AnimationEndFrame;
+				mapping.AnimationForceNotify[index] = pair.AnimationForceNotify;
+				mapping.AnimationStateValid[index] = true;
 			}
-
-			RuntimeAnimationMapping[i] = animationRuntimeData;
-			RuntimeAnimationNotify[i] = animationRuntimeNotify;
 		}
 
 		return countCatalog > 0;
 	}
+
+	const TArray<FFluxPrimeRuntimeAnimationMapping>& GetRuntimeAnimationMapping() const
+	{
+		return RuntimeAnimationMapping;
+	}
 	
 private:
+	bool IsValidAnimationState(int32 type, int32 state) const
+	{
+		return RuntimeAnimationMapping.IsValidIndex(type) &&
+			RuntimeAnimationMapping[type].AnimationStart.IsValidIndex(state) &&
+			RuntimeAnimationMapping[type].AnimationStateValid.IsValidIndex(state) &&
+			RuntimeAnimationMapping[type].AnimationStateValid[state] &&
+			RuntimeAnimationNotify.IsValidIndex(type) &&
+			RuntimeAnimationNotify[type].RuntimeAnimationNotifyData.IsValidIndex(state);
+	}
+
 	bool IsNotifyTriggered(float PrevFrame, float CurrentFrame, float NotifyFrame)
 	{
 		if (PrevFrame < 0.0f) return false;
@@ -209,6 +267,8 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_PlayAnimation);
 		
+		if (!IsValidAnimationState(crowdType, animationState)) return;
+
 		float startFrame = RuntimeAnimationMapping[crowdType].AnimationStart[animationState];
 		float endFrame = RuntimeAnimationMapping[crowdType].AnimationEnd[animationState];
 		
@@ -238,6 +298,8 @@ private:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Animation_Systems_UpdateAnimation);
 		
+		if (!IsValidAnimationState(type, animationState) || !IsValidAnimationState(type, state)) return;
+
 		if (animationState != state)
 		{
 			// previous
@@ -322,8 +384,18 @@ public:
 		check(context.getStateID);
 		check(context.getNotifyID);
 		check(context.dataStores);
-		
+
+		IsAllDataValid = true;
+
 		int32 countData = context.dataStores->Num();
+		EntityDataIdID.Reset();
+		EntityDataStateID.Reset();
+		EntityDataAnimStateID.Reset();
+		EntityDataStartTimeAnimID.Reset();
+		EntityDataPreviousFrameAnimID.Reset();
+		EntityDataCellIdID.Reset();
+		EntityDataTargetLocationID.Reset();
+		EntityDataRequestAnimationNotifyID.Reset();
 		EntityDataIdID.Init(0, countData);
 		EntityDataStateID.Init(0, countData);
 		EntityDataAnimStateID.Init(0, countData);
@@ -338,7 +410,7 @@ public:
 		GetStateID = context.getStateID;
 		GetNotifyID = context.getNotifyID;
 		
-		if (!InitializeAnimationMapping(*context.resolvedAnimationData))
+		if (!InitializeAnimationMapping(*context.resolvedAnimationData, context.globalStateCount))
 		{
 			IsAllDataValid = false;
 			return;
@@ -398,6 +470,10 @@ public:
 
 			for (int16 i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
+				const int8 state = entityDataState[i].ValueInt8;
+				const int8 animationState = entityDataAnimState[i].ValueInt8;
+				if (!IsValidAnimationState(indexDataID, state) || !IsValidAnimationState(indexDataID, animationState)) continue;
+
 				UpdateAnimation(i, indexDataID, entityDataState[i].ValueInt8,  entityDataAnimState[i].ValueInt8, 
 					entityDataStartTimeAnim[i].ValueFloat, entityDataPreviousFrameAnim[i].ValueFloat, realTime);
 				

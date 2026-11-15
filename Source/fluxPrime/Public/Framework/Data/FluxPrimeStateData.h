@@ -7,6 +7,9 @@
 
 using FGetStateID = TFunction<int32(FGameplayTag)>;
 
+/** Runtime state ids travel in int8 buffers and transition fields, so the global table cannot exceed this. */
+constexpr int32 FluxPrimeMaxGlobalStateCount = TNumericLimits<int8>::Max() + 1;
+
 USTRUCT()
 struct FFluxPrimeStateDataEditor
 {

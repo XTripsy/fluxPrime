@@ -17,6 +17,8 @@ struct FFluxPrimeCrowdsStateMachineSystemContext
 	GENERATED_BODY()
 	
 	FGetStateID getStateID = nullptr;
+	/** Size of the manager's global state table. Executor arrays are indexed by it. */
+	int32 globalStateCount = 0;
 	TArray<FFluxPrimeArchetypeEntityCatalog>* entityCatalog = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
@@ -40,16 +42,19 @@ private:
 	UPROPERTY()
 	TArray<FFluxPrimeRuntimeArchetypeStateData> RuntimeStateData;
 
-	void InitializedStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, FInstancedStruct& sourceState)
+	void InitializedStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, int32 targetState,
+		FInstancedStruct& sourceState)
 	{
 		if (sourceState.GetPtr<FFluxPrimeCrowdsWalkState>())
 		{
-			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsWalkState>(sourceState, indexData);
+			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsWalkState>(sourceState, indexData, targetState);
+			if (currentIndex == INDEX_NONE) return;
 		}
 		
 		if (sourceState.GetPtr<FFluxPrimeCrowdsAbilityState>())
 		{
-			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsAbilityState>(sourceState, indexData);
+			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsAbilityState>(sourceState, indexData, targetState);
+			if (currentIndex == INDEX_NONE) return;
 			
 			FStateExecutor& Executor = RuntimeDataStateMachine[indexData].State[currentIndex];
 			FFluxPrimeCrowdsAbilityState& state = Executor.Data->GetMutable<FFluxPrimeCrowdsAbilityState>();
@@ -58,12 +63,14 @@ private:
 		
 		if (sourceState.GetPtr<FFluxPrimeCrowdsIdleState>())
 		{
-			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsIdleState>(sourceState, indexData);
+			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsIdleState>(sourceState, indexData, targetState);
+			if (currentIndex == INDEX_NONE) return;
 		}
 		
 		if (sourceState.GetPtr<FFluxPrimeCrowdsDeadState>())
 		{
-			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsDeadState>(sourceState, indexData);
+			const int32 currentIndex = RegisterStateRuntimeData<FFluxPrimeCrowdsDeadState>(sourceState, indexData, targetState);
+			if (currentIndex == INDEX_NONE) return;
 			
 			FStateExecutor& Executor = RuntimeDataStateMachine[indexData].State[currentIndex];
 			FFluxPrimeCrowdsDeadState& state = Executor.Data->GetMutable<FFluxPrimeCrowdsDeadState>();
@@ -71,12 +78,13 @@ private:
 		}
 	}
 	 
-	void InitializedTransitionData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, 
+	void InitializedTransitionData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, int32 targetState,
 		FInstancedStruct& sourceTransition, const FGetStateID getStateID)
 	{
 		if (sourceTransition.GetPtr<FFluxPrimeCrowdsStateTransition>())
 		{
-			const int32 currentIndex = RegisterTransitionRuntimeData<FFluxPrimeCrowdsStateTransition>(sourceTransition, indexData);
+			const int32 currentIndex = RegisterTransitionRuntimeData<FFluxPrimeCrowdsStateTransition>(sourceTransition, indexData, targetState);
+			if (currentIndex == INDEX_NONE) return;
 			
 			FFluxPrimeCrowdsStateTransitionContext context;
 			context.getStateID = getStateID;
@@ -88,24 +96,68 @@ private:
 		}
 	}
 	
-	void RegisterStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FGetStateID getStateID)
+	bool RegisterStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FGetStateID getStateID,
+		int32 globalStateCount)
 	{
+		if (globalStateCount <= 0)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("State machine system cannot register states: the global state table is empty."));
+			return false;
+		}
+
+		if (globalStateCount > FluxPrimeMaxGlobalStateCount)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("State machine system cannot register states: global state count %d exceeds the int8 runtime ")
+				TEXT("carrier limit of %d."),
+				globalStateCount, FluxPrimeMaxGlobalStateCount);
+			return false;
+		}
+
 		const int32 entityCatalogCount = RuntimeStateData.Num();
-		RuntimeDataStateMachine.Reserve(entityCatalogCount);
 		RuntimeDataStateMachine.Init(FFluxPrimeRuntimeDataStateMapping(), entityCatalogCount);
 		
 		for (int indexCatalog = 0; indexCatalog < entityCatalogCount; ++indexCatalog)
 		{
 			TArray<FFluxPrimeStateDataEditor>& tempData = RuntimeStateData[indexCatalog].StateData;
-			RuntimeDataStateMachine[indexCatalog].State.Reserve(tempData.Num());
-			RuntimeDataStateMachine[indexCatalog].Transition.Reserve(tempData.Num());
+			RuntimeDataStateMachine[indexCatalog].State.SetNum(globalStateCount);
+			RuntimeDataStateMachine[indexCatalog].Transition.SetNum(globalStateCount);
+
+			TArray<bool> stateAssigned;
+			stateAssigned.Init(false, globalStateCount);
 
 			for (auto& pair : tempData)
 			{
-				InitializedStateData(dataStores, indexCatalog, pair.State);
-				InitializedTransitionData(dataStores, indexCatalog, pair.Transition, getStateID);
+				const int32 targetState = getStateID(pair.IdentityState);
+				if (targetState == INDEX_NONE || targetState >= globalStateCount)
+				{
+					UE_LOG(LogFluxPrime, Error,
+						TEXT("State machine system cannot initialize archetype %d: state tag '%s' is not registered ")
+						TEXT("in the global state table (count %d)."),
+						indexCatalog, *pair.IdentityState.ToString(), globalStateCount);
+					RuntimeDataStateMachine.Reset();
+					return false;
+				}
+
+				if (stateAssigned[targetState])
+				{
+					UE_LOG(LogFluxPrime, Error,
+						TEXT("State machine system cannot initialize archetype %d: state tag '%s' is authored more ")
+						TEXT("than once (global state id %d)."),
+						indexCatalog, *pair.IdentityState.ToString(), targetState);
+					RuntimeDataStateMachine.Reset();
+					return false;
+				}
+
+				stateAssigned[targetState] = true;
+
+				InitializedStateData(dataStores, indexCatalog, targetState, pair.State);
+				InitializedTransitionData(dataStores, indexCatalog, targetState, pair.Transition, getStateID);
 			}
 		}
+
+		return true;
 	}
 	
 	/** Copies each archetype's authored state and transition fragments so runtime data never touches the asset. */
@@ -139,7 +191,16 @@ public:
 		check(context.entityCatalog);
 		check(context.dataStores);
 
-		if (!BuildRuntimeStateData(*context.entityCatalog)) return;
+		IsAllDataValid = true;
+		EntityDataStateID.Reset();
+		// Executors point into RuntimeStateData; drop both together so a failed rebuild cannot leave stale pointers.
+		RuntimeDataStateMachine.Reset();
+
+		if (!BuildRuntimeStateData(*context.entityCatalog))
+		{
+			IsAllDataValid = false;
+			return;
+		}
 		
 		EntityDataStateID.Init(0, context.dataStores->Num());
 
@@ -150,9 +211,17 @@ public:
 			indexDataId++;
 		}
 
-		RegisterStateData(*context.dataStores, context.getStateID);
+		if (!IsAllDataValid) return;
+
+		if (!RegisterStateData(*context.dataStores, context.getStateID, context.globalStateCount))
+		{
+			IsAllDataValid = false;
+		}
 	}
 
 	/** Runtime copies of the authored state data, one entry per archetype. */
 	const TArray<FFluxPrimeRuntimeArchetypeStateData>& GetRuntimeStateData() const { return RuntimeStateData; }
+
+	/** Runtime executor tables, indexed by archetype and then by global state id. */
+	const TArray<FFluxPrimeRuntimeDataStateMapping>& GetRuntimeDataStateMachine() const { return RuntimeDataStateMachine; }
 };

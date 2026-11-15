@@ -12,25 +12,80 @@ private:
 	TArray<UScriptStruct*> RawStructTypeDatas;
 	TArray<uint8*> RawDataBuffers;
 	TArray<int32> RawElementSizes;
+	TArray<int32> RawElementCounts;
 	TArray<FGameplayTag> DataID;
+
+	void MoveFrom(FFluxPrimeArchetypeDataStore& other) noexcept
+	{
+		DataID = MoveTemp(other.DataID);
+		RawStructTypeDatas = MoveTemp(other.RawStructTypeDatas);
+		RawDataBuffers = MoveTemp(other.RawDataBuffers);
+		RawElementSizes = MoveTemp(other.RawElementSizes);
+		RawElementCounts = MoveTemp(other.RawElementCounts);
+		ActiveEntityCount = other.ActiveEntityCount;
+		TotalEntityCount = other.TotalEntityCount;
+
+		other.ActiveEntityCount = 0;
+		other.TotalEntityCount = 0;
+	}
 	
 public:
+	FFluxPrimeArchetypeDataStore() = default;
 	~FFluxPrimeArchetypeDataStore()
 	{
 		FreeManualBuffer();
 	}
+
+	FFluxPrimeArchetypeDataStore(const FFluxPrimeArchetypeDataStore&) = delete;
+	FFluxPrimeArchetypeDataStore& operator=(const FFluxPrimeArchetypeDataStore&) = delete;
+
+	FFluxPrimeArchetypeDataStore(FFluxPrimeArchetypeDataStore&& other) noexcept
+	{
+		MoveFrom(other);
+	}
+
+	FFluxPrimeArchetypeDataStore& operator=(FFluxPrimeArchetypeDataStore&& other) noexcept
+	{
+		if (this == &other) return *this;
+
+		FreeManualBuffer();
+		MoveFrom(other);
+		return *this;
+	}
 	
 	void FreeManualBuffer()
 	{
-		for (auto& pair : RawDataBuffers)
+		for (int32 index = 0; index < RawDataBuffers.Num(); ++index)
 		{
-			FMemory::Free(pair);
+			uint8* buffer = RawDataBuffers[index];
+			if (!buffer) continue;
+
+			if (RawStructTypeDatas.IsValidIndex(index) && RawElementSizes.IsValidIndex(index) &&
+				RawElementCounts.IsValidIndex(index))
+			{
+				UScriptStruct* structType = RawStructTypeDatas[index];
+				const int32 elementSize = RawElementSizes[index];
+				const int32 elementCount = RawElementCounts[index];
+
+				if (structType && elementSize > 0)
+				{
+					for (int32 element = 0; element < elementCount; ++element)
+					{
+						structType->DestroyStruct(buffer + (element * elementSize));
+					}
+				}
+			}
+
+			FMemory::Free(buffer);
 		}
 		
 		RawStructTypeDatas.Empty();
 		RawDataBuffers.Empty();
 		RawElementSizes.Empty();
+		RawElementCounts.Empty();
 		DataID.Empty();
+		ActiveEntityCount = 0;
+		TotalEntityCount = 0;
 	}
 	
 	/**
@@ -54,6 +109,7 @@ public:
 		RawStructTypeDatas.Add(structType);
 		RawDataBuffers.Add(allocatedMemory);
 		RawElementSizes.Add(elementSize);
+		RawElementCounts.Add(count);
 		return true;
 	}
 	
@@ -90,12 +146,6 @@ public:
 	void SetActiveEntityCount(int32 count) { ActiveEntityCount = count; }
 	int32 GetTotalEntityCount() const { return TotalEntityCount; }
 	void SetTotalEntityCount(int32 count) { TotalEntityCount = count; }
-	void AddNewDataID(const FGameplayTag tag)
-	{
-		if (GetDataID(tag) != INDEX_NONE) return;
-		
-		DataID.Add(tag);
-	};
 	int32 GetDataID(const FGameplayTag tag) const
 	{
 		int32 index = 0;
@@ -107,19 +157,36 @@ public:
 
 		return INDEX_NONE;
 	}
-	void AddNewRawStructTypeData(UScriptStruct* structType) { RawStructTypeDatas.Add(structType); }
-	void AddNewRawBufferData(uint8* allocatedMemory) { RawDataBuffers.Add(allocatedMemory); }
+
+	bool IsValidBufferIndex(const int32 dataID) const
+	{
+		return RawDataBuffers.IsValidIndex(dataID);
+	}
+
+	/** Allocated element count for one buffer, independent of the configured pool size. */
+	int32 GetElementCount(const int32 dataID) const
+	{
+		return RawElementCounts.IsValidIndex(dataID) ? RawElementCounts[dataID] : 0;
+	}
+
 	uint8* GetRawBufferData(const int32 dataID) const
 	{
 		checkf(DataID.Num() == RawDataBuffers.Num() &&
 			DataID.Num() == RawElementSizes.Num() &&
-			DataID.Num() == RawStructTypeDatas.Num(),
-			TEXT("FluxPrime data store arrays are out of sync: DataID=%d buffers=%d sizes=%d types=%d"),
-			DataID.Num(), RawDataBuffers.Num(), RawElementSizes.Num(), RawStructTypeDatas.Num());
+			DataID.Num() == RawStructTypeDatas.Num() &&
+			DataID.Num() == RawElementCounts.Num(),
+			TEXT("FluxPrime data store arrays are out of sync: DataID=%d buffers=%d sizes=%d types=%d counts=%d"),
+			DataID.Num(), RawDataBuffers.Num(), RawElementSizes.Num(), RawStructTypeDatas.Num(), RawElementCounts.Num());
+
+		if (!RawDataBuffers.IsValidIndex(dataID))
+		{
+			checkf(false, TEXT("FluxPrime data store has no buffer for index %d (buffer count %d)."),
+				dataID, RawDataBuffers.Num());
+			return nullptr;
+		}
 
 		return RawDataBuffers[dataID];
 	}
-	void AddNewRawElementSizes(int32 elementSizes) { RawElementSizes.Add(elementSizes); }
 	
 	// Rows address the current active prefix, not stable entity handles.
 };

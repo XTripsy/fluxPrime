@@ -28,6 +28,7 @@ FFluxPrimeCrowdsStateMachineSystemContext MakeStateContext(TArray<FFluxPrimeArch
 {
 	FFluxPrimeCrowdsStateMachineSystemContext Context;
 	Context.getStateID = [](FGameplayTag) { return 0; };
+	Context.globalStateCount = 1;
 	Context.entityCatalog = &Catalog;
 	Context.dataStores = &Stores;
 	return Context;

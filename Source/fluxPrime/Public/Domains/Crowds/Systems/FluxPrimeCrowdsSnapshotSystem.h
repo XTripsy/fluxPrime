@@ -125,6 +125,7 @@ public:
 		
 		OnManagerActionChange = context.onManagerActionChange;
 		HasAuthority = context.hasAuthority;
+		IsAllDataValid = true;
 		
 		NeighborCellID.Init(0, 9);
 		
@@ -155,7 +156,54 @@ public:
 		SnapshotDataPayload.SnapshotDatas.Init(FFluxPrimeCrowdsSnapshotData(), MaxBandwidthBuffer);
 		EntityActiveCount.Init(0, context.dataStores->Num());
 	}
+
+private:
+	/** Highest row this snapshot may write: the configured pool capped by every buffer it writes to. */
+	int32 GetSafeRowLimit(const FFluxPrimeArchetypeDataStore& dataStore, int32 crowdType) const
+	{
+		if (!EntityDataCurrentWaypointLocationID.IsValidIndex(crowdType) ||
+			!EntityDataStateID.IsValidIndex(crowdType) ||
+			!EntityDataConditionAliveID.IsValidIndex(crowdType)) return 0;
+
+		const int32 waypointBuffer = EntityDataCurrentWaypointLocationID[crowdType];
+		const int32 stateBuffer = EntityDataStateID[crowdType];
+		const int32 aliveBuffer = EntityDataConditionAliveID[crowdType];
+
+		if (!dataStore.IsValidBufferIndex(waypointBuffer) ||
+			!dataStore.IsValidBufferIndex(stateBuffer) ||
+			!dataStore.IsValidBufferIndex(aliveBuffer)) return 0;
+
+		int32 limit = dataStore.GetTotalEntityCount();
+		limit = FMath::Min(limit, dataStore.GetElementCount(waypointBuffer));
+		limit = FMath::Min(limit, dataStore.GetElementCount(stateBuffer));
+		limit = FMath::Min(limit, dataStore.GetElementCount(aliveBuffer));
+		return limit;
+	}
+
+	bool IsValidSnapshotEntry(const TArray<FFluxPrimeArchetypeDataStore>& dataStores,
+		const FFluxPrimeCrowdsSnapshotData& pair) const
+	{
+		if (!dataStores.IsValidIndex(pair.CrowdType)) return false;
+
+		const int32 rowLimit = GetSafeRowLimit(dataStores[pair.CrowdType], pair.CrowdType);
+		return pair.CrowdIndex >= 0 && pair.CrowdIndex < rowLimit;
+	}
+
+	bool IsValidActiveCountPayload(const TArray<FFluxPrimeArchetypeDataStore>& dataStores,
+		const TArray<int32>& counts) const
+	{
+		if (counts.Num() > dataStores.Num()) return false;
+
+		for (int32 index = 0; index < counts.Num(); ++index)
+		{
+			const int32 rowLimit = GetSafeRowLimit(dataStores[index], index);
+			if (counts[index] < 0 || counts[index] > rowLimit) return false;
+		}
+
+		return true;
+	}
 	
+public:
 	void SyncData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FInstancedStruct& payload)
 	{
 		if (dataStores.IsEmpty()) return;
@@ -166,15 +214,21 @@ public:
 			auto& pairData = data.SnapshotDatas;
 			
 			if (pairData.IsEmpty()) return;
+
+			int32 rejectedEntries = 0;
 			
 			for (auto& pair : pairData)
 			{
-				if (pair.CrowdType < 0 || pair.CrowdIndex < 0) continue;
+				if (!IsValidSnapshotEntry(dataStores, pair))
+				{
+					rejectedEntries++;
+					continue;
+				}
 				
 				FVector* entityDataCurrentWaypointLocation = reinterpret_cast<FVector*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataCurrentWaypointLocationID[pair.CrowdType]));
 				FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
 				FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
-			
+				
 				if (pair.CrowdType != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE RECEIVE %d | LOCATION RECEIVE %s"), pair.CrowdType, *entityDataCurrentWaypointLocation[pair.CrowdIndex].ToString());
 				
 				check(entityDataCurrentWaypointLocation);
@@ -185,6 +239,13 @@ public:
 				entityDataState[pair.CrowdIndex].ValueInt8 = pair.CrowdState;
 				entityDataConditionAlive[pair.CrowdIndex].ValueBool = pair.CrowdConditionAlive;
 			}
+
+			if (rejectedEntries > 0)
+			{
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Snapshot system rejected %d of %d entries: archetype, row, or cached buffer is out of range."),
+					rejectedEntries, pairData.Num());
+			}
 		}
 		
 		if (payload.GetScriptStruct() == FFluxPrimeCrowdsSnapshotActiveEntityPayload::StaticStruct())
@@ -193,6 +254,14 @@ public:
 			auto& pairData = data.SnapshotActiveEntityCountDatas;
 
 			if (pairData.IsEmpty()) return;
+
+			if (!IsValidActiveCountPayload(dataStores, pairData))
+			{
+				UE_LOG(LogFluxPrime, Error,
+					TEXT("Snapshot system rejected active-count payload of %d stores: array length or a count is out of range."),
+					pairData.Num());
+				return;
+			}
 			
 			for (int i = 0; i < pairData.Num(); ++i)
 			{

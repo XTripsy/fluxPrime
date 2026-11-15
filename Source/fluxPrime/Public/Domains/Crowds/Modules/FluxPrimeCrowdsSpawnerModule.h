@@ -171,6 +171,16 @@ private:
 			return nullptr;
 		}
 		if (!IsInitialized || !IsAllDataValid) return nullptr;
+
+		const int32 stateID = context.getStateID(context.newState);
+		if (stateID == INDEX_NONE || stateID > TNumericLimits<int8>::Max())
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("Spawn rejected: state tag '%s' does not resolve to a valid global state id (got %d)."),
+				*context.newState.ToString(), stateID);
+			return nullptr;
+		}
+
 		const int8* foundIndex = context.crowdsTypes->Find(context.identity->Identity);
 		if (!foundIndex || !context.dataStores->IsValidIndex(*foundIndex) || !EntityDataLocationID.IsValidIndex(*foundIndex))
 		{

@@ -46,6 +46,8 @@ struct FFluxPrimeCrowdsSystemsModuleContext
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 	
 	bool hasAuthority = false;
+	/** Size of the manager's global state table, shared by animation and state-machine registration. */
+	int32 globalStateCount = 0;
 	
 	FGetStateID getStateID = nullptr;
 	FGetNotifyID getNotifyID = nullptr;
@@ -178,13 +180,17 @@ public:
 		}
 
 		if (!context.resolvedIdentities || !context.entityCatalog || !context.resolvedAnimationData ||
+			!context.dataStores ||
 			context.resolvedIdentities->Num() != context.entityCatalog->Num() ||
-			context.resolvedAnimationData->Num() != context.entityCatalog->Num())
+			context.resolvedAnimationData->Num() != context.entityCatalog->Num() ||
+			context.dataStores->Num() != context.entityCatalog->Num())
 		{
 			UE_LOG(LogFluxPrime, Error,
-				TEXT("Crowds systems module cannot initialize: resolved identities (%d) or animations (%d) do not match the catalog (%d)."),
+				TEXT("Crowds systems module cannot initialize: resolved identities (%d), animations (%d) or stores (%d) ")
+				TEXT("do not match the catalog (%d)."),
 				context.resolvedIdentities ? context.resolvedIdentities->Num() : 0,
 				context.resolvedAnimationData ? context.resolvedAnimationData->Num() : 0,
+				context.dataStores ? context.dataStores->Num() : 0,
 				context.entityCatalog ? context.entityCatalog->Num() : 0);
 			return;
 		}
@@ -274,6 +280,7 @@ public:
 				tempContext.resolvedAnimationData = context.resolvedAnimationData;
 				tempContext.getStateID = context.getStateID;
 				tempContext.getNotifyID = context.getNotifyID;
+				tempContext.globalStateCount = context.globalStateCount;
 				tempContext.dataStores = context.dataStores;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
@@ -380,6 +387,7 @@ public:
 				
 				FFluxPrimeCrowdsStateMachineSystemContext tempContext;
 				tempContext.getStateID = context.getStateID;
+				tempContext.globalStateCount = context.globalStateCount;
 				tempContext.entityCatalog = context.entityCatalog;
 				tempContext.dataStores = context.dataStores;
 				

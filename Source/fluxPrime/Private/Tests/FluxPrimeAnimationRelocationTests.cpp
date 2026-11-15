@@ -111,6 +111,7 @@ struct FAnimationRelocationFixture
 		Context.entityCatalog = &Catalog;
 		Context.dataStores = &Stores;
 		Context.hasAuthority = true;
+		Context.globalStateCount = 2;
 		Context.getStateID = [](FGameplayTag Tag) { return Tag == TAG_RelocationState ? 0 : 1; };
 		Context.getNotifyID = [](FGameplayTag) { return 42; };
 		Module.InitializeSystems(Context);
@@ -219,6 +220,42 @@ bool FFluxPrimeAnimationTimestampTest::RunTest(const FString& Parameters)
 	F.Buffer<FFluxPrimeWrapperInt8>(TAG_RelocationState)[0].ValueInt8 = 0;
 	Animation->ExecuteSystem(0, F.Stores);
 	TestEqual(TEXT("Return state change retains fractional outgoing timestamp"), F.Components[0]->PerInstanceSMCustomData[0], 123.625f);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeCrowdsSystemsModuleValidationTest, "FluxPrime.High.SystemsModuleValidation",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFluxPrimeCrowdsSystemsModuleValidationTest::RunTest(const FString& Parameters)
+{
+	USystemsConfiguration* Configuration = NewObject<USystemsConfiguration>();
+
+	TArray<FFluxPrimeArchetypeEntityCatalog> Catalog;
+	Catalog.SetNum(1);
+	TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>> Identities;
+	Identities.Add(NewObject<UFluxPrimeCrowdsIdentity>());
+	TArray<TObjectPtr<UFluxPrimeAnimationData>> Animations;
+	Animations.Add(NewObject<UFluxPrimeAnimationData>());
+
+	FFluxPrimeCrowdsSystemsModule Module;
+	FindFProperty<FObjectPropertyBase>(Module.StaticStruct(), TEXT("SystemsConfiguration"))
+		->SetObjectPropertyValue_InContainer(&Module, Configuration);
+
+	FFluxPrimeCrowdsSystemsModuleContext Context;
+	Context.entityCatalog = &Catalog;
+	Context.resolvedIdentities = &Identities;
+	Context.resolvedAnimationData = &Animations;
+
+	AddExpectedError(TEXT("cannot initialize: resolved identities"), EAutomationExpectedErrorFlags::Contains, 1);
+	Module.InitializeSystems(Context);
+	TestFalse(TEXT("Missing data stores invalidate the systems module"), Module.IsAllDataValid);
+
+	TArray<FFluxPrimeArchetypeDataStore> Stores;
+	Context.dataStores = &Stores;
+	AddExpectedError(TEXT("cannot initialize: resolved identities"), EAutomationExpectedErrorFlags::Contains, 1);
+	Module.InitializeSystems(Context);
+	TestFalse(TEXT("Store/catalog count mismatch invalidates the systems module"), Module.IsAllDataValid);
+
 	return true;
 }
 #endif

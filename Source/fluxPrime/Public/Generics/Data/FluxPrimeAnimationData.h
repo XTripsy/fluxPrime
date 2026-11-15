@@ -65,6 +65,10 @@ struct FFluxPrimeRuntimeAnimationMapping
 	
 	UPROPERTY(EditAnywhere)
 	TArray<bool> AnimationForceNotify;
+	
+	/** False for global state ids this archetype does not author; those entries are holes, not 0-frame clips. */
+	UPROPERTY(EditAnywhere)
+	TArray<bool> AnimationStateValid;
 };
 
 USTRUCT(BlueprintType)

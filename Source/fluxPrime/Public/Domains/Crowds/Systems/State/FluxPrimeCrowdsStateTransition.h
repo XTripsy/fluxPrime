@@ -31,6 +31,7 @@ private:
 			if (pair.TransitionFragment.GetPtr<FFluxPrimeCrowdsDistanceTransition>())
 			{
 				const int32 currentIndex = RegisterTransition<FFluxPrimeCrowdsDistanceTransition>(getStateID, pair.TransitionFragment, pair.FromStateTag, pair.ToStateTag);
+				if (currentIndex == INDEX_NONE) continue;
 				
 				FFluxPrimeStateTransitionExecutor& Executor = Transition[currentIndex];
 				FFluxPrimeCrowdsDistanceTransition& transition = Executor.Data->GetMutable<FFluxPrimeCrowdsDistanceTransition>();
@@ -40,6 +41,7 @@ private:
 			if (pair.TransitionFragment.GetPtr<FFluxPrimeCrowdsDeadTransition>())
 			{
 				const int32 currentIndex = RegisterTransition<FFluxPrimeCrowdsDeadTransition>(getStateID, pair.TransitionFragment, pair.FromStateTag, pair.ToStateTag);
+				if (currentIndex == INDEX_NONE) continue;
 				
 				FFluxPrimeStateTransitionExecutor& Executor = Transition[currentIndex];
 				FFluxPrimeCrowdsDeadTransition& transition = Executor.Data->GetMutable<FFluxPrimeCrowdsDeadTransition>();

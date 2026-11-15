@@ -94,4 +94,7 @@ protected:
 
 		return INDEX_NONE;
 	}
+
+	/** Number of globally registered state ids, including sparse gaps in per-archetype assets. */
+	inline int32 GetStateCount() const { return StateID.Num(); }
 };

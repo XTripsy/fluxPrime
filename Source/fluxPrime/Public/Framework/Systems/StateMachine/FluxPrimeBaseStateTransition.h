@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "GameplayTagContainer.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Framework/Data/FluxPrimeStateData.h"
@@ -66,8 +67,13 @@ protected:
 		int32 idFromState = getStateID(fromState);
 		int32 idNewState = getStateID(newState);
 		
-		check(idFromState != INDEX_NONE);
-		check(idNewState != INDEX_NONE);
+		if (idFromState == INDEX_NONE || idNewState == INDEX_NONE)
+		{
+			UE_LOG(LogFluxPrime, Error,
+				TEXT("State transition registration rejected: '%s' (%d) -> '%s' (%d) is not fully registered."),
+				*fromState.ToString(), idFromState, *newState.ToString(), idNewState);
+			return INDEX_NONE;
+		}
 		
 		FFluxPrimeStateTransitionExecutor executor;
 		executor.FromState = idFromState;

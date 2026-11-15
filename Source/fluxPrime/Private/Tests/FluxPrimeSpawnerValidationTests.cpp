@@ -219,6 +219,13 @@ bool FFluxPrimeSpawnerValidationTest::RunTest(const FString& Parameters)
 	module.SpawnCrowd(context);
 	TestEqual(TEXT("Reinitialized spawner uses current indices"), stores[0].GetActiveEntityCount(), 1);
 
+	stores[0].SetActiveEntityCount(0);
+	FFluxPrimeCrowdsSpawnerComponentContext invalidState = context;
+	invalidState.getStateID = [](FGameplayTag) { return static_cast<int32>(INDEX_NONE); };
+	AddExpectedError(TEXT("does not resolve to a valid global state id"), EAutomationExpectedErrorFlags::Contains, 1);
+	module.SpawnCrowd(invalidState);
+	TestEqual(TEXT("Invalid spawn state is rejected before writing"), stores[0].GetActiveEntityCount(), 0);
+
 	// A client has only the shared spawn buffers, not health/navigation buffers.
 	TArray<FFluxPrimeArchetypeDataStore> clientStores;
 	clientStores.SetNum(1);
