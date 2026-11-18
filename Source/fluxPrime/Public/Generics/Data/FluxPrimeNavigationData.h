@@ -32,7 +32,7 @@ struct FFluxPrimeNavigationWaypoint
 	TStaticArray<FVector, FluxConfig::WaypointsCount> Waypoints;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FFluxPrimeNavigationCorridor
 {
 	GENERATED_BODY()
