@@ -183,7 +183,8 @@ public:
 			for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
 			{
 				if (!entityDataRequestAbility[i].ValueBool) continue;
-				
+
+				TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Ability_Dispatch);
 				entityDataRequestAbility[i].ValueBool = false;
 				
 				check(indexDataID < AbilityExecutors.Num());

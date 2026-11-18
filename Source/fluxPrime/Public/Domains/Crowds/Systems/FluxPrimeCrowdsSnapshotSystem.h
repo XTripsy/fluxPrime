@@ -81,7 +81,6 @@ private:
 	
 	FOnCrowdsManagerActionChange* OnManagerActionChange = nullptr;
 	TArray<int16> EntityDataIdID, EntityDataCellIdID, EntityDataStateID, EntityDataLocationID, EntityDataCurrentWaypointLocationID, EntityDataTargetLocationID, EntityDataConditionAliveID;
-	TArray<int32> NeighborCellID;
 	TArray<int32> EntityActiveCount;
 	
 	FFluxPrimeCrowdsSnapshotDataPayload SnapshotDataPayload;
@@ -91,29 +90,27 @@ private:
 	bool HasAuthority = false;
 	
 private:
-	void UpdateNeighborCellID(const float cellSize, const float cellWidth, const float cellHeight, 
-		const FVector origin, const FVector targetLocation)
+	/**
+	 * True when the entity cell is one of the nine cells around the agent's target cell.
+	 *
+	 * The ids are built exactly as the previous per-entity fill did, including the wrap
+	 * aliasing an out-of-range neighbor column produces on a row edge.
+	 */
+	static bool IsNeighborCellId(const int32 entityCellId, const int32 agentCellX, const int32 agentCellY, const int32 cellWidth)
 	{
-		int32 indexNeighborCellId = 0;
-		
-		int32 agentCellX = FMath::FloorToInt((targetLocation.X - origin.X) / cellSize);
-		int32 agentCellY = FMath::FloorToInt((targetLocation.Y - origin.Y) / cellSize);
-		
-		agentCellX = FMath::Clamp(agentCellX, 0, cellWidth - 1);
-		agentCellY = FMath::Clamp(agentCellY, 0, cellHeight - 1);
-		
-		for (int x = -1; x <= 1; ++x)
+		const int32 centerCellId = (agentCellY * cellWidth) + agentCellX;
+		if (entityCellId == centerCellId) return true;
+
+		for (int32 y = -1; y <= 1; ++y)
 		{
-			for (int y = -1; y <= 1; ++y)
+			for (int32 x = -1; x <= 1; ++x)
 			{
-				int32 neighborX = agentCellX + x;
-				int32 neighborY = agentCellY + y;
-				
-				int32 neighborCellId = (neighborY * cellWidth) + neighborX;
-				NeighborCellID[indexNeighborCellId] = neighborCellId;
-				indexNeighborCellId++;
+				if (x == 0 && y == 0) continue;
+				if ((agentCellY + y) * cellWidth + (agentCellX + x) == entityCellId) return true;
 			}
 		}
+
+		return false;
 	}
 	
 public:
@@ -126,8 +123,6 @@ public:
 		OnManagerActionChange = context.onManagerActionChange;
 		HasAuthority = context.hasAuthority;
 		IsAllDataValid = true;
-		
-		NeighborCellID.Init(0, 9);
 		
 		int32 countData = context.dataStores->Num();
 		EntityDataIdID.Init(0, countData);
@@ -229,7 +224,9 @@ public:
 				FFluxPrimeWrapperInt8* entityDataState = reinterpret_cast<FFluxPrimeWrapperInt8*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataStateID[pair.CrowdType]));
 				FFluxPrimeWrapperBool* entityDataConditionAlive = reinterpret_cast<FFluxPrimeWrapperBool*>(dataStores[pair.CrowdType].GetRawBufferData(EntityDataConditionAliveID[pair.CrowdType]));
 				
-				if (pair.CrowdType != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE RECEIVE %d | LOCATION RECEIVE %s"), pair.CrowdType, *entityDataCurrentWaypointLocation[pair.CrowdIndex].ToString());
+				// Per-row trace: VeryVerbose so the default Verbose category gate skips the
+				// FString formatting, which dominated the row path in traces.
+				if (pair.CrowdType != 0) UE_LOG(LogFluxPrime, VeryVerbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE RECEIVE %d | LOCATION RECEIVE %s"), pair.CrowdType, *entityDataCurrentWaypointLocation[pair.CrowdIndex].ToString());
 				
 				check(entityDataCurrentWaypointLocation);
 				check(entityDataState);
@@ -265,7 +262,7 @@ public:
 			
 			for (int i = 0; i < pairData.Num(); ++i)
 			{
-				if (i != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: ACTIVE RECEIVE %d"), pairData[i]);
+				if (i != 0) UE_LOG(LogFluxPrime, VeryVerbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: ACTIVE RECEIVE %d"), pairData[i]);
 				dataStores[i].SetActiveEntityCount(pairData[i]);
 			}
 		}
@@ -304,8 +301,17 @@ public:
 		const float cellSize = SpatialGridSystems.GetCellSize();
 		const float cellWidth = SpatialGridSystems.GetCellWidth();
 		const float cellHeight = SpatialGridSystems.GetCellHeight();
+		const int32 cellWidthInt = static_cast<int32>(cellWidth);
 		const FVector origin = SpatialGridSystems.GetOrigin();
-		
+
+		// Bandwidth decimation only depends on the tick counter, not on the entity.
+		const bool bSendOnEvenTick = (NetworkTickCounter % 2 == 0);
+		const bool bSendOnFifthTick = (NetworkTickCounter % 5 == 0);
+		const bool bSendOnTwentiethTick = (NetworkTickCounter % 20 == 0);
+		FFluxPrimeCrowdsSnapshotData* snapshotRows = snapshotData.GetData();
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Snapshot_EntityScan);
+
 		for (auto& dataStore : dataStores)
 		{
 			FFluxPrimeWrapperInt16* entityDataId = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataIdID[indexDataID]));
@@ -327,34 +333,44 @@ public:
 			
 			for (int i = 0; i < activeEntityCount; ++i)
 			{
-				UpdateNeighborCellID(cellSize, cellWidth, cellHeight, origin, entityDataTargetLocation[i]);
-				
+				int32 agentCellX = FMath::FloorToInt((entityDataTargetLocation[i].X - origin.X) / cellSize);
+				int32 agentCellY = FMath::FloorToInt((entityDataTargetLocation[i].Y - origin.Y) / cellSize);
+
+				agentCellX = FMath::Clamp(agentCellX, 0, cellWidth - 1);
+				agentCellY = FMath::Clamp(agentCellY, 0, cellHeight - 1);
+
 				bSendData = false;
-				int32 entityCellID = entityDataCellId[i].ValueInt32;
-				
-				if (NeighborCellID.Contains(entityCellID))
+				const int32 entityCellID = entityDataCellId[i].ValueInt32;
+
+				if (IsNeighborCellId(entityCellID, agentCellX, agentCellY, cellWidthInt))
 				{
-					float distSq = FVector::DistSquared(entityDataLocation[i], entityDataTargetLocation[i]);
-        
+					const float distSq = FVector::DistSquared(entityDataLocation[i], entityDataTargetLocation[i]);
+
 					if (distSq < 4000000.0f) bSendData = true;
-					else if (distSq < 25000000.0f) bSendData = (NetworkTickCounter % 2 == 0);
-					else bSendData = (NetworkTickCounter % 5 == 0);
+					else if (distSq < 25000000.0f) bSendData = bSendOnEvenTick;
+					else bSendData = bSendOnFifthTick;
 				}
-				else if (NetworkTickCounter % 20 == 0) bSendData = true;
+				else
+				{
+					bSendData = bSendOnTwentiethTick;
+				}
 				
 				if (!bSendData) continue;
 				
 				indexEntityData++;
-				snapshotData[indexEntityData].CrowdIndex = i;
-				snapshotData[indexEntityData].CrowdType = indexDataID;
-				snapshotData[indexEntityData].CrowdState = entityDataState[i].ValueInt8;
-				snapshotData[indexEntityData].CrowdConditionAlive = entityDataConditionAlive[i].ValueBool;
-				snapshotData[indexEntityData].CrowdNewWaypointLocation = entityDataLocation[i];
+				snapshotRows[indexEntityData].CrowdIndex = i;
+				snapshotRows[indexEntityData].CrowdType = indexDataID;
+				snapshotRows[indexEntityData].CrowdState = entityDataState[i].ValueInt8;
+				snapshotRows[indexEntityData].CrowdConditionAlive = entityDataConditionAlive[i].ValueBool;
+				snapshotRows[indexEntityData].CrowdNewWaypointLocation = entityDataLocation[i];
 				
-				if (indexDataID != 0) UE_LOG(LogFluxPrime, Verbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE SEND %d | LOCATION SEND %s"), indexDataID, *entityDataLocation[i].ToString());
+				// Per-row trace: VeryVerbose so the default Verbose category gate skips the
+				// FString formatting, which dominated the row-send path in traces.
+				if (indexDataID != 0) UE_LOG(LogFluxPrime, VeryVerbose, TEXT("DEBUG MODE :: SNAPSHOT SYSTEM :: TYPE SEND %d | LOCATION SEND %s"), indexDataID, *entityDataLocation[i].ToString());
 				
 				if (indexEntityData >= MaxBandwidthBuffer-1)
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Snapshot_BatchDispatch);
 					FFluxPrimeCrowdsSnapshotDataPayload data;
 					data.SnapshotDatas.Append(snapshotData.GetData(), indexEntityData + 1);
 					FInstancedStruct payload = FInstancedStruct::Make(data);
@@ -370,6 +386,7 @@ public:
 		
 		if (!EntityActiveCount.IsEmpty())
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Snapshot_ActiveCountDispatch);
 			FFluxPrimeCrowdsSnapshotActiveEntityPayload data;
 			data.SnapshotActiveEntityCountDatas = EntityActiveCount;
 			FInstancedStruct payload = FInstancedStruct::Make(data);
@@ -379,6 +396,7 @@ public:
 		
 		if (indexEntityData > INDEX_NONE)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Snapshot_BatchDispatch);
 			FFluxPrimeCrowdsSnapshotDataPayload data;
 			data.SnapshotDatas.Append(snapshotData.GetData(), indexEntityData + 1);
 			FInstancedStruct payload = FInstancedStruct::Make(data);

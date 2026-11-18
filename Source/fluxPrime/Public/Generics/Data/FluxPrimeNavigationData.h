@@ -18,18 +18,22 @@ namespace FluxNavigationConfig
 	constexpr float WaitTimeScoreScale = 10.0f;
 }
 
+/**
+ * Straight-path result for one entity.
+ *
+ * Only the positions are kept: the poly refs and flags Detour returns alongside them are
+ * never read, and carrying them made every copy of this struct 528 bytes instead of 384.
+ */
 USTRUCT(BlueprintType)
-struct FFluxPrimeCrowdsWaypoint
+struct FFluxPrimeNavigationWaypoint
 {
 	GENERATED_BODY()
 	
 	TStaticArray<FVector, FluxConfig::WaypointsCount> Waypoints;
-	TStaticArray<dtPolyRef, FluxConfig::WaypointsCount> PolyRefs;
-	TStaticArray<uint8, FluxConfig::WaypointsCount> Flags;
 };
 
 USTRUCT()
-struct FFluxPrimeCrowdsCorridor
+struct FFluxPrimeNavigationCorridor
 {
 	GENERATED_BODY()
 
@@ -49,10 +53,10 @@ struct FFluxPrimeNavigationTask
 	float EntityDataWaitTime;
 	float EntityDataLastOptimizeTime;
 	float EntityDataLastMoveTargetTime;
-	FFluxPrimeCrowdsCorridor EntityDataCorridors;
+	FFluxPrimeNavigationCorridor EntityDataCorridors;
 	uint8 EntityDataCountCorridor;
 	bool EntityDataNeedReplan;
-	FFluxPrimeCrowdsWaypoint EntityDataWaypoints;
+	FFluxPrimeNavigationWaypoint EntityDataWaypoints;
 	uint8 EntityDataCountWaypoints;
 };
 

@@ -20,6 +20,38 @@
  */
 struct FFluxPrimeDetourOwner
 {
+private:
+    dtNavMeshQuery* Query = nullptr;
+	dtPathCorridor* Corridor = nullptr;
+	dtNavMesh* BoundNavMesh = nullptr;
+	TArray<dtTileRef> TileRefs;
+
+	/**
+	 * Reused result buffers for the two Detour queries navigation issues every tick.
+	 *
+	 * dtQueryResult wraps a dtChunkArray that keeps its capacity across resize(0)/reserve(), so
+	 * owning it here removes the per-call allocation UE's stack-local dtQueryResult pays.
+	 * Callers reserve() before each query, which also resets the element count.
+	 *
+	 * Scratch only: never shared with a copy (see the empty copy constructor above), and never
+	 * touched by Transfer, so a moved-from owner simply keeps its buffers.
+	 */
+	dtQueryResult PathQueryResult;
+	dtQueryResult StraightPathResult;
+	
+private:
+	void Transfer(FFluxPrimeDetourOwner& Other)
+	{
+		Query = Other.Query;
+		Corridor = Other.Corridor;
+		BoundNavMesh = Other.BoundNavMesh;
+		TileRefs = MoveTemp(Other.TileRefs);
+
+		Other.Query = nullptr;
+		Other.Corridor = nullptr;
+		Other.BoundNavMesh = nullptr;
+	}
+
 public:
 	FFluxPrimeDetourOwner() = default;
 
@@ -119,21 +151,6 @@ public:
 		return *Corridor;
 	}
 
-private:
-	void Transfer(FFluxPrimeDetourOwner& Other)
-	{
-		Query = Other.Query;
-		Corridor = Other.Corridor;
-		BoundNavMesh = Other.BoundNavMesh;
-		TileRefs = MoveTemp(Other.TileRefs);
-
-		Other.Query = nullptr;
-		Other.Corridor = nullptr;
-		Other.BoundNavMesh = nullptr;
-	}
-
-	dtNavMeshQuery* Query = nullptr;
-	dtPathCorridor* Corridor = nullptr;
-	dtNavMesh* BoundNavMesh = nullptr;
-	TArray<dtTileRef> TileRefs;
+	dtQueryResult& GetPathQueryResult() { return PathQueryResult; }
+	dtQueryResult& GetStraightPathResult() { return StraightPathResult; }
 };

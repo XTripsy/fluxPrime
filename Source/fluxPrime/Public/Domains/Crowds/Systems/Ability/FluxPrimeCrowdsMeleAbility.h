@@ -63,7 +63,7 @@ public:
 
 		if (!bHit) return;
 
-		DrawDebugSphere(
+		/*DrawDebugSphere(
 			World,
 			end,
 			TraceSphereRadius,
@@ -71,7 +71,7 @@ public:
 			FColor::Yellow,
 			false,
 			1.0f
-		);
+		);*/
 		
 		UGameplayStatics::ApplyDamage(
 				hit.GetActor(),

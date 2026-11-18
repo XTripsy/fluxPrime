@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Algo/Sort.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
 #include "Generics/Data/FluxPrimeSpatialGridData.h"
@@ -65,6 +66,10 @@ private:
     TArray<int32> GridOffsets;
     TArray<int32> GridCounts;
     TArray<FFluxPrimeGridMemberData> GridMembers;
+    /** Per-update insert cursor. Reused so rebuilding the grid does not allocate a copy per call. */
+    TArray<int32> GridInsertCursors;
+    /** Cells touched by the rebuild in progress, ascending after the prefix pass. */
+    TArray<int32> TouchedCells;
     bool IsAllDataValid = true;
     
 private:
@@ -96,6 +101,7 @@ public:
         
         GridCounts.Init(0, TotalCells);
         GridOffsets.Init(0, TotalCells);
+        GridInsertCursors.Init(0, TotalCells);
         
         int32 indexDataId = 0;
         for (auto& dataStore : dataStores)
@@ -108,6 +114,41 @@ public:
         }
     }
 	
+    /**
+     * Writes each entity's current cell id without rebuilding the member index.
+     *
+     * Consumers that only need the cell id (navigation, which uses it to detect target-cell
+     * changes) pay for the floor/clamp per entity and nothing else: the counts, the offset
+     * prefix sum, the touched-cell sort and the member writes all exist for the neighbour
+     * scans, which navigation never performs.
+     */
+    void UpdateCellIds(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
+    {
+        TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_CellIds);
+
+        if (!IsAllDataValid)
+        {
+            UE_LOG(LogFluxPrime, Verbose, TEXT("SPATIAL GRID SYSTEM :: data invalid; cell ids skipped"));
+            return;
+        }
+
+        int16 indexDataID = 0;
+        for (auto& dataStore : dataStores)
+        {
+            FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
+            FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
+            indexDataID++;
+
+            if (!entityDataLocation || !entityDataCellId) continue;
+
+            const int32 activeCount = dataStore.GetActiveEntityCount();
+            for (int i = 0; i < activeCount; ++i)
+            {
+                entityDataCellId[i].ValueInt32 = GetSpatialGridSystemsCellID(entityDataLocation[i]);
+            }
+        }
+    }
+
     void UpdateSpatialGridSystem(TArray<FFluxPrimeArchetypeDataStore>& dataStores)
     {
         TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_SpatialGrid_Systems);
@@ -118,8 +159,16 @@ public:
             return;
         }
         
-        GridCounts.Init(0, TotalCells);
-        GridOffsets.SetNumUninitialized(TotalCells);
+        // Sparse rebuild: the 40k-cell grid is mostly empty, so only the cells that hold a
+        // member are visited at all. GridOffsets/GridCounts are the finished layout that the
+        // boids scan and the raycast system read (both fetch the count before the offset), so
+        // the counts must be populated when this returns. TouchedCells names exactly the cells
+        // still carrying a count from the previous rebuild, which is what has to be cleared.
+        for (const int32 cellId : TouchedCells)
+        {
+            GridCounts[cellId] = 0;
+        }
+        TouchedCells.Reset();
         GridMembers.SetNumUninitialized(TotalEntity);
         
         int16 indexDataID = 0;
@@ -130,34 +179,43 @@ public:
             
             for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
             {
-                entityDataCellId[i].ValueInt32 = GetSpatialGridSystemsCellID(entityDataLocation[i]);
-                GridCounts[entityDataCellId[i].ValueInt32]++;
+                const int32 cellId = GetSpatialGridSystemsCellID(entityDataLocation[i]);
+                entityDataCellId[i].ValueInt32 = cellId;
+                
+                if (GridCounts[cellId]++ == 0) TouchedCells.Add(cellId);
             }
             
             indexDataID++;
         }
         
+        // Ascending order keeps GridOffsets identical to the dense prefix sum for every
+        // occupied cell. Empty cells keep a stale offset, which no consumer reads because
+        // they all fetch the count first.
+        Algo::Sort(TouchedCells);
+        
         int32 currentOffset = 0;
-        for (int i = 0; i < TotalCells; ++i)
+        for (const int32 cellId : TouchedCells)
         {
-            GridOffsets[i] = currentOffset;
-            currentOffset += GridCounts[i];
+            GridOffsets[cellId] = currentOffset;
+            GridInsertCursors[cellId] = currentOffset;
+            currentOffset += GridCounts[cellId];
         }
-
-        TArray<int32> currentCellOffsets = GridOffsets; 
     
         indexDataID = 0;
         for (auto& dataStore : dataStores)
         {
+            FVector* entityDataLocation = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[indexDataID]));
             FFluxPrimeWrapperInt32* entityDataCellId = reinterpret_cast<FFluxPrimeWrapperInt32*>(dataStore.GetRawBufferData(EntityDataCellIdID[indexDataID]));
 
             for (int i = 0; i < dataStore.GetActiveEntityCount(); ++i)
             {
                 int32 cellId = entityDataCellId[i].ValueInt32;
-                int32 memberIndex = currentCellOffsets[cellId]++;
+                int32 memberIndex = GridInsertCursors[cellId]++;
                 
                 GridMembers[memberIndex].EntityType = indexDataID;
                 GridMembers[memberIndex].EntityIndex = i;
+                GridMembers[memberIndex].LocationX = entityDataLocation[i].X;
+                GridMembers[memberIndex].LocationY = entityDataLocation[i].Y;
             }
             
             indexDataID++;

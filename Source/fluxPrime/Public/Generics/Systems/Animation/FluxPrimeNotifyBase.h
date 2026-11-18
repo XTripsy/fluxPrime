@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Core/FluxPrimeDataStore.h"
 #include "Framework/Data/FluxPrimeDataStoreIdentity.h"
 #include "FluxPrimeNotifyBase.generated.h"
 

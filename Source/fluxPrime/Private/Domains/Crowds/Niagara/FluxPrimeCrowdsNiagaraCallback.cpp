@@ -60,7 +60,7 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 
 		if (!bHit) continue;
 
-		DrawDebugSphere(
+		/*DrawDebugSphere(
 			World,
 			end,
 			50.0f,
@@ -68,7 +68,7 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 			FColor::Yellow,
 			false,
 			1.0f
-		);
+		);*/
 		
 		UGameplayStatics::ApplyDamage(
 				Hit.GetActor(),

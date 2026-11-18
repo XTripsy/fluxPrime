@@ -7,8 +7,10 @@
 #include "Detour/DetourNavMeshQuery.h"
 #include "DetourCrowd/DetourPathCorridor.h"
 #include "NavMesh/RecastNavMesh.h"
+#include "NavMesh/RecastQueryFilter.h"
 #include "Generics/Data/FluxPrimeNavigationData.h"
 #include "Generics/Systems/Navigation/FluxPrimeDetourOwner.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "FluxPrimeBaseNavigationSystem.generated.h"
 
 /** Accumulates scheduling wait time and stops at the configured bound. */
@@ -47,6 +49,20 @@ inline FVector ComputeNavigationProjectionExtent(const int16 entitySize, const f
 	const float SafeSize = FMath::Max(1.0f, static_cast<float>(entitySize));
 	const float SafeMultiplier = FMath::Max(sizeMultiplier, 0.0f);
 	return FVector(SafeSize * SafeMultiplier, SafeSize * SafeMultiplier, SafeSize * 2.0f * SafeMultiplier);
+}
+
+/**
+ * Cheap gate in front of the per-agent projection check.
+ *
+ * The cached poly was last verified to hold LastVerifiedPosition horizontally, so a position
+ * inside the threshold cannot have left that poly by more than the threshold: the excursion is
+ * bounded and gets re-verified as soon as the agent moves past it. The budget is never
+ * refreshed while the gate skips, so a slow drift cannot accumulate across frames.
+ */
+inline bool IsWithinConstrainThreshold(const FVector& lastVerifiedPosition, const FVector& currentPosition,
+	const float thresholdSquared)
+{
+	return FVector::DistSquared(lastVerifiedPosition, currentPosition) <= thresholdSquared;
 }
 
 USTRUCT()
@@ -117,14 +133,32 @@ protected:
 	{
 		return FVector(-RecastPoint[0], -RecastPoint[2], RecastPoint[1]);
 	}
-	
+
+	/**
+	 * Filter the engine's own path queries use for this navmesh.
+	 *
+	 * Latching the nav data default (instead of the filter never being assigned) keeps the
+	 * projection and path queries on the same filter FindPathSync used, and gives the path
+	 * query a raw dtQueryFilter to hand to Detour.
+	 */
+	const dtQueryFilter* GetDetourQueryFilter() const
+	{
+		if (!NavData) return nullptr;
+
+		const FRecastQueryFilter* RecastFilter =
+			static_cast<const FRecastQueryFilter*>(NavData->GetDefaultQueryFilterImpl());
+		return RecastFilter ? RecastFilter->GetAsDetourQueryFilter() : nullptr;
+	}
+
 	bool FindStraightPath(const FVector3d& startPos, const FVector3d& endPos,
-		FFluxPrimeCrowdsWaypoint& outPath, uint8& outCountPath, const int options = DT_STRAIGHTPATH_AREA_CROSSINGS)
+		FFluxPrimeNavigationWaypoint& outPath, uint8& outCountPath, const int options = DT_STRAIGHTPATH_AREA_CROSSINGS)
 	{
 		dtNavMeshQuery* NavQuery = Detour.GetQuery();
 		if (!NavQuery || GetPathCount() <= 0) return false;
 
-		dtQueryResult result;
+		// reserve() also resets the element count, so the buffer is reused across agents.
+		dtQueryResult& result = Detour.GetStraightPathResult();
+		result.reserve(FluxConfig::WaypointsCount);
 
 		dtReal dtStart[3];
 		dtReal dtEnd[3];
@@ -157,18 +191,83 @@ protected:
 
 		for (int32 i = 0; i < outCountPath; ++i)
 		{
-			const dtReal* Pos = result.getPos(i);
-
-			outPath.Waypoints[i] = RecastToUnreal(Pos);
-			outPath.PolyRefs[i] = result.getRef(i);
-			outPath.Flags[i] = result.getFlag(i);
+			outPath.Waypoints[i] = RecastToUnreal(result.getPos(i));
 		}
-		
+
 		return true;
 	}
 	
-	bool FindPath(const FVector3d& startNearestPoint, const FVector3d& endNearestPoint, 
-		FFluxPrimeCrowdsCorridor& OutCorridor, uint8& OutCorridorCount)
+	bool FindPath(const FVector3d& startNearestPoint, NavNodeRef startPoly,
+		const FVector3d& endNearestPoint, NavNodeRef endPoly,
+		FFluxPrimeNavigationCorridor& OutCorridor, uint8& OutCorridorCount)
+	{
+		dtNavMeshQuery* NavQuery = Detour.GetQuery();
+		const dtQueryFilter* QueryFilter = GetDetourQueryFilter();
+
+		// Backtracking filters reverse the corridor after the search, so keep those requests on
+		// the engine path, which owns that post-process.
+		if (!NavQuery || !QueryFilter
+			|| startPoly == INVALID_NAVNODEREF || endPoly == INVALID_NAVNODEREF
+			|| QueryFilter->getIsBacktracking())
+		{
+			return FindPathThroughNavigationSystem(startNearestPoint, endNearestPoint, OutCorridor, OutCorridorCount);
+		}
+
+		// A query whose endpoints coincide succeeds with an empty corridor (ARecastNavMesh::FindPath).
+		if ((startNearestPoint - endNearestPoint).IsNearlyZero())
+		{
+			OutCorridorCount = 0;
+			return true;
+		}
+
+		dtQueryResult& PathResult = Detour.GetPathQueryResult();
+		PathResult.reserve(FluxConfig::CorridorsCount);
+
+		dtReal dtStart[3];
+		dtReal dtEnd[3];
+		UnrealToRecast(startNearestPoint, dtStart);
+		UnrealToRecast(endNearestPoint, dtEnd);
+
+		dtStatus Status;
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Navigation_FindPathQuery);
+			Status = NavQuery->findPath(startPoly, endPoly, dtStart, dtEnd,
+				TNumericLimits<dtReal>::Max(), QueryFilter, PathResult, nullptr);
+		}
+
+		// Detour reports partial paths as success, matching the bAllowPartialPaths query this replaces.
+		if (dtStatusFailed(Status)) return false;
+
+		int32 pathSize = PathResult.size();
+		if (pathSize <= 0) return false;
+
+		// FPImplRecastNavMesh::PostProcessPath drops a trailing nav-link poly unless allowed.
+		if (pathSize > 1 && !RecastNavMesh->bAllowNavLinkAsPathEnd)
+		{
+			uint16 PolyFlags = 0;
+			Detour.GetBoundNavMesh()->getPolyFlags(PathResult.getRef(pathSize - 1), &PolyFlags);
+			if (PolyFlags & ARecastNavMesh::GetNavLinkFlag())
+			{
+				pathSize--;
+			}
+		}
+
+		OutCorridorCount = static_cast<uint8>(FMath::Min(pathSize, static_cast<int32>(FluxConfig::CorridorsCount)));
+
+		for (int32 i = 0; i < OutCorridorCount; ++i)
+		{
+			OutCorridor.Corridors[i] = PathResult.getRef(i);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Reference implementation for the cases the direct query cannot cover (see FindPath).
+	 * Kept verbatim so the fallback stays a behaviour baseline.
+	 */
+	bool FindPathThroughNavigationSystem(const FVector3d& startNearestPoint, const FVector3d& endNearestPoint,
+		FFluxPrimeNavigationCorridor& OutCorridor, uint8& OutCorridorCount)
 	{
 		FPathFindingQuery Query(
 			nullptr,
@@ -187,29 +286,56 @@ protected:
 
 		return true;
 	}
+
+	/**
+	 * True when projecting unrealPoint cannot move it horizontally.
+	 *
+	 * ARecastNavMesh::ProjectPoint only writes the nearest point findNearestPoly2D returns, and
+	 * findNearestPoly2D scores candidates by horizontal distance, rejecting any candidate whose
+	 * height is farther than the query extent. closestPointOnPoly copies the input and clamps it
+	 * only when it lies outside the poly, so an unchanged X/Z means the cached poly holds the
+	 * point horizontally: every candidate ties at distance zero and the projected X/Y equal the
+	 * input. The vertical bound is the same one the query applies, otherwise a point far above or
+	 * below the mesh could project elsewhere.
+	 *
+	 * The cached ref is a hypothesis, not a promise: a ref left by a previous frame (or by a
+	 * recycled entity index) only survives when the geometric test above holds for the current
+	 * position, so a stale poly simply falls back to a full projection.
+	 */
+	bool IsProjectionIdentity(const NavNodeRef cachedPoly, const FVector& unrealPoint, const FVector& searchExtent)
+	{
+		if (cachedPoly == INVALID_NAVNODEREF) return false;
+
+		dtNavMeshQuery* NavQuery = Detour.GetQuery();
+		if (!NavQuery || !IsValid(RecastNavMesh)) return false;
+
+		dtReal dtPoint[3];
+		UnrealToRecast(unrealPoint, dtPoint);
+
+		dtReal closest[3];
+		if (dtStatusFailed(NavQuery->closestPointOnPoly(cachedPoly, dtPoint, closest))) return false;
+
+		if (closest[0] != dtPoint[0] || closest[2] != dtPoint[2]) return false;
+
+		return FMath::Abs(closest[1] - dtPoint[1]) <= RecastNavMesh->GetModifiedQueryExtent(searchExtent).Z;
+	}
 	
+	/**
+	 * Projects a point onto the navmesh, returning the nearest poly and the projected point.
+	 *
+	 * ARecastNavMesh::ProjectPoint already answers with both (FNavLocation carries the node ref),
+	 * and its nearest-poly query is the same query ARecastNavMesh::FindNearestPoly repeats, so the
+	 * projection is the single source here. Both calls used to be issued back to back, and both
+	 * callers of this helper ignore the poly ref.
+	 */
 	bool FindNearestPoly(const FVector3d& position, const FVector3d& searchExtent, NavNodeRef& outPoly, FVector3d& outNearestPoint)
 	{
-		NavNodeRef polyRef = RecastNavMesh->FindNearestPoly(
-			position,
-			searchExtent,
-			NavFilter,
-			nullptr);
-		
 		FNavLocation navLocation;
-		bool bFound = RecastNavMesh->ProjectPoint(
-			position,
-			navLocation,
-			searchExtent,
-			NavFilter);
-		
-		if (bFound)
-		{
-			outPoly = polyRef; 
-			outNearestPoint = navLocation.Location;
-		}
-		
-		return bFound;
+		if (!RecastNavMesh->ProjectPoint(position, navLocation, searchExtent, NavFilter)) return false;
+
+		outPoly = navLocation.NodeRef;
+		outNearestPoint = navLocation.Location;
+		return true;
 	}
 	
 	bool MovePosition(const FVector& newPosition)
@@ -257,7 +383,7 @@ protected:
 		return Detour.GetCorridor().getPathCount();
 	}
 	
-	void Reset(const FFluxPrimeCrowdsCorridor& corridor, const FVector& currentLocation)
+	void Reset(const FFluxPrimeNavigationCorridor& corridor, const FVector& currentLocation)
 	{
 		dtReal dtStart[3];
 		UnrealToRecast(currentLocation, dtStart);
@@ -270,14 +396,14 @@ protected:
 		return (condition)? a : b;
 	}
 	
-	void Load(const FFluxPrimeCrowdsCorridor& corridor, uint8 corridorCount, const FVector& targetLocation)
+	void Load(const FFluxPrimeNavigationCorridor& corridor, uint8 corridorCount, const FVector& targetLocation)
 	{
 		dtReal dtTarget[3];
 		UnrealToRecast(targetLocation, dtTarget);
 		Detour.GetCorridor().setCorridor(dtTarget, corridor.Corridors.GetData(), corridorCount);
 	}
 	
-	void Save(FFluxPrimeCrowdsCorridor& corridor, uint8& corridorCount)
+	void Save(FFluxPrimeNavigationCorridor& corridor, uint8& corridorCount)
 	{
 		corridorCount = FMath::Min(GetPathCount(), FluxConfig::CorridorsCount);
 
@@ -291,9 +417,10 @@ protected:
 	
 	void QueueFindPath(bool& needReplan, FVector& location, FVector& previousLocation, FVector& targetLocation, 
 		FVector& lastReplanLocation, FVector& lastMoveLocation, int16& size, 
-		FFluxPrimeCrowdsCorridor& outCorridor, uint8& outCorridorCount,
-		FFluxPrimeCrowdsWaypoint& outWaypoints, uint8& outCountWaypoints)
+		FFluxPrimeNavigationCorridor& outCorridor, uint8& outCorridorCount,
+		FFluxPrimeNavigationWaypoint& outWaypoints, uint8& outCountWaypoints)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Navigation_FindPath);
 		size = FMath::Max(1, size);
 		NavNodeRef startPoly, targetPoly;
 		FVector3d startNearestPoint, targetNearestPoint;
@@ -324,7 +451,7 @@ protected:
 			return;
 		}
 		
-		if (!FindPath(startNearestPoint, targetNearestPoint, outCorridor, outCorridorCount))
+		if (!FindPath(startNearestPoint, startPoly, targetNearestPoint, targetPoly, outCorridor, outCorridorCount))
 		{
 			outCorridorCount = 0;
 			outCountWaypoints = 0;
@@ -351,10 +478,11 @@ protected:
 		needReplan = false;
 	}
 	
-	void QueueCorridor(bool& needReplan, FFluxPrimeCrowdsCorridor& corridors, uint8& countCorridor, FVector& location, FVector& previousLocation,
-		FVector& targetLocation, FVector& lastMoveTargetLocation, FFluxPrimeCrowdsWaypoint& waypoints, uint8& countWaypoints, 
+	void QueueCorridor(bool& needReplan, FFluxPrimeNavigationCorridor& corridors, uint8& countCorridor, FVector& location, FVector& previousLocation,
+		FVector& targetLocation, FVector& lastMoveTargetLocation, FFluxPrimeNavigationWaypoint& waypoints, uint8& countWaypoints,
 		int32& cellID, float& currentTime, float& lastOptimizeTime, float& lastMoveTargetTime)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_Navigation_UpdateCorridor);
 		int32 targetCellID = SpatialGridSystem.GetSpatialGridSystemsCellID(lastMoveTargetLocation);
 		
 		if (countCorridor == 0)

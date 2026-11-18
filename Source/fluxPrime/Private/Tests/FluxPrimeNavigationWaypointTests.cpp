@@ -29,6 +29,18 @@ bool FFluxPrimeNavigationWaypointTest::RunTest(const FString& Parameters)
 	const FVector ZeroMultiplierExtent = ComputeNavigationProjectionExtent(100, 0.0f);
 	TestTrue(TEXT("Projection extent honors a zero multiplier"), ZeroMultiplierExtent.IsNearlyZero());
 
+	TestEqual(TEXT("A waypoint row carries positions and nothing else"),
+		static_cast<int32>(sizeof(FFluxPrimeNavigationWaypoint)),
+		capacity * static_cast<int32>(sizeof(FVector)));
+
+	const FVector VerifiedPosition(100.0f, 200.0f, 50.0f);
+	TestTrue(TEXT("A barely moved agent skips the projection query"),
+		IsWithinConstrainThreshold(VerifiedPosition, VerifiedPosition + FVector(0.0f, 9.0f, 0.0f), 100.0f));
+	TestFalse(TEXT("A moved agent pays for the projection query"),
+		IsWithinConstrainThreshold(VerifiedPosition, VerifiedPosition + FVector(0.0f, 11.0f, 0.0f), 100.0f));
+	TestTrue(TEXT("A zero threshold still skips a stationary agent"),
+		IsWithinConstrainThreshold(VerifiedPosition, VerifiedPosition, 0.0f));
+
 	return true;
 }
 #endif
