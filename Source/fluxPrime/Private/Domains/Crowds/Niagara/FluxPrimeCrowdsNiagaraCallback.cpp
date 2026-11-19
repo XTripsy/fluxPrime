@@ -18,6 +18,7 @@ void UFluxPrimeCrowdsNiagaraCallback::InitializedNiagaraCallback(FFluxPrimeCrowd
 
 	World = context.world;
 	Damage = context.damage;
+	IsDebug = context.isDebug;
 	bLoggedMissingWorld = false;
 }
 
@@ -60,15 +61,18 @@ void UFluxPrimeCrowdsNiagaraCallback::ReceiveParticleData_Implementation(const T
 
 		if (!bHit) continue;
 
-		/*DrawDebugSphere(
-			World,
-			end,
-			50.0f,
-			16,
-			FColor::Yellow,
-			false,
-			1.0f
-		);*/
+		if (IsDebug)
+		{
+			DrawDebugSphere(
+				World,
+				end,
+				50.0f,
+				16,
+				FColor::Yellow,
+				false,
+				1.0f
+			);
+		}
 		
 		UGameplayStatics::ApplyDamage(
 				Hit.GetActor(),

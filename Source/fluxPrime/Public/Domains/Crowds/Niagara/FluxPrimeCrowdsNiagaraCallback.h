@@ -17,6 +17,7 @@ struct FFluxPrimeCrowdsNiagaraCallbackContext
 
 	/** Damage applied to every particle hit. Set per effect instance rather than derived from particle size. */
 	float damage = 0.0f;
+	bool isDebug = false;
 };
 
 UCLASS()
@@ -30,6 +31,7 @@ private:
 
 	float Damage = 0.0f;
 	bool bLoggedMissingWorld = false;
+	bool IsDebug = false;
 	
 public:
 	void InitializedNiagaraCallback(FFluxPrimeCrowdsNiagaraCallbackContext context);

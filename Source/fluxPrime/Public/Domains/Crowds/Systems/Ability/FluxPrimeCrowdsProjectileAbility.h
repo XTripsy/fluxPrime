@@ -36,6 +36,12 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UFluxPrimeCrowdsNiagaraCallback>> ActiveNiagaraCallbacks;
 	
+	UPROPERTY(EditAnywhere, Category = "Projectile", meta = (Units = "cm"))
+	float TraceHeightOffset = 75.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Projectile")
+	bool IsDebug = false;
+	
 public:
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
@@ -56,7 +62,7 @@ public:
 		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
 			NiagaraSystem,
-			location + FVector::UpVector * 150,
+			location + FVector::UpVector * TraceHeightOffset,
 			rotation
 		);
 
@@ -68,13 +74,14 @@ public:
 		}
 
 		// One callback per shot so concurrent effects cannot overwrite each other's damage.
-		UFluxPrimeCrowdsNiagaraCallback* ParticleCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>(GetTransientPackage());
-		FFluxPrimeCrowdsNiagaraCallbackContext CallbackContext;
-		CallbackContext.world = World;
-		CallbackContext.damage = damage;
-		ParticleCallback->InitializedNiagaraCallback(CallbackContext);
+		UFluxPrimeCrowdsNiagaraCallback* particleCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>(GetTransientPackage());
+		FFluxPrimeCrowdsNiagaraCallbackContext callbackContext;
+		callbackContext.world = World;
+		callbackContext.damage = damage;
+		callbackContext.isDebug = IsDebug;
+		particleCallback->InitializedNiagaraCallback(callbackContext);
 
-		ActiveNiagaraCallbacks.Add(ParticleCallback);
+		ActiveNiagaraCallbacks.Add(particleCallback);
 		if (ActiveNiagaraCallbacks.Num() > 512)
 		{
 			ActiveNiagaraCallbacks.RemoveAt(0);
@@ -87,7 +94,7 @@ public:
 		
 		projectileFX->SetVariableObject(
 			TEXT("User.NiagaraCallback"),
-			ParticleCallback
+			particleCallback
 		);
 	}
 };
