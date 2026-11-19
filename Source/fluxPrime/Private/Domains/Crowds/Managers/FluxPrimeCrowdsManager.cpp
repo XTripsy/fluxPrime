@@ -347,6 +347,7 @@ void UFluxPrimeCrowdsManager::InitializeComponentCrowds()
 		tempISMC->UpdateBounds();
 		tempISMC->NumCustomDataFloats = 6;
 		tempISMC->bReceivesDecals = false;
+		tempISMC->CastShadow = false;
 		tempISMC->RegisterComponent();
 		tempISMC->SetHiddenInGame(false);
 		CrowdsComponents.Add(tempISMC);

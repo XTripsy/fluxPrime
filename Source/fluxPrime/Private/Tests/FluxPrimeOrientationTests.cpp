@@ -42,6 +42,7 @@ bool FFluxPrimeOrientationTest::RunTest(const FString& Parameters)
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("MinMoveFactor"), 0.25f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("VelocityOverspeedFactor"), 1.2f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("AvoidanceWeight"), 0.5f);
+	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("HoldAvoidanceWeight"), 0.5f);
 	FFluxPrimeAnimationSystem Animation;
 	CheckDefault(Animation.StaticStruct(), &Animation, TEXT("SourceFrameRate"), 30.0f);
 	FFluxPrimeNavigationSystem Navigation;

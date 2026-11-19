@@ -58,6 +58,16 @@ inline FVector ClampAvoidanceVelocity(const FVector& desiredVelocity, const FVec
 	return avoidanceVelocity.GetClampedToMaxSize(MaxAvoidance);
 }
 
+/**
+ * Caps separation for an agent that is holding position, where there is no desired
+ * velocity to scale against. Uses max speed so a dead agent (max speed 0) stays put.
+ */
+inline FVector ClampHoldAvoidanceVelocity(const FVector& avoidanceVelocity, const float maxSpeed, const float avoidanceWeight)
+{
+	const float MaxAvoidance = FMath::Max(maxSpeed, 0.0f) * FMath::Max(avoidanceWeight, 0.0f);
+	return avoidanceVelocity.GetClampedToMaxSize(MaxAvoidance);
+}
+
 USTRUCT(BlueprintType)
 struct FFluxPrimeMovementSystem : public FFluxPrimeBaseSystem
 {
@@ -81,6 +91,12 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
 	float AvoidanceWeight = 0.5f;
+	/**
+	 * Cap on boids separation while the agent has no path to follow, as a fraction of max speed.
+	 * Used by ability state and any other agent that is standing still.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Movement", meta = (ClampMin = "0"))
+	float HoldAvoidanceWeight = 0.5f;
 
 	const FFluxPrimeMeshOrientationConfig* MeshOrientation = &FFluxPrimeMeshOrientationConfig::Default();
 
@@ -142,7 +158,7 @@ public:
 				FVector currentLocation = entityDataLocation[i];
 				currentLocation.Z = 0.0f;
 				FVector currentTarget = entityDataCurrentWaypoint[i];
-				currentLocation.Z = 0.0f;
+				currentTarget.Z = 0.0f;
 
 				FVector dir = currentTarget - currentLocation;
 				dir.Z = 0;
@@ -165,6 +181,16 @@ public:
 					entityDataVelocity[i] = entityDataVelocity[i].GetClampedToMaxSize(entityDataMaxSpeed[i].ValueFloat * VelocityOverspeedFactor);
 					
 					entityDataLocation[i] += entityDataVelocity[i] * deltaTime;
+				}
+				else
+				{
+					// No path to follow: keep boids separation alive as a small positional push.
+					const FVector holdVelocity = ClampHoldAvoidanceVelocity(
+						entityDataAcceleration[i], entityDataMaxSpeed[i].ValueFloat, HoldAvoidanceWeight);
+
+					entityDataLocation[i].X += holdVelocity.X * deltaTime;
+					entityDataLocation[i].Y += holdVelocity.Y * deltaTime;
+					entityDataVelocity[i] = FVector::ZeroVector;
 				}
 
 				entityDataAcceleration[i] = FVector::ZeroVector;
