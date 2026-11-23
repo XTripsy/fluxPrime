@@ -190,6 +190,8 @@ public:
 
 					entityDataLocation[i].X += holdVelocity.X * deltaTime;
 					entityDataLocation[i].Y += holdVelocity.Y * deltaTime;
+					// A hold has no destination: interpolation must not steer back toward the pre-push position.
+					entityDataCurrentWaypoint[i] = entityDataLocation[i];
 					entityDataVelocity[i] = FVector::ZeroVector;
 				}
 

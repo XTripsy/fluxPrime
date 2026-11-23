@@ -42,9 +42,6 @@ struct FFluxPrimeCrowdsAbilitySystemsContext
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
 	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> niagaraCallback = nullptr;
-	
 	TArray<FGameplayTag>* catalogAbilityFragmentIdentity = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 	TArray<float> damageMapping;
@@ -116,7 +113,6 @@ private:
 				
 				FFluxPrimeCrowdsProjectileAbilitySystemsContext tempContext;
 				tempContext.world = context.world;
-				tempContext.niagaraCallback = context.niagaraCallback;
 				
 				FAbilityExecutor& Executor = AbilityExecutors[executorIndex];
 				FFluxPrimeCrowdsProjectileAbility& ability = Executor.Data->GetMutable<FFluxPrimeCrowdsProjectileAbility>();
@@ -133,7 +129,6 @@ public:
 	{
 		check(context.world);
 		check(context.catalogAbilityFragmentIdentity);
-		check(context.niagaraCallback);
 		check(context.dataStores);
 		
 		int32 countData = context.dataStores->Num();

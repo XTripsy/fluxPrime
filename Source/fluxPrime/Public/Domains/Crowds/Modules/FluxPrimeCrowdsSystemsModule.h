@@ -67,9 +67,6 @@ private:
 
 	/** Executor indices per system type, in registration (asset) order. Duplicate types are supported. */
 	TMap<const UScriptStruct*, TArray<int32>> SystemFragmentsIndex;
-	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
 		
 private:
 	template <typename T>
@@ -194,14 +191,6 @@ public:
 				context.entityCatalog ? context.entityCatalog->Num() : 0);
 			return;
 		}
-
-		NiagaraCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>();
-		
-		{
-			FFluxPrimeCrowdsNiagaraCallbackContext contextCallback;
-			contextCallback.world = context.world;
-			NiagaraCallback->InitializedNiagaraCallback(contextCallback);
-		}
 		
 		SystemFragments = SystemsConfiguration->SystemFragments;
 		
@@ -237,7 +226,6 @@ public:
 				FFluxPrimeCrowdsAbilitySystemsContext tempContext;
 				tempContext.world = context.world;
 				tempContext.catalogAbilityFragmentIdentity = &crowdsCatalogAbilityFragmentIdentity;
-				tempContext.niagaraCallback = NiagaraCallback;
 				tempContext.dataStores = context.dataStores;
 				tempContext.damageMapping = damageMapping;
 				
@@ -390,6 +378,7 @@ public:
 				tempContext.globalStateCount = context.globalStateCount;
 				tempContext.entityCatalog = context.entityCatalog;
 				tempContext.dataStores = context.dataStores;
+				tempContext.meshOrientation = &SystemsConfiguration->MeshOrientation;
 				
 				FSystemExecutor& Executor = GetSystemExecutor(executorIndex);
 				FFluxPrimeCrowdsStateMachineSystem& system = Executor.Data->GetMutable<FFluxPrimeCrowdsStateMachineSystem>();

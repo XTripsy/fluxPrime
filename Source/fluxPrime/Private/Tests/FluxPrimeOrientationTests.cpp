@@ -7,6 +7,7 @@
 #include "Generics/Systems/FluxPrimeMovementSystem.h"
 #include "Generics/Systems/FluxPrimeVisualInterpolationSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsAbilitySystem.h"
+#include "Domains/Crowds/Systems/State/StateLogics/FluxPrimeCrowdsAbilityState.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeOrientationTest, "FluxPrime.Medium.SharedOrientation",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
@@ -43,6 +44,12 @@ bool FFluxPrimeOrientationTest::RunTest(const FString& Parameters)
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("VelocityOverspeedFactor"), 1.2f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("AvoidanceWeight"), 0.5f);
 	CheckDefault(Movement.StaticStruct(), &Movement, TEXT("HoldAvoidanceWeight"), 0.5f);
+	FFluxPrimeCrowdsAbilityState AbilityState;
+	CheckDefault(AbilityState.StaticStruct(), &AbilityState, TEXT("AimTurnRateDegreesPerSecond"), 180.0f);
+	FAbilityStateDataTagConfig AimDefaults;
+	TestTrue(TEXT("Aim config pre-sets both expected struct types"),
+		AimDefaults.EntityDataRotationConfig.ExpectedStructType == TBaseStructure<FRotator>::Get()
+		&& AimDefaults.EntityDataTargetLocationConfig.ExpectedStructType == TBaseStructure<FVector>::Get());
 	FFluxPrimeAnimationSystem Animation;
 	CheckDefault(Animation.StaticStruct(), &Animation, TEXT("SourceFrameRate"), 30.0f);
 	FFluxPrimeNavigationSystem Navigation;

@@ -5,6 +5,9 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
+#include "Domains/Crowds/Niagara/FluxPrimeProjectileBatchSubsystem.h"
+#include "Domains/Crowds/Niagara/FluxPrimeProjectileTypes.h"
+#include "Engine/World.h"
 #include "UObject/Package.h"
 #include "FluxPrimeCrowdsProjectileAbility.generated.h"
 
@@ -15,9 +18,6 @@ struct FFluxPrimeCrowdsProjectileAbilitySystemsContext
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> world;
-	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> niagaraCallback = nullptr;
 };
 
 USTRUCT(BlueprintType)
@@ -29,9 +29,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
 	
-	UPROPERTY()
-	TObjectPtr<UFluxPrimeCrowdsNiagaraCallback> NiagaraCallback = nullptr;
-
 	/** GC backstop for per-shot callbacks; Niagara also references them through User.NiagaraCallback. */
 	UPROPERTY()
 	TArray<TObjectPtr<UFluxPrimeCrowdsNiagaraCallback>> ActiveNiagaraCallbacks;
@@ -43,22 +40,44 @@ private:
 	bool IsDebug = false;
 	
 public:
-	UPROPERTY(EditAnywhere)
+	/** Per-shot system used when batching is off, or as the fallback when a shot cannot be batched. */
+	UPROPERTY(EditAnywhere, Category = "Projectile")
 	TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+
+	/** Persistent system that renders every projectile at once. Required when bUseBatchedProjectiles is on. */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
+	TObjectPtr<UNiagaraSystem> BatchedProjectileSystem = nullptr;
+
+	/** Channel the batched system reads its spawn records from. Required when bUseBatchedProjectiles is on. */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
+	TObjectPtr<UNiagaraDataChannelAsset> ProjectileSpawnChannel = nullptr;
+
+	/** Muzzle-only effect spawned per shot while batching. Leave empty to spawn no per-shot effect. */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
+	TObjectPtr<UNiagaraSystem> MuzzleFlashSystem = nullptr;
+
+	/**
+	 * Routes shots through the shared projectile system instead of spawning one Niagara system per shot.
+	 * Falls back to the full per-shot system if configuration is missing or submission is rejected.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
+	bool bUseBatchedProjectiles = false;
 	
 public:
 	void InitializedProjectileAbilitySystems(FFluxPrimeCrowdsProjectileAbilitySystemsContext context)
 	{
 		check(context.world);
-		check(context.niagaraCallback);
-		check(NiagaraSystem);
 		
 		World = context.world;
-		NiagaraCallback = context.niagaraCallback;
 	}
 	
 	void Execute(FVector location, FRotator rotation, float damage)
 	{
+		if (TrySubmitBatchedShot(location, rotation, damage))
+		{
+			return;
+		}
+
 		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
 			NiagaraSystem,
@@ -96,5 +115,52 @@ public:
 			TEXT("User.NiagaraCallback"),
 			particleCallback
 		);
+	}
+
+private:
+	/**
+	 * Publishes the shot into the shared system. Returns false when batching is off or not configured,
+	 * which leaves the caller on the unchanged per-shot path.
+	 */
+	bool TrySubmitBatchedShot(const FVector& location, const FRotator& rotation, float damage)
+	{
+		if (!bUseBatchedProjectiles || !IsValid(BatchedProjectileSystem) || !IsValid(ProjectileSpawnChannel) || !IsValid(World))
+		{
+			return false;
+		}
+
+		UFluxPrimeProjectileBatchSubsystem* Batch = World->GetSubsystem<UFluxPrimeProjectileBatchSubsystem>();
+		if (Batch == nullptr)
+		{
+			return false;
+		}
+
+		FFluxPrimeProjectileBatchConfig Config;
+		Config.System = BatchedProjectileSystem;
+		Config.SpawnChannel = ProjectileSpawnChannel;
+
+		FFluxPrimeProjectileShot Shot;
+		Shot.Location = location;
+		Shot.Rotation = rotation;
+		Shot.Damage = damage;
+		Shot.HeightOffset = TraceHeightOffset;
+		Shot.bDebug = IsDebug;
+
+		if (!Batch->SubmitShot(Config, Shot))
+		{
+			return false;
+		}
+
+		if (IsValid(MuzzleFlashSystem))
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				World,
+				MuzzleFlashSystem,
+				location + FVector::UpVector * TraceHeightOffset,
+				rotation
+			);
+		}
+
+		return true;
 	}
 };

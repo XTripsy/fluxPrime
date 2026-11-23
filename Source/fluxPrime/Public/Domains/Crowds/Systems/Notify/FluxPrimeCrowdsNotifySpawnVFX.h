@@ -55,6 +55,9 @@ public:
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
+	
+	UPROPERTY(EditAnywhere, Category = "VFX", meta = (Units = "cm"))
+	float TraceHeightOffset = 150.0f;
 
 	TArray<int16> EntityDataRequestNotifyID, EntityDataLocationID;
 	
@@ -140,7 +143,7 @@ public:
 		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			World,
 			VFXSystem,
-			entityDataLocation[indexMember] + FVector::UpVector * 150,
+			entityDataLocation[indexMember] + FVector::UpVector * TraceHeightOffset,
 			FRotator::ZeroRotator
 		);
 		

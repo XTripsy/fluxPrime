@@ -6,6 +6,7 @@
 #include "Framework/Data/FluxPrimeIdentityData.h"
 #include "Framework/Data/FluxPrimeStateData.h"
 #include "Framework/Systems/StateMachine/FluxPrimeBaseStateMachineSystem.h"
+#include "Generics/Data/FluxPrimeMeshOrientationConfig.h"
 #include "StateLogics/FluxPrimeCrowdsAbilityState.h"
 #include "StateLogics/FluxPrimeCrowdsDeadState.h"
 #include "StateLogics/FluxPrimeCrowdsIdleState.h"
@@ -21,6 +22,8 @@ struct FFluxPrimeCrowdsStateMachineSystemContext
 	int32 globalStateCount = 0;
 	TArray<FFluxPrimeArchetypeEntityCatalog>* entityCatalog = nullptr;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
+	/** Shared mesh yaw source. States fall back to the config default when null. */
+	const FFluxPrimeMeshOrientationConfig* meshOrientation = nullptr;
 };
 
 USTRUCT()
@@ -43,7 +46,7 @@ private:
 	TArray<FFluxPrimeRuntimeArchetypeStateData> RuntimeStateData;
 
 	void InitializedStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, int32 indexData, int32 targetState,
-		FInstancedStruct& sourceState)
+		FInstancedStruct& sourceState, const FFluxPrimeMeshOrientationConfig* meshOrientation)
 	{
 		if (sourceState.GetPtr<FFluxPrimeCrowdsWalkState>())
 		{
@@ -58,7 +61,7 @@ private:
 			
 			FStateExecutor& Executor = RuntimeDataStateMachine[indexData].State[currentIndex];
 			FFluxPrimeCrowdsAbilityState& state = Executor.Data->GetMutable<FFluxPrimeCrowdsAbilityState>();
-			state.Initialized(dataStores);
+			state.Initialized(dataStores, meshOrientation);
 		}
 		
 		if (sourceState.GetPtr<FFluxPrimeCrowdsIdleState>())
@@ -97,7 +100,7 @@ private:
 	}
 	
 	bool RegisterStateData(TArray<FFluxPrimeArchetypeDataStore>& dataStores, const FGetStateID getStateID,
-		int32 globalStateCount)
+		int32 globalStateCount, const FFluxPrimeMeshOrientationConfig* meshOrientation)
 	{
 		if (globalStateCount <= 0)
 		{
@@ -152,7 +155,7 @@ private:
 
 				stateAssigned[targetState] = true;
 
-				InitializedStateData(dataStores, indexCatalog, targetState, pair.State);
+				InitializedStateData(dataStores, indexCatalog, targetState, pair.State, meshOrientation);
 				InitializedTransitionData(dataStores, indexCatalog, targetState, pair.Transition, getStateID);
 			}
 		}
@@ -213,7 +216,7 @@ public:
 
 		if (!IsAllDataValid) return;
 
-		if (!RegisterStateData(*context.dataStores, context.getStateID, context.globalStateCount))
+		if (!RegisterStateData(*context.dataStores, context.getStateID, context.globalStateCount, context.meshOrientation))
 		{
 			IsAllDataValid = false;
 		}

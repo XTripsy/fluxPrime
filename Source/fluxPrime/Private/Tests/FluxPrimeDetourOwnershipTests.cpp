@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Generics/Systems/Navigation/FluxPrimeDetourOwner.h"
 #include "Generics/Systems/Navigation/FluxPrimeNavigationSystem.h"
+#include "StructUtils/InstancedStruct.h"
 
 namespace
 {
