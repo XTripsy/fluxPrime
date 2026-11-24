@@ -1,12 +1,20 @@
-#include "Domains/Crowds/Niagara/FluxPrimeNiagaraDataInterfaceProjectileExport.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraDataInterfaceProjectileExport.h"
 
-#include "Domains/Crowds/Niagara/FluxPrimeProjectileCallbackHandler.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileCallbackHandler.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileDiagnostics.h"
 #include "fluxPrime.h"
 #include "Misc/LargeWorldRenderPosition.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraEmitterInstance.h"
+#include "ProfilingDebugging/CountersTrace.h"
+
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FluxProjectileExportArrayGrowth, TEXT("FluxPrime/Projectile/PluginExportArrayGrowthEvents"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FluxProjectileExportArrayBytes, TEXT("FluxPrime/Projectile/PluginExportArrayLastAllocatedBytes"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FluxProjectileExportQueueNodes, TEXT("FluxPrime/Projectile/PluginExportQueueNodeAllocations"));
+TRACE_DECLARE_ATOMIC_INT_COUNTER(FluxProjectileActiveParticles, TEXT("FluxPrime/Projectile/LastExportSystemReportedActiveParticles"));
 
 namespace FluxPrimeProjectileExportLocal
 {
@@ -38,7 +46,7 @@ namespace FluxPrimeProjectileExportLocal
 					return;
 				}
 
-				IFluxPrimeProjectileCallbackHandler::Execute_ReceiveProjectileParticles(
+				IFluxPrimeCrowdsProjectileCallbackHandler::Execute_ReceiveProjectileParticles(
 					CallbackHandler, Particles, WeakSystem.Get(),
 					FVector(SystemTileOffset) * FLargeWorldRenderScalar::GetTileSize());
 			});
@@ -101,7 +109,7 @@ bool UNiagaraDataInterfaceProjectileExport::PerInstanceTick(void* PerInstanceDat
 
 	UObject* Handler = InstanceData->CallbackHandler.Get();
 	InstanceData->bCanExport = InstanceData->UserParamBinding.BoundVariable.IsValid() && Handler
-		&& Handler->GetClass()->ImplementsInterface(UFluxPrimeProjectileCallbackHandler::StaticClass());
+		&& Handler->GetClass()->ImplementsInterface(UFluxPrimeCrowdsProjectileCallbackHandler::StaticClass());
 	return false;
 }
 
@@ -111,6 +119,15 @@ bool UNiagaraDataInterfaceProjectileExport::PerInstanceTickPostSimulate(void* Pe
 	using FInstanceData = FluxPrimeProjectileExportLocal::FInstanceData;
 
 	FInstanceData* InstanceData = static_cast<FInstanceData*>(PerInstanceData);
+	if (SystemInstance)
+	{
+		int64 ActiveParticles = 0;
+		for (const FNiagaraEmitterInstanceRef& Emitter : SystemInstance->GetEmitters())
+		{
+			ActiveParticles += Emitter->GetNumParticles();
+		}
+		TRACE_COUNTER_SET(FluxProjectileActiveParticles, ActiveParticles);
+	}
 	if (InstanceData == nullptr || InstanceData->GatheredData.IsEmpty())
 	{
 		return false;
@@ -120,16 +137,23 @@ bool UNiagaraDataInterfaceProjectileExport::PerInstanceTickPostSimulate(void* Pe
 	FFluxPrimeProjectileParticleData Particle;
 	while (InstanceData->GatheredData.Dequeue(Particle))
 	{
+		const int32 PreviousCapacity = Particles.Max();
 		Particles.Add(Particle);
+		if (Particles.Max() != PreviousCapacity)
+		{
+			TRACE_COUNTER_INCREMENT(FluxProjectileExportArrayGrowth);
+		}
 	}
 
+	TRACE_COUNTER_SET(FluxProjectileExportArrayBytes, Particles.GetAllocatedSize());
+	TRACE_COUNTER_ADD(FluxProjectileExportQueueNodes, Particles.Num());
 	UObject* CallbackHandler = InstanceData->CallbackHandler.Get();
 	if (CallbackHandler == nullptr || SystemInstance == nullptr)
 	{
 		return false;
 	}
 
-	if (!CallbackHandler->GetClass()->ImplementsInterface(UFluxPrimeProjectileCallbackHandler::StaticClass()))
+	if (!CallbackHandler->GetClass()->ImplementsInterface(UFluxPrimeCrowdsProjectileCallbackHandler::StaticClass()))
 	{
 		return false;
 	}
@@ -182,14 +206,48 @@ void UNiagaraDataInterfaceProjectileExport::GetFunctionsInternal(TArray<FNiagara
 	Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ShotId")));
 	Signature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("WasExported")));
 	OutFunctions.Add(Signature);
+
+	FNiagaraFunctionSignature Counts;
+	Counts.Name = TEXT("ReportProjectileCounts");
+	Counts.Description = NSLOCTEXT("FluxPrime", "ReportProjectileCountsDescription",
+		"CPU diagnostics only. Report actual successful reads, ball spawns and muzzle burst events at their graph execution sites. Never pass publication counts or call every particle update.");
+	Counts.bMemberFunction = true;
+	Counts.bRequiresContext = false;
+	Counts.bSupportsGPU = false;
+	Counts.bRequiresExecPin = true;
+	Counts.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Export interface")));
+	Counts.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ConsumedRecords")));
+	Counts.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("BallSpawns")));
+	Counts.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("MuzzleBursts")));
+	OutFunctions.Add(Counts);
 }
 #endif
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceProjectileExport, ExportProjectileData);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceProjectileExport, ReportProjectileCounts);
+
+void UNiagaraDataInterfaceProjectileExport::ReportProjectileCounts(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FluxPrimeProjectileExportLocal::FInstanceData> InstanceData(Context);
+	FNDIInputParam<int32> Consumed(Context), Balls(Context), Muzzles(Context);
+	uint64 ConsumedTotal = 0, BallTotal = 0, MuzzleTotal = 0;
+	for (int32 Index = 0; Index < Context.GetNumInstances(); ++Index)
+	{
+		ConsumedTotal += FMath::Max(0, Consumed.GetAndAdvance());
+		BallTotal += FMath::Max(0, Balls.GetAndAdvance());
+		MuzzleTotal += FMath::Max(0, Muzzles.GetAndAdvance());
+	}
+	FFluxPrimeCrowdsProjectileDiagnostics::RecordGraphCounts(ConsumedTotal, BallTotal, MuzzleTotal);
+}
 
 void UNiagaraDataInterfaceProjectileExport::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo,
 	void* InstanceData, FVMExternalFunction& OutFunc)
 {
+	if (BindingInfo.Name == TEXT("ReportProjectileCounts"))
+	{
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceProjectileExport, ReportProjectileCounts)::Bind(this, OutFunc);
+		return;
+	}
 	if (BindingInfo.Name == FluxPrimeProjectileExportLocal::ExportFunctionName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceProjectileExport, ExportProjectileData)::Bind(this, OutFunc);

@@ -2,6 +2,8 @@
 
 
 #include "Framework/Core/FluxPrimeBaseManager.h"
+#include "Engine/World.h"
+#include "Framework/Core/FluxPrimePauseWorldSubsystem.h"
 
 UFluxPrimeBaseManager::UFluxPrimeBaseManager()
 {
@@ -21,6 +23,12 @@ void UFluxPrimeBaseManager::InitializedModule(uint32 count)
 
 void UFluxPrimeBaseManager::ExecuteModules(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
 {
+	if (UWorld* World = GetWorld())
+	{
+		if (auto* Pause = World->GetSubsystem<UFluxPrimePauseWorldSubsystem>()) Pause->DrainPendingWork();
+		if (World->IsPaused()) return;
+	}
+
 	if (!ModuleExecutors.IsEmpty())
 	{
 		for (auto& pair : ModuleExecutors)

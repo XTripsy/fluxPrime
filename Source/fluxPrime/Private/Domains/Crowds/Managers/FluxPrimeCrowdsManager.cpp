@@ -447,6 +447,7 @@ void UFluxPrimeCrowdsManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UFluxPrimeCrowdsManager::RequestAction(const FInstancedStruct& payload)
 {
+	if (GetWorld() && GetWorld()->IsPaused()) return;
 	if (payload.GetScriptStruct() == FFluxPrimeCrowdsSpawnPayload::StaticStruct())
 	{
 		const FFluxPrimeCrowdsSpawnPayload* pair = payload.GetPtr<FFluxPrimeCrowdsSpawnPayload>();

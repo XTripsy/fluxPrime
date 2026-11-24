@@ -2,7 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "fluxPrime.h"
+#include "Generics/Data/FluxPrimeAnimationData.h"
 #include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperBool.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "FluxPrimeCrowdsNotifyAbility.generated.h"
 
 USTRUCT(BlueprintType)
@@ -28,7 +31,7 @@ struct FFluxPrimeCrowdsNotifyAbilityContext
 {
 	GENERATED_BODY()
 	
-	FGetNotifyID getNotifyID = nullptr;
+	FGetNotifyID getNotifyID;
 	TArray<FFluxPrimeArchetypeDataStore>* dataStores = nullptr;
 };
 

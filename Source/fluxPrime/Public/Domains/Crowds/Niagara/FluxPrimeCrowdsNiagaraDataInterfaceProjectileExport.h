@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
-#include "FluxPrimeNiagaraDataInterfaceProjectileExport.generated.h"
+#include "FluxPrimeCrowdsNiagaraDataInterfaceProjectileExport.generated.h"
 
 /**
  * CPU-only export data interface for the batched projectile system.
@@ -42,6 +42,7 @@ public:
 	// UNiagaraDataInterface End
 
 	void ExportProjectileData(FVectorVMExternalFunctionContext& Context);
+	void ReportProjectileCounts(FVectorVMExternalFunctionContext& Context);
 
 protected:
 #if WITH_EDITORONLY_DATA

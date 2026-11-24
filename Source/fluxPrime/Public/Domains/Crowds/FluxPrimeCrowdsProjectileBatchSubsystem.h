@@ -1,12 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Domains/Crowds/Niagara/FluxPrimeProjectileTypes.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileTypes.h"
 #include "NiagaraDataChannelPublic.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileDiagnostics.h"
+#include "Framework/Core/FluxPrimeBaseWorldSubsystem.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "FluxPrimeProjectileBatchSubsystem.generated.h"
+#include "FluxPrimeCrowdsProjectileBatchSubsystem.generated.h"
 
-class UFluxPrimeProjectileDamageHandler;
+class UFluxPrimeCrowdsProjectileDamageHandler;
 class UNiagaraComponent;
 
 /**
@@ -18,7 +20,7 @@ class UNiagaraComponent;
  * number of projectiles in flight. Collision and damage stay inside Niagara and its callback.
  */
 UCLASS()
-class FLUXPRIME_API UFluxPrimeProjectileBatchSubsystem : public UWorldSubsystem
+class FLUXPRIME_API UFluxPrimeCrowdsProjectileBatchSubsystem : public UFluxPrimeBaseWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -29,6 +31,8 @@ public:
 
 	/** Returns true only after publishing. On false, the caller must use the legacy path for this shot. */
 	bool SubmitShot(const FFluxPrimeProjectileBatchConfig& Config, const FFluxPrimeProjectileShot& Shot);
+
+	EFluxPrimeProjectileRejection GetLastRejection() const { return LastRejection; }
 
 	void ShutdownBatch();
 
@@ -44,10 +48,14 @@ private:
 	TObjectPtr<UNiagaraComponent> BatchComponent = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UFluxPrimeProjectileDamageHandler> DamageHandler = nullptr;
+	TObjectPtr<UNiagaraComponent> MuzzleComponent = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UFluxPrimeCrowdsProjectileDamageHandler> DamageHandler = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraDataChannelAsset> ActiveChannel = nullptr;
 
+	EFluxPrimeProjectileRejection LastRejection = EFluxPrimeProjectileRejection::None;
 	int32 NextShotId = 0;
 };

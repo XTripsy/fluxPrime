@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "fluxPrime.h"
 #include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
+#include "Generics/Data/FluxPrimeAnimationData.h"
+#include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "FluxPrimeCrowdsNotifySpawnSFX.generated.h"
 
 USTRUCT(BlueprintType)

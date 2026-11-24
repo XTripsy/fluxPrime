@@ -2,185 +2,126 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Domains/Crowds/Systems/Notify/FluxPrimeCrowdsNotifySpawnVFX.h"
-#include "Framework/Core/FluxPrimeDataStore.h"
-#include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
-#include "NiagaraComponent.h"
-#include "NiagaraSystem.h"
 #include "NativeGameplayTags.h"
-#include "UObject/UObjectIterator.h"
+#include "NiagaraComponent.h"
+#include "NiagaraDataChannel_Global.h"
+#include "NiagaraDataChannel_Islands.h"
+#include "UObject/UnrealType.h"
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NotifyVFXTestLocation, "FluxPrime.Tests.NotifyVFX.Location");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NotifyVFXTestRequest, "FluxPrime.Tests.NotifyVFX.Request");
-
-namespace
-{
-constexpr int32 NotifyVFXTestNotifyID = 7;
-constexpr int32 NotifyVFXTestEntityCount = 16;
-
-UWorld* FindAutomationEditorWorld()
-{
-	for (const FWorldContext& Context : GEngine->GetWorldContexts())
-	{
-		if (Context.WorldType == EWorldType::Editor && Context.World() != nullptr)
-		{
-			return Context.World();
-		}
-	}
-	return nullptr;
-}
-
-template<typename T>
-T* AddTestBuffer(FFluxPrimeArchetypeDataStore& Store, FGameplayTag Tag, UScriptStruct* StructType)
-{
-	if (!Store.AddBuffer(Tag, StructType, sizeof(T), NotifyVFXTestEntityCount)) return nullptr;
-	return reinterpret_cast<T*>(Store.GetRawBufferData(Store.GetDataID(Tag)));
-}
-
-TArray<UNiagaraComponent*> FindSpawnedComponents(UWorld* World, UNiagaraSystem* Asset)
-{
-	TArray<UNiagaraComponent*> Components;
-	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
-	{
-		if (It->GetWorld() == World && It->GetAsset() == Asset)
-		{
-			Components.Add(*It);
-		}
-	}
-	return Components;
-}
-}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeNotifySpawnVFXTest, "FluxPrime.Medium.NotifySpawnVFX",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FFluxPrimeNotifySpawnVFXTest::RunTest(const FString& Parameters)
 {
-	UWorld* World = FindAutomationEditorWorld();
-	if (World == nullptr)
+	UWorld* World = nullptr;
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
 	{
-		AddError(TEXT("No editor world available for the notify VFX test."));
-		return false;
+		if (Context.WorldType == EWorldType::Editor) World = Context.World();
 	}
-
-	UNiagaraSystem* VFXSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/Game/N_DummyDead.N_DummyDead"));
-	if (VFXSystem == nullptr)
-	{
-		AddError(TEXT("Unable to load /Game/N_DummyDead for the notify VFX test."));
-		return false;
-	}
+	if (!TestNotNull(TEXT("Editor world"), World)) return false;
 
 	TArray<FFluxPrimeArchetypeDataStore> Stores;
 	Stores.SetNum(1);
-	FFluxPrimeArchetypeDataStore& Store = Stores[0];
-	Store.SetTotalEntityCount(NotifyVFXTestEntityCount);
-	Store.SetActiveEntityCount(NotifyVFXTestEntityCount);
+	auto& Store = Stores[0];
+	Store.SetTotalEntityCount(2);
+	Store.SetActiveEntityCount(2);
+	Store.AddBuffer(TAG_NotifyVFXTestLocation, TBaseStructure<FVector>::Get(), sizeof(FVector), 2);
+	Store.AddBuffer(TAG_NotifyVFXTestRequest, FFluxPrimeWrapperInt32::StaticStruct(), sizeof(FFluxPrimeWrapperInt32), 2);
+	auto* Requests = reinterpret_cast<FFluxPrimeWrapperInt32*>(Store.GetRawBufferData(Store.GetDataID(TAG_NotifyVFXTestRequest)));
+	if (!TestNotNull(TEXT("Request buffer"), Requests)) return false;
+	Requests[0].ValueInt32 = 7;
+	Requests[1].ValueInt32 = 8;
 
-	FVector* Locations = AddTestBuffer<FVector>(Store, TAG_NotifyVFXTestLocation, TBaseStructure<FVector>::Get());
-	FFluxPrimeWrapperInt32* Requests = AddTestBuffer<FFluxPrimeWrapperInt32>(Store, TAG_NotifyVFXTestRequest, FFluxPrimeWrapperInt32::StaticStruct());
-	if (Locations == nullptr || Requests == nullptr)
-	{
-		AddError(TEXT("Unable to allocate the notify VFX test buffers."));
-		return false;
-	}
-
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		Locations[Index] = FVector(1000.0 + Index * 10.0, 2000.0 + Index * 10.0, 300.0);
-		Requests[Index].ValueInt32 = NotifyVFXTestNotifyID;
-	}
-
+	TestNotNull(TEXT("Notify exposes an editor-selectable Niagara system"),
+		FindFProperty<FObjectPropertyBase>(FFluxPrimeCrowdsNotifySpawnVFX::StaticStruct(), TEXT("VFXSystem")));
 	FFluxPrimeCrowdsNotifySpawnVFX Fragment;
-	Fragment.VFXSystem = VFXSystem;
 	Fragment.DataTagConfig.EntityDataLocationConfig.EntityDataTag = TAG_NotifyVFXTestLocation;
 	Fragment.DataTagConfig.EntityDataLocationConfig.ExpectedStructType = TBaseStructure<FVector>::Get();
 	Fragment.DataTagConfig.EntityDataRequestNotifyConfig.EntityDataTag = TAG_NotifyVFXTestRequest;
 	Fragment.DataTagConfig.EntityDataRequestNotifyConfig.ExpectedStructType = FFluxPrimeWrapperInt32::StaticStruct();
-
 	FFluxPrimeCrowdsNotifySpawnVFXContext Context;
 	Context.world = World;
 	Context.dataStores = &Stores;
-	Context.getNotifyID = [](FGameplayTag) { return static_cast<int16>(NotifyVFXTestNotifyID); };
-
-	const int32 ComponentsBefore = FindSpawnedComponents(World, VFXSystem).Num();
-
+	Context.getNotifyID = [](FGameplayTag) { return static_cast<int16>(7); };
 	Fragment.Initialized(Context);
 
-#if WITH_EDITOR
-	TestFalse(TEXT("Loading-phase preparation leaves no pending compile request"), VFXSystem->NeedsRequestCompile());
-	TestFalse(TEXT("Loading-phase preparation leaves no active compilation"), VFXSystem->HasActiveCompilations());
-#endif
-	TestTrue(TEXT("Prepared effect is ready to run before first dispatch"), VFXSystem->IsReadyToRun());
+	TestNull(TEXT("No implicit channel or legacy system fallback"), Fragment.DataChannel.Get());
+	TestEqual(TEXT("Default position variable"), Fragment.PositionVariable, FName(TEXT("Position")));
+	TestEqual(TEXT("Height offset preserved"), Fragment.TraceHeightOffset, 150.0f);
+	Fragment.ExecuteNotify(0, 0, Store);
+	Fragment.ExecuteNotify(0, 1, Store);
+	TestEqual(TEXT("Missing channel consumes matching cosmetic event"), Requests[0].ValueInt32, INDEX_NONE);
+	TestEqual(TEXT("Unrelated notify remains pending"), Requests[1].ValueInt32, 8);
+	Fragment.ExecuteNotify(0, 0, Store);
+	TestEqual(TEXT("Consumed event is not retried"), Requests[0].ValueInt32, INDEX_NONE);
+	return true;
+}
 
-	// Simultaneous multi-entity dispatch: every entity requests the effect in the same frame.
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeNotifyVFXListenerTest, "FluxPrime.Medium.NotifySpawnVFXListeners",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFluxPrimeNotifyVFXListenerTest::RunTest(const FString& Parameters)
+{
+	UWorld* World = nullptr;
+	for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		if (Context.WorldType == EWorldType::Editor) World = Context.World();
+	if (!TestNotNull(TEXT("Editor world"), World)) return false;
+	auto* System = LoadObject<UNiagaraSystem>(nullptr, TEXT("/Game/N_DummyDead.N_DummyDead"));
+	if (!TestNotNull(TEXT("Lifecycle fixture (not an NDC rendering test)"), System)) return false;
+	auto* Subsystem = NewObject<UFluxPrimeCrowdsVFXSubsystem>(World);
+	const auto MakeChannel = [](bool bPosition, bool bIslands, bool bDuplicate)
 	{
-		Fragment.ExecuteNotify(0, static_cast<uint16>(Index), Store);
-	}
-
-	TArray<UNiagaraComponent*> Spawned = FindSpawnedComponents(World, VFXSystem);
-	TestEqual(TEXT("Every entity spawned one effect"), Spawned.Num() - ComponentsBefore, NotifyVFXTestEntityCount);
-
-	bool bLocationsMatch = true;
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		const FVector Expected = Locations[Index] + FVector::UpVector * 150.0;
-		bool bFound = false;
-		for (const UNiagaraComponent* Component : Spawned)
-		{
-			if (Component->GetComponentLocation().Equals(Expected, 1.0))
-			{
-				bFound = true;
-				break;
-			}
-		}
-		bLocationsMatch &= bFound;
-	}
-	TestTrue(TEXT("Each effect spawns at the entity location plus 150cm"), bLocationsMatch);
-
-	bool bRotationsMatch = true;
-	for (const UNiagaraComponent* Component : Spawned)
-	{
-		bRotationsMatch &= Component->GetComponentRotation().Equals(FRotator::ZeroRotator, 0.1);
-	}
-	TestTrue(TEXT("Each effect keeps the configured rotation"), bRotationsMatch);
-
-	bool bRequestsConsumed = true;
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		bRequestsConsumed &= Requests[Index].ValueInt32 == INDEX_NONE;
-	}
-	TestTrue(TEXT("Dispatch consumes every request exactly once"), bRequestsConsumed);
-
-	// Second pass without new requests: nothing may dispatch again.
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		Fragment.ExecuteNotify(0, static_cast<uint16>(Index), Store);
-	}
-	TestEqual(TEXT("Consumed requests do not dispatch twice"), FindSpawnedComponents(World, VFXSystem).Num() - ComponentsBefore, NotifyVFXTestEntityCount);
-
-	// Repeated in-process triggers: a second wave of requests must dispatch without recompiling.
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		Requests[Index].ValueInt32 = NotifyVFXTestNotifyID;
-	}
-	for (int32 Index = 0; Index < NotifyVFXTestEntityCount; ++Index)
-	{
-		Fragment.ExecuteNotify(0, static_cast<uint16>(Index), Store);
-	}
-	TestEqual(TEXT("Repeated requests dispatch again"), FindSpawnedComponents(World, VFXSystem).Num() - ComponentsBefore, NotifyVFXTestEntityCount * 2);
-
-#if WITH_EDITOR
-	TestFalse(TEXT("Repeated dispatch never requests a compile"), VFXSystem->NeedsRequestCompile());
-	TestFalse(TEXT("Repeated dispatch never leaves an active compilation"), VFXSystem->HasActiveCompilations());
-#endif
-
-	for (UNiagaraComponent* Component : FindSpawnedComponents(World, VFXSystem))
-	{
-		Component->DestroyComponent();
-	}
-
+		auto* Asset = NewObject<UNiagaraDataChannelAsset>();
+		UNiagaraDataChannel* Channel = bIslands
+			? static_cast<UNiagaraDataChannel*>(NewObject<UNiagaraDataChannel_Islands>(Asset))
+			: NewObject<UNiagaraDataChannel_Global>(Asset);
+		FindFieldChecked<FObjectPropertyBase>(Asset->GetClass(), TEXT("DataChannel"))->SetObjectPropertyValue_InContainer(Asset, Channel);
+		auto* Property = FindFieldChecked<FArrayProperty>(UNiagaraDataChannel::StaticClass(), TEXT("ChannelVariables"));
+		auto& Variables = *Property->ContainerPtrToValuePtr<TArray<FNiagaraDataChannelVariable>>(Channel);
+		FNiagaraDataChannelVariable Variable;
+		Variable.SetName(TEXT("Position"));
+		Variable.SetType(bPosition ? FNiagaraTypeDefinition::GetPositionDef()
+			: FNiagaraDataChannelVariable::ToDataChannelType(FNiagaraTypeDefinition::GetVec3Def()));
+		Variables.Add(Variable);
+		if (bDuplicate) Variables.Add(Variable);
+		Channel->GetLayoutInfo();
+		return Asset;
+	};
+	auto* Channel = MakeChannel(true, false, false);
+	TestFalse(TEXT("Missing system rejected"), Subsystem->Publish(nullptr, Channel, TEXT("Position"), FVector::ZeroVector));
+	TestFalse(TEXT("Missing channel rejected"), Subsystem->Publish(System, nullptr, TEXT("Position"), FVector::ZeroVector));
+	TestFalse(TEXT("Empty name rejected"), Subsystem->Publish(System, Channel, NAME_None, FVector::ZeroVector));
+	TestFalse(TEXT("Vector is not Position"), Subsystem->Publish(System, MakeChannel(false, false, false), TEXT("Position"), FVector::ZeroVector));
+	TestFalse(TEXT("Islands rejected"), Subsystem->Publish(System, MakeChannel(true, true, false), TEXT("Position"), FVector::ZeroVector));
+	TestFalse(TEXT("Duplicate variable rejected"), Subsystem->Publish(System, MakeChannel(true, false, true), TEXT("Position"), FVector::ZeroVector));
+	TestNull(TEXT("Guards do not create listeners"), Subsystem->FindListener(Channel));
+	for (int32 Index = 0; Index < 50; ++Index)
+		TestTrue(TEXT("Valid event published"), Subsystem->Publish(System, Channel, TEXT("Position"), FVector(Index, 0, 150)));
+	auto* Component = Subsystem->FindListener(Channel);
+	if (!TestNotNull(TEXT("Persistent listener created"), Component)) return false;
+	TestTrue(TEXT("Listener registered"), Component->IsRegistered());
+	Subsystem->Publish(System, Channel, TEXT("Position"), FVector::ZeroVector);
+	TestTrue(TEXT("Subsequent event reuses listener"), Component == Subsystem->FindListener(Channel));
+	TestFalse(TEXT("Different system on same channel rejected"), Subsystem->Publish(NewObject<UNiagaraSystem>(), Channel, TEXT("Position"), FVector::ZeroVector));
+	Component->SetPaused(true);
+	TestFalse(TEXT("Custom paused listener rejects publication"), Subsystem->Publish(System, Channel, TEXT("Position"), FVector::ZeroVector));
+	TestTrue(TEXT("Custom pause preserved"), Component->IsPaused());
+	Component->SetPaused(false);
+	Component->UnregisterComponent();
+	TestFalse(TEXT("Unregistered listener is not duplicated"), Subsystem->Publish(System, Channel, TEXT("Position"), FVector::ZeroVector));
+	TestTrue(TEXT("Unregistered listener identity retained"), Component == Subsystem->FindListener(Channel));
+	Subsystem->ShutdownListeners();
+	TestNull(TEXT("Shutdown clears listener"), Subsystem->FindListener(Channel));
+	TestFalse(TEXT("Shutdown destroys component"), Component->IsRegistered());
+	TestTrue(TEXT("Explicit shutdown allows new lifecycle"), Subsystem->Publish(System, Channel, TEXT("Position"), FVector::ZeroVector));
+	Subsystem->Deinitialize();
+	TestNull(TEXT("Deinitialize clears listener"), Subsystem->FindListener(Channel));
+	TestFalse(TEXT("Deinitialized subsystem cannot recreate listener"), Subsystem->Publish(System, Channel, TEXT("Position"), FVector::ZeroVector));
 	return true;
 }
 #endif

@@ -29,6 +29,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
 
+	UPROPERTY()
+	TObjectPtr<class UFluxPrimeCrowdsProjectileDamageHandler> PauseDamageHandler;
 	float Damage = 0.0f;
 	bool bLoggedMissingWorld = false;
 	bool IsDebug = false;
