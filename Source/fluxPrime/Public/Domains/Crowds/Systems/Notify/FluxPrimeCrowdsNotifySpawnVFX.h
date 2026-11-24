@@ -2,9 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "fluxPrime.h"
-#include "NiagaraFunctionLibrary.h"
-#include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
+#include "NiagaraDataChannel.h"
+#include "Domains/Crowds/FluxPrimeCrowdsVFXSubsystem.h"
 #include "NiagaraSystem.h"
+#include "Generics/Systems/Animation/FluxPrimeNotifyBase.h"
+#include "NiagaraDataChannelPublic.h"
+#include "Framework/Core/FluxPrimePauseWorldSubsystem.h"
 #include "Framework/Core/FluxPrimeDataStore.h"
 #include "Framework/Data/Wrapper/FluxPrimeWrapperInt.h"
 #include "Generics/Data/FluxPrimeAnimationData.h"
@@ -50,8 +53,16 @@ public:
 	UPROPERTY(EditAnywhere)
 	FNotifySpawnVfxDataTagConfig DataTagConfig;
 	
-	UPROPERTY(EditAnywhere)
+	/** Persistent NDC listener, not a per-notify burst system. Must read DataChannel. */
+	UPROPERTY(EditAnywhere, Category = "VFX")
 	TObjectPtr<UNiagaraSystem> VFXSystem = nullptr;
+
+	/** Global channel with a Position-typed variable. Owned listener is shared across notifies. */
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	TObjectPtr<UNiagaraDataChannelAsset> DataChannel = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = "VFX")
+	FName PositionVariable = TEXT("Position");
 	
 	UPROPERTY()
 	TObjectPtr<UWorld> World = nullptr;
@@ -62,39 +73,9 @@ public:
 	TArray<int16> EntityDataRequestNotifyID, EntityDataLocationID;
 	
 private:
-	/**
-	 * Editor builds defer Niagara's on-demand compile until the system is first activated, and
-	 * UNiagaraComponent::Activate then flushes that request synchronously on the game thread.
-	 * That flush is what stalled notify dispatch in the 1000-entity capture. Performing it here,
-	 * during the manager's loading phase, keeps the cost out of gameplay frames.
-	 * Cooked builds ship compiled data and never enter the on-demand path.
-	 */
-	void PrepareVFXSystemCompilation()
+	bool HasValidChannelSchema() const
 	{
-#if WITH_EDITOR
-		if (!VFXSystem) return;
-		if (!VFXSystem->NeedsRequestCompile() && !VFXSystem->HasActiveCompilations()) return;
-
-		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_NotifyVFX_PrepareCompile);
-		const double startSeconds = FPlatformTime::Seconds();
-
-		// VM compilation only; GPU shader compilation stays on its normal async path.
-		VFXSystem->WaitForCompilationComplete(false, false);
-
-		UE_LOG(LogFluxPrime, Log,
-			TEXT("NOTIFY SPAWN VFX :: '%s' prepared in %.3f ms during loading (pendingCompile=%d, readyToRun=%d)"),
-			*GetPathNameSafe(VFXSystem),
-			(FPlatformTime::Seconds() - startSeconds) * 1000.0,
-			VFXSystem->NeedsRequestCompile() ? 1 : 0,
-			VFXSystem->IsReadyToRun() ? 1 : 0);
-
-		if (VFXSystem->NeedsRequestCompile())
-		{
-			UE_LOG(LogFluxPrime, Warning,
-				TEXT("NOTIFY SPAWN VFX :: '%s' still has a pending compile after the loading-phase flush; its first dispatch can still stall."),
-				*GetPathNameSafe(VFXSystem));
-		}
-#endif
+		return UFluxPrimeCrowdsVFXSubsystem::IsConfigurationValid(VFXSystem, DataChannel, PositionVariable);
 	}
 
 public:
@@ -119,12 +100,15 @@ public:
 			indexDataId++;
 		}
 
-		// Only payloads that can actually dispatch need the effect ready.
-		if (IsAllDataValid) PrepareVFXSystemCompilation();
+		if (!HasValidChannelSchema())
+		{
+			UE_LOG(LogFluxPrime, Warning, TEXT("NOTIFY SPAWN VFX :: assign an NDC listener VFXSystem and a Global Data Channel with one Position-typed '%s' variable."), *PositionVariable.ToString());
+		}
 	}
 	
 	void ExecuteNotify(const uint16 indexDataID, const uint16 indexMember, FFluxPrimeArchetypeDataStore& dataStore)
 	{
+		if (UFluxPrimePauseWorldSubsystem::IsWorldPaused(World)) return;
 		if (!IsAllDataValid)
 		{
 			UE_LOG(LogFluxPrime, Verbose, TEXT("NOTIFY SPAWN VFX :: data invalid; system skipped"));
@@ -139,14 +123,16 @@ public:
 		
 		if (entityDataRequestNotify[indexMember].ValueInt32 != NotifyID) return;
 		
-		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_NotifyVFX_Spawn);
-		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World,
-			VFXSystem,
-			entityDataLocation[indexMember] + FVector::UpVector * TraceHeightOffset,
-			FRotator::ZeroRotator
-		);
-		
+		// Consume even when publication fails: cosmetic events must not replay on later frames.
 		entityDataRequestNotify[indexMember].ValueInt32 = INDEX_NONE;
+		if (!HasValidChannelSchema()) return;
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(FluxPrime_NotifyVFX_WriteDataChannel);
+		const FVector Position = entityDataLocation[indexMember] + FVector::UpVector * TraceHeightOffset;
+		if (IsValid(World))
+		{
+			if (auto* VFX = World->GetSubsystem<UFluxPrimeCrowdsVFXSubsystem>())
+				VFX->Publish(VFXSystem, DataChannel, PositionVariable, Position);
+		}
 	}
 };

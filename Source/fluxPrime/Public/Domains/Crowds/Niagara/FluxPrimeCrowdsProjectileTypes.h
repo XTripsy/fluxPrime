@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "FluxPrimeProjectileTypes.generated.h"
+#include "FluxPrimeCrowdsProjectileTypes.generated.h"
 
 class UNiagaraDataChannelAsset;
 class UNiagaraSystem;
@@ -43,6 +43,10 @@ struct FFluxPrimeProjectileSpawnRecord
 	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
 	FVector Direction = FVector::ForwardVector;
 
+	/** Full world orientation, including roll; muzzle local vectors are rotated by this quaternion. */
+	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
+	FQuat Orientation = FQuat::Identity;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Projectile")
 	float Damage = 0.0f;
 
@@ -79,9 +83,21 @@ struct FFluxPrimeProjectileBatchConfig
 {
 	GENERATED_BODY()
 
+	/** Maximum accepted shots awaiting collision or expiry, including deferred pause results. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile", meta = (ClampMin = "1"))
+	int32 MaxInFlightShots = 16384;
+
+	/** Must exceed the Niagara maximum lifetime plus export delivery latency, in game seconds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile", meta = (ClampMin = "0.1"))
+	float ReservationLifetimeSeconds = 60.0f;
+
 	/** The single persistent system that renders every projectile. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
 	TObjectPtr<UNiagaraSystem> System = nullptr;
+
+	/** Optional separate persistent muzzle consumer of the same channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")
+	TObjectPtr<UNiagaraSystem> MuzzleSystem = nullptr;
 
 	/** Channel the persistent system reads spawn records from. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Projectile")

@@ -113,6 +113,23 @@ struct FAnimationMappingFixture
 };
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeAnimationPauseClockTest, "FluxPrime.Pause.AnimationClock",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFluxPrimeAnimationPauseClockTest::RunTest(const FString& Parameters)
+{
+	FAnimationMappingFixture Fixture(false);
+	auto* State = reinterpret_cast<FFluxPrimeWrapperInt8*>(Fixture.Stores[0].GetRawBufferData(Fixture.Stores[0].GetDataID(TAG_AnimationMappingState)));
+	auto* AnimState = reinterpret_cast<FFluxPrimeWrapperInt8*>(Fixture.Stores[0].GetRawBufferData(Fixture.Stores[0].GetDataID(TAG_AnimationMappingAnimState)));
+	State[0].ValueInt8 = 2;
+	AnimState[0].ValueInt8 = 5;
+	Fixture.World->TimeSeconds = 2.0f;
+	Fixture.World->RealTimeSeconds = 12.0f;
+	Fixture.System.ExecuteSystem(0.1f, Fixture.Stores);
+	TestEqual(TEXT("VAT clip starts in world game-time domain"), Fixture.Components[0]->PerInstanceSMCustomData[3], 2.0f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeAnimationMappingTest, "FluxPrime.High.AnimationMapping",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 

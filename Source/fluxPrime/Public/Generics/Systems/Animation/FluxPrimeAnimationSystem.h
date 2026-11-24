@@ -445,7 +445,7 @@ public:
 		
 		SpatialGridSystem.UpdateSpatialGridSystem(dataStores);
 		
-		float realTime = World->GetRealTimeSeconds();
+		float realTime = World->GetTimeSeconds();
 
 		int8 indexDataID = 0;
 		for (auto& dataStore : dataStores)

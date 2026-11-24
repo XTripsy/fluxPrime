@@ -43,24 +43,19 @@ private:
 	/** Buffer pointers of each archetype, resolved once per frame instead of per neighbor. */
 	TArray<FVector*> EntityDataLocationBuffers;
 	TArray<FVector*> EntityDataAccelerationBuffers;
-	/** Chunk c owns [ChunkMemberStart[c], ChunkMemberStart[c + 1]) in the arrays below. */
-	TArray<int32> ChunkMemberStart;
-	/** Separation kernel of every active entity, packed per archetype. */
+	TArray<FFluxPrimeWrapperInt16*> EntityDataSizeBuffers;
+	/** Separation kernel of every active entity, packed in grid member order. */
 	TArray<float> EntitySeparationDiameter;
 	TArray<float> EntitySeparationRadius;
 	
 	UPROPERTY(EditAnywhere)
 	float SeparationWeight = 0.0f;
 	
-	float CellSize = 100.0f;
 	int32 CellWidth = 200;
 	int32 CellHeight = 200;
-	int32 TotalCells = 100;
-	FVector Origin = FVector(-10000.0f, -10000.0f, 0.0f);
 	
 	UPROPERTY(EditAnywhere)
 	FFluxPrimeSpatialGridSystem SpatialGridSystem = FFluxPrimeSpatialGridSystem();
-	
 	//FVector playerLocation;
 	
 public:
@@ -82,11 +77,8 @@ public:
 		
 		SpatialGridSystem.Initialized(dataStores);
 		
-		CellSize = SpatialGridSystem.GetCellSize();
 		CellWidth = SpatialGridSystem.GetCellWidth();
 		CellHeight = SpatialGridSystem.GetCellHeight();
-		TotalCells = SpatialGridSystem.GetTotalCells();
-		Origin = SpatialGridSystem.GetOrigin();
 	}
 	
 	void ExecuteSystem(float deltaTime, TArray<FFluxPrimeArchetypeDataStore>& dataStores)
@@ -107,137 +99,147 @@ public:
 		const int32 dataStoreCount = dataStores.Num();
 		EntityDataLocationBuffers.SetNumUninitialized(dataStoreCount);
 		EntityDataAccelerationBuffers.SetNumUninitialized(dataStoreCount);
-		ChunkMemberStart.SetNumUninitialized(dataStoreCount + 1);
+		EntityDataSizeBuffers.SetNumUninitialized(dataStoreCount);
 
 		int32 totalActive = 0;
-		for (int32 dataIndex = 0; dataIndex < dataStoreCount; ++dataIndex)
-		{
-			ChunkMemberStart[dataIndex] = totalActive;
-			totalActive += dataStores[dataIndex].GetActiveEntityCount();
-		}
-		ChunkMemberStart[dataStoreCount] = totalActive;
-
-		EntitySeparationDiameter.SetNumUninitialized(totalActive);
-		EntitySeparationRadius.SetNumUninitialized(totalActive);
-
 		for (int32 dataIndex = 0; dataIndex < dataStoreCount; ++dataIndex)
 		{
 			FFluxPrimeArchetypeDataStore& dataStore = dataStores[dataIndex];
 
 			EntityDataLocationBuffers[dataIndex] = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataLocationID[dataIndex]));
 			EntityDataAccelerationBuffers[dataIndex] = reinterpret_cast<FVector*>(dataStore.GetRawBufferData(EntityDataAccelerationID[dataIndex]));
-			FFluxPrimeWrapperInt16* entityDataSize = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[dataIndex]));
+			EntityDataSizeBuffers[dataIndex] = reinterpret_cast<FFluxPrimeWrapperInt16*>(dataStore.GetRawBufferData(EntityDataSizeID[dataIndex]));
 
 			check(EntityDataLocationBuffers[dataIndex]);
 			check(EntityDataAccelerationBuffers[dataIndex]);
-			check(entityDataSize);
+			check(EntityDataSizeBuffers[dataIndex]);
 
-			const int32 activeCount = dataStore.GetActiveEntityCount();
-			if (activeCount <= 0) continue;
-
-			float* diameters = EntitySeparationDiameter.GetData() + ChunkMemberStart[dataIndex];
-			float* radii = EntitySeparationRadius.GetData() + ChunkMemberStart[dataIndex];
-			for (int32 i = 0; i < activeCount; ++i)
-			{
-				const float diameter = entityDataSize[i].ValueInt16 * 1.2f;
-				diameters[i] = diameter;
-				radii[i] = FMath::Max(1.0f, FMath::Square(diameter));
-			}
+			totalActive += dataStore.GetActiveEntityCount();
 		}
 
 		const TArray<int32>& gridOffsets = SpatialGridSystem.GetGridOffsets();
 		const TArray<int32>& gridCounts = SpatialGridSystem.GetGridCounts();
 		const FFluxPrimeGridMemberData* gridMemberData = SpatialGridSystem.GetGridMembers().GetData();
+		const FFluxPrimeWrapperInt16* const* sizeBuffers = EntityDataSizeBuffers.GetData();
+
+		EntitySeparationDiameter.SetNumUninitialized(totalActive);
+		EntitySeparationRadius.SetNumUninitialized(totalActive);
+
+		// Packed in grid member order, which is also the order the scan below walks: the
+		// candidate index is then the separation index, with no per-pair archetype lookup.
+		check(SpatialGridSystem.GetGridMembers().Num() >= totalActive);
+		float* diameters = EntitySeparationDiameter.GetData();
+		float* radii = EntitySeparationRadius.GetData();
+		for (int32 member = 0; member < totalActive; ++member)
+		{
+			const float diameter = sizeBuffers[gridMemberData[member].EntityType][gridMemberData[member].EntityIndex].ValueInt16 * 1.2f;
+			diameters[member] = diameter;
+			radii[member] = FMath::Max(1.0f, FMath::Square(diameter));
+		}
 
 		const float* separationDiameters = EntitySeparationDiameter.GetData();
 		const float* separationRadii = EntitySeparationRadius.GetData();
-		const int32* chunkMemberStart = ChunkMemberStart.GetData();
 		FVector* const* locationBuffers = EntityDataLocationBuffers.GetData();
 		FVector* const* accelerationBuffers = EntityDataAccelerationBuffers.GetData();
 
-	    for (int32 currentDataIdx = 0; currentDataIdx < dataStoreCount; ++currentDataIdx)
-	    {
-	       FVector* entityDataLocation = locationBuffers[currentDataIdx];
-	       FVector* entityDataAcceleration = accelerationBuffers[currentDataIdx];
-	       const int32 chunkStart = chunkMemberStart[currentDataIdx];
-	       const int32 activeCount = dataStores[currentDataIdx].GetActiveEntityCount();
+		const TArray<int32>& occupiedCells = SpatialGridSystem.GetOccupiedCells();
 
-	       for (int32 i = 0; i < activeCount; ++i)
-	       {
-	          const float separationDiameter = separationDiameters[chunkStart + i];
-	          const float separationRadius = separationRadii[chunkStart + i];
-	          const FVector tempLocation = entityDataLocation[i];
-	          FVector force = FVector::Zero();
+		// Occupied cells only: each member is the "self" of its own pair set. Its pairs are the
+		// strictly later members of its own cell, every member of the cell to its right, and
+		// the three cells in the next row. Members are inserted in (archetype, row) order, so
+		// "strictly later in this cell" is exactly the set the previous per-entity skip loop
+		// walked one rejection at a time, and the left cell needs no visit because its own
+		// right-cell pass already pairs it with this one.
+		for (const int32 cellId : occupiedCells)
+		{
+			const int32 cellStart = gridOffsets[cellId];
+			const int32 cellEnd = cellStart + gridCounts[cellId];
+			const int32 cellX = cellId % CellWidth;
+			const int32 cellY = cellId / CellWidth;
+			const int32 rightCellId = (cellX + 1 < CellWidth) ? cellId + 1 : INDEX_NONE;
+			const int32 forwardRowStart = (cellY + 1) * CellWidth;
+			const int32 rightStart = rightCellId == INDEX_NONE ? 0 : gridOffsets[rightCellId];
+			const int32 rightEnd = rightCellId == INDEX_NONE ? 0 : rightStart + gridCounts[rightCellId];
+			int32 forwardStarts[3];
+			int32 forwardEnds[3];
+			int32 forwardCount = 0;
+			if (cellY + 1 < CellHeight)
+			{
+				for (int32 neighborX = FMath::Max(cellX - 1, 0); neighborX <= FMath::Min(cellX + 1, CellWidth - 1); ++neighborX)
+				{
+					const int32 neighborCellId = forwardRowStart + neighborX;
+					if (gridCounts[neighborCellId] == 0) continue;
+					forwardStarts[forwardCount] = gridOffsets[neighborCellId];
+					forwardEnds[forwardCount] = forwardStarts[forwardCount] + gridCounts[neighborCellId];
+					++forwardCount;
+				}
+			}
 
-	          const int32 agentCellX = FMath::Clamp(FMath::FloorToInt((tempLocation.X - Origin.X) / CellSize), 0, CellWidth - 1);
-	          const int32 agentCellY = FMath::Clamp(FMath::FloorToInt((tempLocation.Y - Origin.Y) / CellSize), 0, CellHeight - 1);
+			for (int32 m = cellStart; m < cellEnd; ++m)
+			{
+				const int16 selfChunk = gridMemberData[m].EntityType;
+				const int32 selfAgent = gridMemberData[m].EntityIndex;
+				const FVector selfLocation = locationBuffers[selfChunk][selfAgent];
+				const float selfDiameter = separationDiameters[m];
+				const float selfRadius = separationRadii[m];
+				FVector force = FVector::Zero();
 
-	          // Half neighborhood: the own cell after this member plus the four cells that
-	          // follow it. Every unordered pair is visited exactly once, so the interaction
-	          // is computed once and written to both entities instead of twice.
-	          for (int32 y = 0; y <= 1; ++y)
-	          {
-	             const int32 neighborY = agentCellY + y;
-	             if (neighborY < 0 || neighborY >= CellHeight) continue;
+				const auto ApplyPair = [&](const int32 otherMemberIndex)
+				{
+					const float diffX = selfLocation.X - gridMemberData[otherMemberIndex].LocationX;
+					const float diffY = selfLocation.Y - gridMemberData[otherMemberIndex].LocationY;
+					const float distSq = (diffX * diffX) + (diffY * diffY);
 
-	             for (int32 x = (y == 0) ? 0 : -1; x <= 1; ++x)
-	             {
-	                const int32 neighborX = agentCellX + x;
-	                if (neighborX < 0 || neighborX >= CellWidth) continue;
+					if (distSq <= 0.1f) return;
 
-	                const int32 neighborCellId = (neighborY * CellWidth) + neighborX;
-	                const int32 start = gridOffsets[neighborCellId];
-	                const int32 end = start + gridCounts[neighborCellId];
-	                const bool isOwnCell = (x == 0 && y == 0);
+					const float otherRadius = separationRadii[otherMemberIndex];
 
-	                for (int32 k = start; k < end; ++k)
-	                {
-	                   const int16 otherChunk = gridMemberData[k].EntityType;
-	                   const int32 otherAgent = gridMemberData[k].EntityIndex;
+					// Neither direction is in range: skip the square root.
+					if (distSq >= selfRadius && distSq >= otherRadius) return;
 
-	                   // Members are inserted in (archetype, index) order, so in the own cell
-	                   // everything up to and including this member was already paired.
-	                   if (isOwnCell && (otherChunk < currentDataIdx || (otherChunk == currentDataIdx && otherAgent <= i))) continue;
+					const float dist = FMath::Sqrt(distSq);
 
-	                   const float diffX = tempLocation.X - gridMemberData[k].LocationX;
-	                   const float diffY = tempLocation.Y - gridMemberData[k].LocationY;
-	                   const float distSq = (diffX * diffX) + (diffY * diffY);
+					if (distSq < selfRadius)
+					{
+						const float pushFactor = 1.0f - (dist / selfDiameter);
+						const float scale = pushFactor / dist;
 
-	                   if (distSq <= 0.1f) continue;
+						force.X += diffX * scale;
+						force.Y += diffY * scale;
+					}
 
-	                   const int32 otherMember = chunkMemberStart[otherChunk] + otherAgent;
-	                   const float otherRadius = separationRadii[otherMember];
+					if (distSq < otherRadius)
+					{
+						const float otherPushFactor = 1.0f - (dist / separationDiameters[otherMemberIndex]);
+						const float otherScale = SeparationWeight * (otherPushFactor / dist);
+						FVector& otherAcceleration = accelerationBuffers[gridMemberData[otherMemberIndex].EntityType][gridMemberData[otherMemberIndex].EntityIndex];
 
-	                   // Neither direction is in range: skip the square root.
-	                   if (distSq >= separationRadius && distSq >= otherRadius) continue;
+						otherAcceleration.X -= diffX * otherScale;
+						otherAcceleration.Y -= diffY * otherScale;
+					}
+				};
 
-	                   const float dist = FMath::Sqrt(distSq);
+				for (int32 k = m + 1; k < cellEnd; ++k)
+				{
+					ApplyPair(k);
+				}
 
-	                   if (distSq < separationRadius)
-	                   {
-	                      const float pushFactor = 1.0f - (dist / separationDiameter);
-	                      const float scale = pushFactor / dist;
+				for (int32 k = rightStart; k < rightEnd; ++k)
+				{
+					ApplyPair(k);
+				}
 
-	                      force.X += diffX * scale;
-	                      force.Y += diffY * scale;
-	                   }
+				for (int32 range = 0; range < forwardCount; ++range)
+				{
+					for (int32 k = forwardStarts[range]; k < forwardEnds[range]; ++k)
+					{
+						ApplyPair(k);
+					}
+				}
 
-	                   if (distSq < otherRadius)
-	                   {
-	                      const float otherPushFactor = 1.0f - (dist / separationDiameters[otherMember]);
-	                      const float otherScale = SeparationWeight * (otherPushFactor / dist);
-	                      FVector& otherAcceleration = accelerationBuffers[otherChunk][otherAgent];
-
-	                      otherAcceleration.X -= diffX * otherScale;
-	                      otherAcceleration.Y -= diffY * otherScale;
-	                   }
-	                }
-	             }
-	          }
-
-	          force *= SeparationWeight;
-	          entityDataAcceleration[i] += force;
-	       }
-	    }
+				force *= SeparationWeight;
+				accelerationBuffers[selfChunk][selfAgent] += force;
+			}
+		}
 	}
 };

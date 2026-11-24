@@ -1,9 +1,9 @@
-#include "Tests/FluxPrimeProjectileTestTarget.h"
+#include "Tests/FluxPrimeCrowdsProjectileTestTarget.h"
 
 #include "Components/SphereComponent.h"
 #include "Engine/DamageEvents.h"
 
-AFluxPrimeProjectileTestTarget::AFluxPrimeProjectileTestTarget()
+AFluxPrimeCrowdsProjectileTestTarget::AFluxPrimeCrowdsProjectileTestTarget()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	SetCanBeDamaged(true);
@@ -19,10 +19,11 @@ AFluxPrimeProjectileTestTarget::AFluxPrimeProjectileTestTarget()
 	RootComponent = Collision;
 }
 
-float AFluxPrimeProjectileTestTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
+float AFluxPrimeCrowdsProjectileTestTarget::TakeDamage(float DamageAmount, const FDamageEvent& DamageEvent,
 	AController* EventInstigator, AActor* DamageCauser)
 {
 	TotalDamage += DamageAmount;
 	++DamageEventCount;
+	if (OnTestDamage) OnTestDamage();
 	return DamageAmount;
 }

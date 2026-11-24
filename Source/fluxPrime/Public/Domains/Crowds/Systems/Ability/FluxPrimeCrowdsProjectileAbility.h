@@ -1,13 +1,14 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "fluxPrime.h"
 #include "Generics/Systems/Ability/FluxPrimeBaseAbility.h"
 #include "NiagaraFunctionLibrary.h"
-#include "NiagaraComponent.h"
-#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
-#include "Domains/Crowds/Niagara/FluxPrimeProjectileBatchSubsystem.h"
-#include "Domains/Crowds/Niagara/FluxPrimeProjectileTypes.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileDiagnostics.h"
+#include "Domains/Crowds/FluxPrimeCrowdsProjectileBatchSubsystem.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileTypes.h"
 #include "Engine/World.h"
+#include "Framework/Core/FluxPrimePauseWorldSubsystem.h"
 #include "UObject/Package.h"
 #include "FluxPrimeCrowdsProjectileAbility.generated.h"
 
@@ -29,10 +30,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UWorld> World;
 	
-	/** GC backstop for per-shot callbacks; Niagara also references them through User.NiagaraCallback. */
-	UPROPERTY()
-	TArray<TObjectPtr<UFluxPrimeCrowdsNiagaraCallback>> ActiveNiagaraCallbacks;
-	
 	UPROPERTY(EditAnywhere, Category = "Projectile", meta = (Units = "cm"))
 	float TraceHeightOffset = 75.0f;
 	
@@ -40,21 +37,17 @@ private:
 	bool IsDebug = false;
 	
 public:
-	/** Per-shot system used when batching is off, or as the fallback when a shot cannot be batched. */
-	UPROPERTY(EditAnywhere, Category = "Projectile")
-	TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
-
 	/** Persistent system that renders every projectile at once. Required when bUseBatchedProjectiles is on. */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
 	TObjectPtr<UNiagaraSystem> BatchedProjectileSystem = nullptr;
 
+	/** Optional persistent CPU NDC muzzle system. Leave empty when muzzle emitters are in BatchedProjectileSystem. */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
+	TObjectPtr<UNiagaraSystem> MuzzleFlashSystem = nullptr;
+
 	/** Channel the batched system reads its spawn records from. Required when bUseBatchedProjectiles is on. */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
 	TObjectPtr<UNiagaraDataChannelAsset> ProjectileSpawnChannel = nullptr;
-
-	/** Muzzle-only effect spawned per shot while batching. Leave empty to spawn no per-shot effect. */
-	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
-	TObjectPtr<UNiagaraSystem> MuzzleFlashSystem = nullptr;
 
 	/**
 	 * Routes shots through the shared projectile system instead of spawning one Niagara system per shot.
@@ -62,6 +55,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
 	bool bUseBatchedProjectiles = false;
+
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched", meta = (ClampMin = "1"))
+	int32 MaxInFlightShots = 16384;
+
+	/** Set above the asset's maximum lifetime plus callback latency. */
+	UPROPERTY(EditAnywhere, Category = "Projectile|Batched", meta = (ClampMin = "0.1"))
+	float ReservationLifetimeSeconds = 60.0f;
 	
 public:
 	void InitializedProjectileAbilitySystems(FFluxPrimeCrowdsProjectileAbilitySystemsContext context)
@@ -73,48 +73,8 @@ public:
 	
 	void Execute(FVector location, FRotator rotation, float damage)
 	{
-		if (TrySubmitBatchedShot(location, rotation, damage))
-		{
-			return;
-		}
-
-		UNiagaraComponent* projectileFX = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-			World,
-			NiagaraSystem,
-			location + FVector::UpVector * TraceHeightOffset,
-			rotation
-		);
-
-		if (!IsValid(projectileFX))
-		{
-			UE_LOG(LogFluxPrime, Warning, TEXT("Projectile ability %s could not spawn its Niagara system in world %s."),
-				*Identity.ToString(), World ? *World->GetName() : TEXT("null"));
-			return;
-		}
-
-		// One callback per shot so concurrent effects cannot overwrite each other's damage.
-		UFluxPrimeCrowdsNiagaraCallback* particleCallback = NewObject<UFluxPrimeCrowdsNiagaraCallback>(GetTransientPackage());
-		FFluxPrimeCrowdsNiagaraCallbackContext callbackContext;
-		callbackContext.world = World;
-		callbackContext.damage = damage;
-		callbackContext.isDebug = IsDebug;
-		particleCallback->InitializedNiagaraCallback(callbackContext);
-
-		ActiveNiagaraCallbacks.Add(particleCallback);
-		if (ActiveNiagaraCallbacks.Num() > 512)
-		{
-			ActiveNiagaraCallbacks.RemoveAt(0);
-		}
-
-		projectileFX->SetVariableFloat(
-			TEXT("User.Damage"),
-			damage
-		);
-		
-		projectileFX->SetVariableObject(
-			TEXT("User.NiagaraCallback"),
-			particleCallback
-		);
+		if (UFluxPrimePauseWorldSubsystem::IsWorldPaused(World)) return;
+		if (!TrySubmitBatchedShot(location, rotation, damage)) UE_LOG(LogFluxPrime, Verbose, TEXT("PROJECTILE ABILITY :: FAIL TRY BATCHED SHOT"));
 	}
 
 private:
@@ -124,20 +84,26 @@ private:
 	 */
 	bool TrySubmitBatchedShot(const FVector& location, const FRotator& rotation, float damage)
 	{
-		if (!bUseBatchedProjectiles || !IsValid(BatchedProjectileSystem) || !IsValid(ProjectileSpawnChannel) || !IsValid(World))
+		if (!bUseBatchedProjectiles || !IsValid(World))
 		{
+			FFluxPrimeCrowdsProjectileDiagnostics::RecordResult(!bUseBatchedProjectiles
+				? EFluxPrimeProjectileRejection::Disabled : EFluxPrimeProjectileRejection::InvalidWorld);
 			return false;
 		}
 
-		UFluxPrimeProjectileBatchSubsystem* Batch = World->GetSubsystem<UFluxPrimeProjectileBatchSubsystem>();
+		UFluxPrimeCrowdsProjectileBatchSubsystem* Batch = World->GetSubsystem<UFluxPrimeCrowdsProjectileBatchSubsystem>();
 		if (Batch == nullptr)
 		{
+			FFluxPrimeCrowdsProjectileDiagnostics::RecordResult(EFluxPrimeProjectileRejection::MissingSubsystem);
 			return false;
 		}
 
 		FFluxPrimeProjectileBatchConfig Config;
 		Config.System = BatchedProjectileSystem;
+		Config.MuzzleSystem = MuzzleFlashSystem;
 		Config.SpawnChannel = ProjectileSpawnChannel;
+		Config.MaxInFlightShots = MaxInFlightShots;
+		Config.ReservationLifetimeSeconds = ReservationLifetimeSeconds;
 
 		FFluxPrimeProjectileShot Shot;
 		Shot.Location = location;
@@ -148,17 +114,9 @@ private:
 
 		if (!Batch->SubmitShot(Config, Shot))
 		{
-			return false;
-		}
-
-		if (IsValid(MuzzleFlashSystem))
-		{
-			UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-				World,
-				MuzzleFlashSystem,
-				location + FVector::UpVector * TraceHeightOffset,
-				rotation
-			);
+			// Terminal rejection must not bypass pause/admission through the legacy fallback.
+			return Batch->GetLastRejection() == EFluxPrimeProjectileRejection::Paused
+				|| Batch->GetLastRejection() == EFluxPrimeProjectileRejection::CapacityExceeded;
 		}
 
 		return true;

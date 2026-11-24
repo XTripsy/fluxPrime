@@ -267,6 +267,15 @@ public:
     {
         return GridCounts;
     }
+
+    /**
+     * Cells that currently hold at least one member, ascending. Kept alive after the rebuild
+     * because the boids scan walks occupied cells instead of re-deriving a cell id per entity.
+     */
+    const TArray<int32>& GetOccupiedCells() const
+    {
+        return TouchedCells;
+    }
     
     TArray<FFluxPrimeGridMemberData>& GetGridMembers()
     {

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Domains/Crowds/Niagara/FluxPrimeProjectileTypes.h"
+#include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileTypes.h"
 #include "UObject/Interface.h"
-#include "FluxPrimeProjectileCallbackHandler.generated.h"
+#include "FluxPrimeCrowdsProjectileCallbackHandler.generated.h"
 
 class UNiagaraSystem;
 
 UINTERFACE(MinimalAPI, BlueprintType)
-class UFluxPrimeProjectileCallbackHandler : public UInterface
+class UFluxPrimeCrowdsProjectileCallbackHandler : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -17,7 +17,7 @@ class UFluxPrimeProjectileCallbackHandler : public UInterface
  * Receives projectile samples from the batched system. Mirrors INiagaraParticleCallbackHandler,
  * but carries the per-particle damage and shot id that FBasicParticleData cannot express.
  */
-class FLUXPRIME_API IFluxPrimeProjectileCallbackHandler
+class FLUXPRIME_API IFluxPrimeCrowdsProjectileCallbackHandler
 {
 	GENERATED_BODY()
 

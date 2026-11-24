@@ -163,4 +163,70 @@ bool FFluxPrimeSpatialGridLayoutTest::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimeSpatialGridOccupiedCellsTest, "FluxPrime.Critical.SpatialGridOccupiedCells",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+/**
+ * The boids scan iterates the cells that actually hold members instead of every entity.
+ * It needs the occupied list to be exactly the cells with a count after the rebuild, in
+ * ascending order, and to shrink again when a cell empties out.
+ */
+bool FFluxPrimeSpatialGridOccupiedCellsTest::RunTest(const FString& Parameters)
+{
+	TArray<FFluxPrimeArchetypeDataStore> Stores;
+	TestTrue(TEXT("First store registers grid buffers"), AddGridStore(Stores, 2));
+	TestTrue(TEXT("Second store registers grid buffers"), AddGridStore(Stores, 1));
+
+	FFluxPrimeSpatialGridSystem Grid;
+	FSpatialGridSystemDataTagConfig* Config = GetTagConfig(Grid);
+	if (!TestNotNull(TEXT("Grid exposes its tag config"), Config)) return false;
+
+	Config->EntityDataLocationConfig.EntityDataTag = TAG_SpatialGridTestLocation;
+	Config->EntityDataLocationConfig.ExpectedStructType = TBaseStructure<FVector>::Get();
+	Config->EntityDataCellIdConfig.EntityDataTag = TAG_SpatialGridTestCellId;
+	Config->EntityDataCellIdConfig.ExpectedStructType = FFluxPrimeWrapperInt32::StaticStruct();
+
+	Grid.Initialized(Stores);
+
+	FVector* FirstLocations = LocationsOf(Stores[0]);
+	FirstLocations[0] = FVector(0.0, 0.0, 0.0);
+	FirstLocations[1] = FVector(0.0, 0.0, 0.0);
+	LocationsOf(Stores[1])[0] = FVector(150.0, 0.0, 0.0);
+
+	Grid.UpdateSpatialGridSystem(Stores);
+
+	const TArray<int32>& Occupied = Grid.GetOccupiedCells();
+	TestEqual(TEXT("Two cells are occupied"), Occupied.Num(), 2);
+	TestEqual(TEXT("First occupied cell is the ascending lower cell"), Occupied[0], 20100);
+	TestEqual(TEXT("Second occupied cell follows it"), Occupied[1], 20101);
+	for (const int32 CellId : Occupied)
+	{
+		TestTrue(TEXT("Every listed cell holds at least one member"), Grid.GetGridCounts()[CellId] > 0);
+	}
+
+	const int32 MovedCell = ExpectedCellId(FVector(5000.0, 0.0, 0.0));
+	FirstLocations[0] = FVector(5000.0, 0.0, 0.0);
+	Grid.UpdateSpatialGridSystem(Stores);
+
+	TestEqual(TEXT("The moved row adds a third occupied cell"), Occupied.Num(), 3);
+	TestEqual(TEXT("Ascending order puts the source cell first"), Occupied[0], 20100);
+	TestEqual(TEXT("The second cell keeps its place"), Occupied[1], 20101);
+	TestEqual(TEXT("The destination cell sorts last"), Occupied[2], MovedCell);
+
+	FirstLocations[0] = FVector(0.0, 0.0, 0.0);
+	FirstLocations[1] = FVector(0.0, 0.0, 0.0);
+	LocationsOf(Stores[1])[0] = FVector(0.0, 0.0, 0.0);
+	Grid.UpdateSpatialGridSystem(Stores);
+
+	TestEqual(TEXT("Everything in one cell leaves a single occupied cell"), Occupied.Num(), 1);
+	TestEqual(TEXT("That cell is the shared one"), Occupied[0], 20100);
+
+	Stores[0].SetActiveEntityCount(0);
+	Stores[1].SetActiveEntityCount(0);
+	Grid.UpdateSpatialGridSystem(Stores);
+
+	TestEqual(TEXT("An empty world reports no occupied cell"), Occupied.Num(), 0);
+	return true;
+}
 #endif
