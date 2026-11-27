@@ -72,9 +72,6 @@ struct FFluxPrimeProjectileShot
 	/** Lifts the shot off the muzzle to match the legacy spawn height. */
 	UPROPERTY(BlueprintReadWrite, Category = "Projectile")
 	float HeightOffset = 0.0f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Projectile")
-	bool bDebug = false;
 };
 
 /** Everything the batch subsystem needs to own a persistent projectile system. */

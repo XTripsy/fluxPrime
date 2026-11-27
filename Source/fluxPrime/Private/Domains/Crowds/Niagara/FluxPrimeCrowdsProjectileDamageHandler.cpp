@@ -1,6 +1,5 @@
 #include "Domains/Crowds/Niagara/FluxPrimeCrowdsProjectileDamageHandler.h"
 
-#include "DrawDebugHelpers.h"
 #include "Framework/Core/FluxPrimePauseWorldSubsystem.h"
 #include "fluxPrime.h"
 #include "Kismet/GameplayStatics.h"
@@ -71,7 +70,7 @@ void UFluxPrimeCrowdsProjectileDamageHandler::FlushPendingDamage()
 	}
 }
 
-void UFluxPrimeCrowdsProjectileDamageHandler::Initialize(UWorld* InWorld, bool bInDebug)
+void UFluxPrimeCrowdsProjectileDamageHandler::Initialize(UWorld* InWorld)
 {
 	if (!IsValid(InWorld))
 	{
@@ -87,7 +86,6 @@ void UFluxPrimeCrowdsProjectileDamageHandler::Initialize(UWorld* InWorld, bool b
 		if (auto* Pause = World->GetSubsystem<UFluxPrimePauseWorldSubsystem>())
 			Pause->OnResume.AddUObject(this, &ThisClass::FlushPendingDamage);
 	}
-	bDebug = bInDebug;
 	bLoggedMissingWorld = false;
 }
 
@@ -144,11 +142,6 @@ void UFluxPrimeCrowdsProjectileDamageHandler::ReceiveProjectileParticles_Impleme
 			AcceptedShots.Remove(Particle.ShotId);
 		}
 		else if (World->IsPaused()) continue;
-
-		if (bDebug)
-		{
-			DrawDebugSphere(World, Start, 50.0f, 16, FColor::Yellow, false, 1.0f);
-		}
 
 		FFluxPrimeCrowdsProjectileDiagnostics::RecordDamage();
 		UGameplayStatics::ApplyDamage(Hit.GetActor(), Particle.Damage, nullptr, nullptr, nullptr);

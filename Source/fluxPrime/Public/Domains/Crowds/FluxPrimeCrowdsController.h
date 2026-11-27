@@ -7,6 +7,7 @@
 #include "FluxPrimeCrowdsController.generated.h"
 
 class UFluxPrimeCrowdsManager;
+class UFluxPrimeCrowdsDebugComponent;
 class UManagerConfiguration;
 
 UCLASS(Blueprintable, HideCategories=(Rendering, Replication, Collision, Input, Activation, AssetUserData, Navigation,
@@ -18,6 +19,9 @@ class FLUXPRIME_API AFluxPrimeCrowdsController : public AFluxPrimeBaseController
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crowds", meta = (AllowPrivateAccess = true))
 	TObjectPtr<UFluxPrimeCrowdsManager> CrowdsManager;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crowds|Debug", meta = (AllowPrivateAccess = true))
+	TObjectPtr<UFluxPrimeCrowdsDebugComponent> CrowdsDebug;
 	
 public:
 	AFluxPrimeCrowdsController();
@@ -30,5 +34,11 @@ public:
 	inline UFluxPrimeCrowdsManager* GetCrowdsManager() const
 	{
 		return CrowdsManager;
+	};
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	inline UFluxPrimeCrowdsDebugComponent* GetCrowdsDebugComponent() const
+	{
+		return CrowdsDebug;
 	};
 };

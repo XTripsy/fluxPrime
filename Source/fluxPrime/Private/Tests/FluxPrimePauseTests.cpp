@@ -93,7 +93,7 @@ bool FFluxPrimePauseImpactTest::RunTest(const FString& Parameters)
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	auto* Target = World->SpawnActor<AFluxPrimeCrowdsProjectileTestTarget>();
 	auto* Handler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>();
-	Handler->Initialize(World, false);
+	Handler->Initialize(World);
 	TestTrue(TEXT("Reserve first result"), Handler->ReserveShot(1, 10, 1));
 	TestFalse(TEXT("Capacity rejects before publication"), Handler->ReserveShot(2, 10, 1));
 	World->GetWorldSettings()->SetPauserPlayerState(World->SpawnActor<APlayerState>());
@@ -117,31 +117,6 @@ bool FFluxPrimePauseImpactTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimePauseLegacyImpactTest, "FluxPrime.Pause.LegacyImpact",
-	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-bool FFluxPrimePauseLegacyImpactTest::RunTest(const FString& Parameters)
-{
-	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
-	auto* Target = World->SpawnActor<AFluxPrimeCrowdsProjectileTestTarget>();
-	auto* Handler = NewObject<UFluxPrimeCrowdsNiagaraCallback>();
-	FFluxPrimeCrowdsNiagaraCallbackContext Context;
-	Context.world = World;
-	Context.damage = 9;
-	Handler->InitializedNiagaraCallback(Context);
-	World->GetWorldSettings()->SetPauserPlayerState(World->SpawnActor<APlayerState>());
-	FWorldDelegates::OnWorldTickStart.Broadcast(World, LEVELTICK_All, 0.1f);
-	FBasicParticleData Particle;
-	Particle.Position = Target->GetActorLocation();
-	Handler->ReceiveParticleData_Implementation({Particle}, nullptr, FVector::ZeroVector);
-	TestEqual(TEXT("Legacy callback cannot damage while paused"), Target->GetTotalDamage(), 0.0f);
-	World->GetWorldSettings()->SetPauserPlayerState(nullptr);
-	FWorldDelegates::OnWorldTickStart.Broadcast(World, LEVELTICK_All, 0.1f);
-	TestEqual(TEXT("Legacy resolved impact survives pause"), Target->GetTotalDamage(), 9.0f);
-	World->DestroyWorld(false);
-	return true;
-}
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFluxPrimePauseReentryTest, "FluxPrime.Pause.ReentrantResume",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FFluxPrimePauseReentryTest::RunTest(const FString& Parameters)
@@ -150,7 +125,7 @@ bool FFluxPrimePauseReentryTest::RunTest(const FString& Parameters)
 	auto* Target = World->SpawnActor<AFluxPrimeCrowdsProjectileTestTarget>();
 	auto* Pauser = World->SpawnActor<APlayerState>();
 	auto* Handler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>();
-	Handler->Initialize(World, false);
+	Handler->Initialize(World);
 	Handler->ReserveShot(1, 10, 2);
 	Handler->ReserveShot(2, 10, 2);
 	World->GetWorldSettings()->SetPauserPlayerState(Pauser);
@@ -182,7 +157,7 @@ bool FFluxPrimePauseObservationTest::RunTest(const FString& Parameters)
 	auto* Target = World->SpawnActor<AFluxPrimeCrowdsProjectileTestTarget>();
 	auto* Pauser = World->SpawnActor<APlayerState>();
 	auto* Handler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>();
-	Handler->Initialize(World, false);
+	Handler->Initialize(World);
 	Handler->ReserveShot(1, 10, 1);
 	World->GetWorldSettings()->SetPauserPlayerState(Pauser);
 	FWorldDelegates::OnWorldTickStart.Broadcast(World, LEVELTICK_All, 0.1f);
@@ -209,7 +184,7 @@ bool FFluxPrimePauseStaleTargetTest::RunTest(const FString& Parameters)
 	auto* Target = World->SpawnActor<AFluxPrimeCrowdsProjectileTestTarget>();
 	auto* Pauser = World->SpawnActor<APlayerState>();
 	auto* Handler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>();
-	Handler->Initialize(World, false);
+	Handler->Initialize(World);
 	Handler->ReserveShot(1, 10, 1);
 	World->GetWorldSettings()->SetPauserPlayerState(Pauser);
 	FWorldDelegates::OnWorldTickStart.Broadcast(World, LEVELTICK_All, 0.1f);

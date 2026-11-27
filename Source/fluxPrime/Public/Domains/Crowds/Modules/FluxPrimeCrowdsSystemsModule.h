@@ -17,7 +17,6 @@
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsAbilitySystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrwodsAnimationNotifySystem.h"
 #include "Domains/Crowds/Systems/State/FluxPrimeCrowdsStateMachineSystem.h"
-#include "Domains/Crowds/Niagara/FluxPrimeCrowdsNiagaraCallback.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsKillEventSystem.h"
 #include "Domains/Crowds/Systems/FluxPrimeCrowdsTargetSystem.h"
 #include "Generics/Systems/FluxPrimeRaycastSystem.h"

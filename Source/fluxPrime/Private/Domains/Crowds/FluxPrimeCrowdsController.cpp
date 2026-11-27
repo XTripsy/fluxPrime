@@ -3,6 +3,7 @@
 
 #include "Domains/Crowds/FluxPrimeCrowdsController.h"
 
+#include "Domains/Crowds/Debug/FluxPrimeCrowdsDebugComponent.h"
 #include "Domains/Crowds/Managers/FluxPrimeCrowdsManager.h"
 #include "Framework/Net/FluxPrimeNetManager.h"
 
@@ -12,6 +13,7 @@ AFluxPrimeCrowdsController::AFluxPrimeCrowdsController()
 	SetMinNetUpdateFrequency(20);
 	
 	CrowdsManager = CreateDefaultSubobject<UFluxPrimeCrowdsManager>(TEXT("CrowdsManager"));
+	CrowdsDebug = CreateDefaultSubobject<UFluxPrimeCrowdsDebugComponent>(TEXT("CrowdsDebug"));
 }
 
 void AFluxPrimeCrowdsController::BeginPlay()
@@ -28,4 +30,5 @@ void AFluxPrimeCrowdsController::BeginPlay()
 	}
 	
 	CrowdsManager->PreLoading();
+	CrowdsDebug->BindManager(CrowdsManager);
 }

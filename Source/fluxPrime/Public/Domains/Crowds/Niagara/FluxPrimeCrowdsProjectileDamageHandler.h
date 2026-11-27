@@ -15,7 +15,7 @@ class FLUXPRIME_API UFluxPrimeCrowdsProjectileDamageHandler : public UObject, pu
 	GENERATED_BODY()
 
 public:
-	void Initialize(UWorld* InWorld, bool bInDebug);
+	void Initialize(UWorld* InWorld);
 	/** Admission reserves one result slot; lifetime must exceed the asset's maximum particle lifetime. */
 	bool ReserveShot(int32 ShotId, float MaxLifetimeSeconds, int32 Capacity);
 	void CancelShot(int32 ShotId);
@@ -38,6 +38,5 @@ private:
 	};
 	TMap<int32, FAcceptedShot> AcceptedShots;
 	bool bUsesReservations = false;
-	bool bDebug = false;
 	bool bLoggedMissingWorld = false;
 };

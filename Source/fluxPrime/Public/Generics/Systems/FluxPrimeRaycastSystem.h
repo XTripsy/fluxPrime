@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "fluxPrime.h"
 #include "Framework/Systems/FluxPrimeBaseSystem.h"
+#include "Generics/Systems/FluxPrimeSpatialGridSystem.h"
 #include "FluxPrimeRaycastSystem.generated.h"
 
 USTRUCT(BlueprintType)

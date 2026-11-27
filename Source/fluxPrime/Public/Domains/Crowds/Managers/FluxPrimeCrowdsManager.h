@@ -8,6 +8,7 @@
 #include "Components/ActorComponent.h"
 #include "Framework/Core/FluxPrimeBaseManager.h"
 #include "Domains/Crowds/Modules/FluxPrimeCrowdsSystemsModule.h"
+#include "Framework/Core/FluxPrimeDebugReadView.h"
 #include "FluxPrimeCrowdsManager.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), HideCategories=(Tags, Activation, Cooking, AssetUserData, Navigation))
@@ -47,6 +48,10 @@ private:
 	TArray<TObjectPtr<UFluxPrimeAnimationData>> ResolvedAnimationData;
 	
 	int16 CrowdsSpawnerModuleIndex = INDEX_NONE, CrowdsSystemModuleIndex = INDEX_NONE, CrowdsDataModuleIndex = INDEX_NONE;
+	
+protected:
+	/** Module configuration owned by the duplicated manager configuration. */
+	TArray<FInstancedStruct>* ModuleFragments = nullptr;
 	
 public:
 	UFluxPrimeCrowdsManager();
@@ -89,9 +94,6 @@ private:
 	}
 	
 protected:
-	/** Module configuration owned by the duplicated manager configuration. */
-	TArray<FInstancedStruct>* ModuleFragments = nullptr;
-
 	/** Validates and resolves the catalog before any asset is loaded. Exposed for tests and subclasses. */
 	bool ValidateAndResolveConfiguration();
 
@@ -104,4 +106,10 @@ public:
 	
 	inline const TMap<FUniqueNetIdRepl, int32>& GetPlayerKillsData() const { return PlayerKillsData; }
 	inline const TArray<TObjectPtr<UFluxPrimeCrowdsIdentity>>& GetResolvedCrowdIdentities() const { return ResolvedCrowdIdentities; }
+
+#if !UE_BUILD_SHIPPING
+	/** Read-only inspection view for the debug layer. Valid for the current pass only. */
+	virtual TConstArrayView<FFluxPrimeDebugArchetypeMeta> GetDebugArchetypeMeta() override;
+	TArray<FFluxPrimeDebugArchetypeMeta> DebugArchetypeMeta;
+#endif
 };

@@ -33,8 +33,6 @@ public:
 	float TraceHeightOffset = 75.0f;
 	UPROPERTY(EditAnywhere, Category = "Melee")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Pawn;
-	UPROPERTY(EditAnywhere, Category = "Melee")
-	bool IsDebug = false;
 
 	void InitializedMeleAbilitySystems(FFluxPrimeCrowdsMeleAbilitySystemsContext context)
 	{
@@ -65,19 +63,6 @@ public:
 
 		if (!bHit) return;
 
-		if (IsDebug)
-		{
-			DrawDebugSphere(
-				World,
-				end,
-				TraceSphereRadius,
-				16,
-				FColor::Yellow,
-				false,
-				1.0f
-			);
-		}
-		
 		UGameplayStatics::ApplyDamage(
 				hit.GetActor(),
 				damage,

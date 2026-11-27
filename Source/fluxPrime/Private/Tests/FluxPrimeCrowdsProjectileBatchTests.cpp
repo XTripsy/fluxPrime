@@ -266,7 +266,7 @@ bool FFluxPrimeProjectilePerParticleDamageTest::RunTest(const FString& Parameter
 	}
 
 	UFluxPrimeCrowdsProjectileDamageHandler* Handler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>();
-	Handler->Initialize(World, false);
+	Handler->Initialize(World);
 
 	TArray<FFluxPrimeProjectileParticleData> Particles;
 	Particles.Add(MakeProjectileTestParticle(TargetLocation, 10.0f, 1));

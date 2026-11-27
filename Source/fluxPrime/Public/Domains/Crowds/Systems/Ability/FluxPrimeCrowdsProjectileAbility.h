@@ -33,9 +33,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Projectile", meta = (Units = "cm"))
 	float TraceHeightOffset = 75.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Projectile")
-	bool IsDebug = false;
-	
 public:
 	/** Persistent system that renders every projectile at once. Required when bUseBatchedProjectiles is on. */
 	UPROPERTY(EditAnywhere, Category = "Projectile|Batched")
@@ -110,7 +107,6 @@ private:
 		Shot.Rotation = rotation;
 		Shot.Damage = damage;
 		Shot.HeightOffset = TraceHeightOffset;
-		Shot.bDebug = IsDebug;
 
 		if (!Batch->SubmitShot(Config, Shot))
 		{

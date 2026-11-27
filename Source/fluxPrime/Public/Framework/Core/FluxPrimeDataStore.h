@@ -113,7 +113,7 @@ public:
 		return true;
 	}
 	
-	bool TryResolveTag(const FGameplayTag tag, const UScriptStruct* expectedType, int16& outIndex)
+	bool TryResolveTag(const FGameplayTag tag, const UScriptStruct* expectedType, int16& outIndex) const
 	{
 		outIndex = INDEX_NONE;
 
@@ -186,6 +186,12 @@ public:
 		}
 
 		return RawDataBuffers[dataID];
+	}
+
+	/** Read-only buffer access for observers. Returns null instead of asserting on an invalid id. */
+	const uint8* PeekRawBufferData(const int32 dataID) const
+	{
+		return RawDataBuffers.IsValidIndex(dataID) ? RawDataBuffers[dataID] : nullptr;
 	}
 	
 	// Rows address the current active prefix, not stable entity handles.

@@ -116,7 +116,7 @@ bool UFluxPrimeCrowdsProjectileBatchSubsystem::SubmitShot(const FFluxPrimeProjec
 	}
 	LastRejection = EFluxPrimeProjectileRejection::None;
 	FFluxPrimeCrowdsProjectileDiagnostics::RecordResult(LastRejection);
-	DamageHandler->Initialize(GetWorld(), Shot.bDebug);
+	DamageHandler->Initialize(GetWorld());
 	NextShotId = NextShotId == MAX_int32 ? 0 : NextShotId + 1;
 	return true;
 }
@@ -186,7 +186,7 @@ bool UFluxPrimeCrowdsProjectileBatchSubsystem::EnsureBatchComponent(const FFluxP
 
 	ActiveChannel = Config.SpawnChannel;
 	DamageHandler = NewObject<UFluxPrimeCrowdsProjectileDamageHandler>(this);
-	DamageHandler->Initialize(World, false);
+	DamageHandler->Initialize(World);
 	BatchComponent->SetVariableObject(FluxPrimeProjectileBatchLocal::CallbackParameterName, DamageHandler);
 	if (auto* Pause = World->GetSubsystem<UFluxPrimePauseWorldSubsystem>()) Pause->RegisterNiagaraComponent(BatchComponent);
 	BatchComponent->Activate(true);

@@ -584,3 +584,13 @@ void UFluxPrimeCrowdsManager::OnActionChange(const FInstancedStruct& payload)
 		PlayerKillsData.Add(data.PlayerId, data.PlayerKillCount);
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+TConstArrayView<FFluxPrimeDebugArchetypeMeta> UFluxPrimeCrowdsManager::GetDebugArchetypeMeta()
+{
+	DebugArchetypeMeta.Reset();
+	for (const auto& Identity : ResolvedCrowdIdentities)
+		DebugArchetypeMeta.Add({Identity ? Identity->Identity : NAME_None, Identity ? Identity->Health : 0});
+	return DebugArchetypeMeta;
+}
+#endif

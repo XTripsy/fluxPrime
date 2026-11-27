@@ -8,6 +8,8 @@
 #include "Components/ActorComponent.h"
 #include "Framework/Data/FluxPrimeEntityCatalogIdentity.h"
 #include "StructUtils/InstancedStruct.h"
+#include "Framework/Core/FluxPrimeDebugReadView.h"
+#include "Framework/Data/FluxPrimeDebugData.h"
 #include "FluxPrimeBaseManager.generated.h"
 
 class UManagerConfiguration;
@@ -54,6 +56,8 @@ private:
 	}
 	
 public:
+	FFluxPrimeDebugReadView CreateDebugReadView() const { return FFluxPrimeDebugReadView(DataStores); }
+	virtual TConstArrayView<FFluxPrimeDebugArchetypeMeta> GetDebugArchetypeMeta() { return {}; }
 	UFluxPrimeBaseManager();
 	virtual void BeginPlay() override;
 
